@@ -140,7 +140,7 @@ def build_act(q_func, ob_space, ac_space, reward_n, weight_coeff, stochastic_ph,
 
     policy = q_func(sess, ob_space, ac_space, reward_n, weight_coeff, 1, 1, None)
     obs_phs = (policy.obs_ph, policy.processed_obs)
-    
+
     q_valu = GGI(policy.q_values, reward_n, weight_coeff)
     deterministic_actions = tf.argmax(q_valu, axis=1)
 
@@ -320,15 +320,17 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, reward_n, weight_coef
 
     return act, obs_phs
 
+
 def GGI(qq_values, reward_n, weight):
-    sorted_q_values = tf.contrib.framework.sort(qq_values, axis=-1, direction='ASCENDING') 
+    sorted_q_values = tf.contrib.framework.sort(qq_values, axis=-1, direction='ASCENDING')
     if weight == 1:
-        ome = [1/n for n in range (1, reward_n+1)]
+        ome = [1 / n for n in range(1, reward_n + 1)]
     else:
-        ome = [1/weight**n for n in range (reward_n)]
+        ome = [1 / weight ** n for n in range(reward_n)]
     omega = tf.constant(ome, dtype=tf.float32)
     w = tf.tensordot(sorted_q_values, omega, axes=1)
     return w
+
 
 def build_train(q_func, ob_space, ac_space, optimizer, reward_n, weight_coeff, sess, grad_norm_clipping=None,
                 gamma=1.0, double_q=False, scope="deepq", reuse=None,
@@ -372,14 +374,18 @@ def build_train(q_func, ob_space, ac_space, optimizer, reward_n, weight_coeff, s
 
     with tf.variable_scope(scope, reuse=reuse):
         if param_noise:
-            act_f, obs_phs = build_act_with_param_noise(q_func, ob_space, ac_space, reward_n,weight_coeff, stochastic_ph,
-                                                        update_eps_ph, sess,param_noise_filter_func=param_noise_filter_func)
+            act_f, obs_phs = build_act_with_param_noise(q_func, ob_space, ac_space, reward_n, weight_coeff,
+                                                        stochastic_ph,
+                                                        update_eps_ph, sess,
+                                                        param_noise_filter_func=param_noise_filter_func)
         else:
-            act_f, obs_phs = build_act(q_func, ob_space, ac_space, reward_n, weight_coeff, stochastic_ph, update_eps_ph, sess)
+            act_f, obs_phs = build_act(q_func, ob_space, ac_space, reward_n, weight_coeff, stochastic_ph, update_eps_ph,
+                                       sess)
 
         # q network evaluation
         with tf.variable_scope("step_model", reuse=True, custom_getter=tf_util.outer_scope_getter("step_model")):
-            step_model = q_func(sess, ob_space, ac_space, reward_n, weight_coeff, 1, 1, None, reuse=True, obs_phs=obs_phs)
+            step_model = q_func(sess, ob_space, ac_space, reward_n, weight_coeff, 1, 1, None, reuse=True,
+                                obs_phs=obs_phs)
         q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/model")
         # target q network evaluation
 
@@ -406,7 +412,7 @@ def build_train(q_func, ob_space, ac_space, optimizer, reward_n, weight_coeff, s
 
         # q scores for actions which we know were selected in the given state.
         selected_actions = tf.one_hot(act_t_ph, n_actions)
-        valid_action = tf.reshape(selected_actions, shape=[-1,n_actions,1])
+        valid_action = tf.reshape(selected_actions, shape=[-1, n_actions, 1])
         q_t_selected = tf.reduce_sum((step_model.q_values * valid_action), axis=1)
 
         # compute estimate of best possible value starting from state at t + 1
@@ -417,18 +423,18 @@ def build_train(q_func, ob_space, ac_space, optimizer, reward_n, weight_coeff, s
             d_target = GGI(a, reward_n, weight_coeff)
             dq_tp1_best_action = tf.argmax(d_target, axis=1)
             double_target_selected_actions = tf.one_hot(dq_tp1_best_action, n_actions)
-            double_target_valid_action = tf.reshape(double_target_selected_actions, shape=[-1,n_actions,1])
+            double_target_valid_action = tf.reshape(double_target_selected_actions, shape=[-1, n_actions, 1])
             q_tp1_best = tf.reduce_sum((target_policy.q_values * double_target_valid_action), axis=1)
         else:
             donee = tf.expand_dims((1.0 - done_mask_ph), axis=1)
-            target_q = tf.expand_dims(donee, axis=1) * target_policy.q_values 
+            target_q = tf.expand_dims(donee, axis=1) * target_policy.q_values
             a = tf.expand_dims(rew_t_ph, axis=1) + gamma * target_q
             target = GGI(a, reward_n, weight_coeff)
             q_tp1_best_action = tf.argmax(target, axis=1)
             target_selected_actions = tf.one_hot(q_tp1_best_action, n_actions)
-            target_valid_action = tf.reshape(target_selected_actions, shape=[-1,n_actions,1])
+            target_valid_action = tf.reshape(target_selected_actions, shape=[-1, n_actions, 1])
             q_tp1_best = tf.reduce_sum((target_policy.q_values * target_valid_action), axis=1)
- 
+
         q_tp1_best_masked = donee * q_tp1_best
 
         # compute RHS of bellman equation

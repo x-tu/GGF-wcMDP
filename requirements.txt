@@ -4,7 +4,7 @@ cloudpickle==2.2.0
 gast==0.5.3
 google-pasta==0.2.0
 grpcio==1.50.0
-gym==0.26.2
+gym==0.16.0
 gym-notices==0.0.8
 h5py==3.7.0
 importlib-metadata==5.0.0

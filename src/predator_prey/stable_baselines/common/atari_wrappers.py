@@ -1,9 +1,10 @@
 from collections import deque
 
-import numpy as np
-import gym
-from gym import spaces
 import cv2
+import gym
+import numpy as np
+from gym import spaces
+
 cv2.ocl.setUseOpenCL(False)
 
 
@@ -119,7 +120,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         """
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
-        self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=env.observation_space.dtype)
+        self._obs_buffer = np.zeros((2,) + env.observation_space.shape, dtype=env.observation_space.dtype)
         self._skip = skip
 
     def step(self, action):

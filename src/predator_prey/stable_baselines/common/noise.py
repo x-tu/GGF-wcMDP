@@ -9,6 +9,7 @@ class AdaptiveParamNoiseSpec(object):
     :param desired_action_stddev: (float) the desired value for the standard deviation of the noise
     :param adoption_coefficient: (float) the update coefficient for the standard deviation of the noise
     """
+
     def __init__(self, initial_stddev=0.1, desired_action_stddev=0.1, adoption_coefficient=1.01):
         self.initial_stddev = initial_stddev
         self.desired_action_stddev = desired_action_stddev
@@ -46,6 +47,7 @@ class ActionNoise(object):
     """
     The action noise base class
     """
+
     def reset(self):
         """
         call end of episode reset for the noise
@@ -60,6 +62,7 @@ class NormalActionNoise(ActionNoise):
     :param mean: (float) the mean value of the noise
     :param sigma: (float) the scale of the noise (std here)
     """
+
     def __init__(self, mean, sigma):
         self._mu = mean
         self._sigma = sigma

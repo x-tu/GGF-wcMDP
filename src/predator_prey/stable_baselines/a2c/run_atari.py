@@ -2,8 +2,8 @@
 
 from stable_baselines import logger, A2C
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
-from stable_baselines.common.vec_env import VecFrameStack
 from stable_baselines.common.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
+from stable_baselines.common.vec_env import VecFrameStack
 
 
 def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):

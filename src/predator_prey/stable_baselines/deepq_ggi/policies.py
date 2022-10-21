@@ -1,10 +1,10 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as tf_layers
-import numpy as np
 from gym.spaces import Discrete
 
-from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
 from stable_baselines import deepq_ggi
+from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
 
 
 class DQNPolicy(BasePolicy):
@@ -24,7 +24,8 @@ class DQNPolicy(BasePolicy):
     :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     """
 
-    def __init__(self, sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch, reuse=False, scale=False,
+    def __init__(self, sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch, reuse=False,
+                 scale=False,
                  obs_phs=None, dueling=False):
         # DQN policies need an override for the obs placeholder, due to the architecture of the code
         super(DQNPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=scale,
@@ -92,7 +93,8 @@ class FeedForwardPolicy(DQNPolicy):
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch, reuse=False, layers=None,
+    def __init__(self, sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch, reuse=False,
+                 layers=None,
                  cnn_extractor=nature_cnn, feature_extraction="cnn",
                  obs_phs=None, layer_norm=False, dueling=False, act_fun=tf.nn.relu, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps,
@@ -118,7 +120,8 @@ class FeedForwardPolicy(DQNPolicy):
                             action_out = tf_layers.layer_norm(action_out, center=True, scale=True)
                         action_out = act_fun(action_out)
 
-                action_scores = tf_layers.fully_connected(action_out, num_outputs=self.n_actions*self.reward_n, activation_fn=None)
+                action_scores = tf_layers.fully_connected(action_out, num_outputs=self.n_actions * self.reward_n,
+                                                          activation_fn=None)
 
             if self.dueling:
                 with tf.variable_scope("state_value"):
@@ -129,7 +132,7 @@ class FeedForwardPolicy(DQNPolicy):
                             state_out = tf_layers.layer_norm(state_out, center=True, scale=True)
                         state_out = act_fun(state_out)
                     state_score = tf_layers.fully_connected(state_out, num_outputs=self.reward_n, activation_fn=None)
-                
+
                 q_out = tf.reshape(action_scores, [-1, self.n_actions, self.reward_n])
                 action_scores_mean = tf.reduce_mean(q_out, axis=1)
                 action_scores_centered = q_out - tf.expand_dims(action_scores_mean, axis=1)
@@ -144,7 +147,8 @@ class FeedForwardPolicy(DQNPolicy):
         self._setup_init()
 
     def step(self, obs, state=None, mask=None, deterministic=True):
-        q_values, actions_proba, q_ggi = self.sess.run([self.q_values, self.policy_proba, self.q_ggi], {self.obs_ph: obs})
+        q_values, actions_proba, q_ggi = self.sess.run([self.q_values, self.policy_proba, self.q_ggi],
+                                                       {self.obs_ph: obs})
         if deterministic:
             actions = np.argmax(q_ggi, axis=1)
         else:
@@ -228,7 +232,8 @@ class MlpPolicy(FeedForwardPolicy):
 
     def __init__(self, sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch,
                  reuse=False, obs_phs=None, dueling=False, **_kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch, reuse,
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, reward_n, weight_coeff, n_env, n_steps, n_batch,
+                                        reuse,
                                         feature_extraction="mlp", obs_phs=obs_phs, dueling=dueling,
                                         layer_norm=False, **_kwargs)
 

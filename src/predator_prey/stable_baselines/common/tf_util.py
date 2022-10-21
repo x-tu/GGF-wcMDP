@@ -1,7 +1,7 @@
-import os
 import collections
 import functools
 import multiprocessing
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -166,7 +166,7 @@ class _Function(object):
         :param givens: (dict) the values known for the output
         """
         for inpt in inputs:
-            if not hasattr(inpt, 'make_feed_dict') and not (isinstance(inpt, tf.Tensor)and len(inpt.op.inputs) == 0):
+            if not hasattr(inpt, 'make_feed_dict') and not (isinstance(inpt, tf.Tensor) and len(inpt.op.inputs) == 0):
                 assert False, "inputs should all be placeholders, constants, or have a make_feed_dict method"
         self.inputs = inputs
         updates = updates or []
@@ -330,8 +330,10 @@ def outer_scope_getter(scope, new_scope=""):
     :param new_scope: (str) optional replacement name
     :return: (function (function, str, ``*args``, ``**kwargs``): Tensorflow Tensor)
     """
+
     def _getter(getter, name, *args, **kwargs):
         name = name.replace(scope + "/", new_scope, 1)
         val = getter(name, *args, **kwargs)
         return val
+
     return _getter

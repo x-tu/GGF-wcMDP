@@ -1,6 +1,6 @@
-from stable_baselines.deepq_ggi.policies import MlpPolicy, CnnPolicy, LnMlpPolicy, LnCnnPolicy
 from stable_baselines.deepq_ggi.build_graph import build_act, build_train, GGI  # noqa
 from stable_baselines.deepq_ggi.dqn import DQN as DQN_GGI
+from stable_baselines.deepq_ggi.policies import MlpPolicy, CnnPolicy, LnMlpPolicy, LnCnnPolicy
 from stable_baselines.deepq_ggi.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer  # noqa
 
 

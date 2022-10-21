@@ -1,16 +1,16 @@
-import os
-import sys
-import shutil
-import json
-import time
 import datetime
+import json
+import os
+import shutil
+import sys
 import tempfile
+import time
 import warnings
 from collections import defaultdict
 
 import tensorflow as tf
-from tensorflow.python import pywrap_tensorflow
 from tensorflow.core.util import event_pb2
+from tensorflow.python import pywrap_tensorflow
 from tensorflow.python.util import compat
 
 from stable_baselines.common.misc_util import mpi_rank_or_zero
@@ -27,6 +27,7 @@ class KVWriter(object):
     """
     Key Value writer
     """
+
     def writekvs(self, kvs):
         """
         write a dictionary to file
@@ -40,6 +41,7 @@ class SeqWriter(object):
     """
     sequence writer
     """
+
     def writeseq(self, seq):
         """
         write an array to file
@@ -437,6 +439,7 @@ def profile(name):
     :param name: (str) the profiling name
     :return: (function) the wrapped function
     """
+
     def decorator_with_name(func):
         def func_wrapper(*args, **kwargs):
             with ProfileKV(name):

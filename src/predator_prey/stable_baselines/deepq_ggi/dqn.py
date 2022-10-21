@@ -1,16 +1,16 @@
 from functools import partial
 
-import tensorflow as tf
-import numpy as np
 import gym
+import numpy as np
+import tensorflow as tf
 
 from stable_baselines import logger, deepq_ggi
-from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
-from stable_baselines.common.vec_env import VecEnv
-from stable_baselines.common.schedules import LinearSchedule
-from stable_baselines.deepq_ggi.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from stable_baselines.deepq_ggi.policies import DQNPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
+from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
+from stable_baselines.common.schedules import LinearSchedule
+from stable_baselines.common.vec_env import VecEnv
+from stable_baselines.deepq_ggi.policies import DQNPolicy
+from stable_baselines.deepq_ggi.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 
 
 class DQN(OffPolicyRLModel):
@@ -53,7 +53,9 @@ class DQN(OffPolicyRLModel):
     :param n_cpu_tf_sess: (int) The number of threads for TensorFlow operations
         If None, the number of cpu of the current machine will be used.
     """
-    def __init__(self, policy, env, weight_coef, gamma=0.99, learning_rate=5e-4, buffer_size=50000, exploration_fraction=0.1,
+
+    def __init__(self, policy, env, weight_coef, gamma=0.99, learning_rate=5e-4, buffer_size=50000,
+                 exploration_fraction=0.1,
                  exploration_final_eps=0.02, train_freq=1, batch_size=32, double_q=False,
                  learning_starts=1000, target_network_update_freq=500, prioritized_replay=False,
                  prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4, prioritized_replay_beta_iters=None,
@@ -63,7 +65,8 @@ class DQN(OffPolicyRLModel):
 
         # TODO: replay_buffer refactoring
         super(DQN, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DQNPolicy,
-                                  requires_vec_env=False, policy_kwargs=policy_kwargs, seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
+                                  requires_vec_env=False, policy_kwargs=policy_kwargs, seed=seed,
+                                  n_cpu_tf_sess=n_cpu_tf_sess)
 
         self.param_noise = param_noise
         self.learning_starts = learning_starts
@@ -128,15 +131,15 @@ class DQN(OffPolicyRLModel):
                 self.sess = tf_util.make_session(num_cpu=self.n_cpu_tf_sess, graph=self.graph)
 
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
-                #optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
+                # optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
 
                 self.act, self._train_step, self.update_target, self.step_model = deepq_ggi.build_train(
                     q_func=partial(self.policy, **self.policy_kwargs),
                     ob_space=self.observation_space,
                     ac_space=self.action_space,
                     optimizer=optimizer,
-                    reward_n = self.reward_space.n,
-                    weight_coeff = self.weight_coef,
+                    reward_n=self.reward_space.n,
+                    weight_coeff=self.weight_coef,
                     gamma=self.gamma,
                     grad_norm_clipping=10,
                     param_noise=self.param_noise,
@@ -179,7 +182,6 @@ class DQN(OffPolicyRLModel):
             if replay_wrapper is not None:
                 assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                 self.replay_buffer = replay_wrapper(self.replay_buffer)
-
 
             # Create the schedule for exploration starting from 1.
             self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
@@ -244,7 +246,7 @@ class DQN(OffPolicyRLModel):
                 # or if there are not enough samples in the replay buffer
                 can_sample = self.replay_buffer.can_sample(self.batch_size)
                 if can_sample and self.num_timesteps > self.learning_starts \
-                    and self.num_timesteps % self.train_freq == 0:
+                        and self.num_timesteps % self.train_freq == 0:
                     # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                     if self.prioritized_replay:
                         experience = self.replay_buffer.sample(self.batch_size,

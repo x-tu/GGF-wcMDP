@@ -6,9 +6,9 @@ import os
 
 import gym
 from gym.wrappers import FlattenDictWrapper
+from stable_baselines.bench import Monitor
 
 from stable_baselines import logger
-from stable_baselines.bench import Monitor
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from stable_baselines.common.misc_util import mpi_rank_or_zero
@@ -40,7 +40,9 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None,
             env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
                           allow_early_resets=allow_early_resets)
             return wrap_deepmind(env, **wrapper_kwargs)
+
         return _thunk
+
     set_global_seeds(seed)
 
     # When using one environment, no need to start subprocesses

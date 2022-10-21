@@ -308,6 +308,7 @@ def discount_with_dones(rewards, dones, gamma):
         discounted.append(ret)
     return discounted[::-1]
 
+
 def make_path(path):
     """
     For a given path, create the folders if they do not exist
@@ -581,7 +582,7 @@ def total_episode_reward_logger(rew_acc, rewards, masks, writer, steps):
                 summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
                 writer.add_summary(summary, steps + dones_idx[0, 0])
                 for k in range(1, len(dones_idx[:, 0])):
-                    rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[k-1, 0]:dones_idx[k, 0]])
+                    rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[k - 1, 0]:dones_idx[k, 0]])
                     summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
                     writer.add_summary(summary, steps + dones_idx[k, 0])
                 rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[-1, 0]:])

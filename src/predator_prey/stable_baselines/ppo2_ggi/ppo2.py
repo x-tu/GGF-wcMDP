@@ -1,5 +1,4 @@
 import time
-import sys
 from collections import deque
 
 import gym
@@ -7,10 +6,10 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
+from stable_baselines.a2c_ggi.utils import total_episode_reward_logger
 from stable_baselines.common import explained_variance, ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
-from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.common.policies_ggi import ActorCriticPolicy, RecurrentActorCriticPolicy
-from stable_baselines.a2c_ggi.utils import total_episode_reward_logger, Deri_GGI
+from stable_baselines.common.runners import AbstractEnvRunner
 
 
 class PPO2(ActorCriticRLModel):
@@ -50,7 +49,9 @@ class PPO2(ActorCriticRLModel):
     :param n_cpu_tf_sess: (int) The number of threads for TensorFlow operations
         If None, the number of cpu of the current machine will be used.
     """
-    def __init__(self, policy, env, reward_space, weight_coef, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
+
+    def __init__(self, policy, env, reward_space, weight_coef, gamma=0.99, n_steps=128, ent_coef=0.01,
+                 learning_rate=2.5e-4, vf_coef=0.5,
                  max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, cliprange_vf=None,
                  verbose=0, tensorboard_log=None, _init_setup_model=True, policy_kwargs=None,
                  full_tensorboard_log=False, seed=None, n_cpu_tf_sess=None):
@@ -130,12 +131,13 @@ class PPO2(ActorCriticRLModel):
                 n_batch_step = None
                 n_batch_train = None
                 if issubclass(self.policy, RecurrentActorCriticPolicy):
-                    assert self.n_envs % self.nminibatches == 0, "For recurrent policies, "\
-                        "the number of environments run in parallel should be a multiple of nminibatches."
+                    assert self.n_envs % self.nminibatches == 0, "For recurrent policies, " \
+                                                                 "the number of environments run in parallel should be a multiple of nminibatches."
                     n_batch_step = self.n_envs
                     n_batch_train = self.n_batch // self.nminibatches
 
-                act_model = self.policy(self.sess, self.observation_space, self.action_space, self.reward_n, self.n_envs, 1,
+                act_model = self.policy(self.sess, self.observation_space, self.action_space, self.reward_n,
+                                        self.n_envs, 1,
                                         n_batch_step, reuse=False, **self.policy_kwargs)
                 with tf.variable_scope("train_model", reuse=True,
                                        custom_getter=tf_util.outer_scope_getter("train_model")):
@@ -180,9 +182,8 @@ class PPO2(ActorCriticRLModel):
                         # Clip the different between old and new value
                         # NOTE: this depends on the reward scaling
                         vpred_clipped = self.old_vpred_ph + \
-                            tf.clip_by_value(train_model.value_flat - self.old_vpred_ph,
-                                             - self.clip_range_vf_ph, self.clip_range_vf_ph)
-
+                                        tf.clip_by_value(train_model.value_flat - self.old_vpred_ph,
+                                                         - self.clip_range_vf_ph, self.clip_range_vf_ph)
 
                     vf_losses1 = tf.square(vpred - self.rewards_ph)
                     vf_losses2 = tf.square(vpred_clipped - self.rewards_ph)
@@ -192,7 +193,7 @@ class PPO2(ActorCriticRLModel):
                     pg_losses = -self.advs_ph * tf.expand_dims(ratio, axis=1)
                     clipped_pg_loss2 = tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
                     pg_losses2 = -self.advs_ph * tf.expand_dims(clipped_pg_loss2, axis=1)
-                    
+
                     policyy = tf.maximum(pg_losses, pg_losses2)
                     pg_ggi_loss = tf.tensordot(policyy, self.sor_omega, axes=1)
                     self.pg_loss = tf.reduce_mean(pg_ggi_loss)
@@ -255,7 +256,8 @@ class PPO2(ActorCriticRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-    def _train_step(self, learning_rate, cliprange, avg_init_states, sorted_omega, obs, returns, masks, actions, values, neglogpacs, update,
+    def _train_step(self, learning_rate, cliprange, avg_init_states, sorted_omega, obs, returns, masks, actions, values,
+                    neglogpacs, update,
                     writer, states=None, cliprange_vf=None):
         """
         Training of PPO2 Algorithm
@@ -279,8 +281,8 @@ class PPO2(ActorCriticRLModel):
         """
         advs = returns - values
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
-        #advs = (advs - advs.mean(axis=0)) / (advs.std(axis=0) + 1e-8)
-        td_map = {self.train_model.obs_ph: obs, self.action_ph: actions, self.advs_ph: advs, 
+        # advs = (advs - advs.mean(axis=0)) / (advs.std(axis=0) + 1e-8)
+        td_map = {self.train_model.obs_ph: obs, self.action_ph: actions, self.advs_ph: advs,
                   self.rewards_ph: returns, self.learning_rate_ph: learning_rate, self.clip_range_ph: cliprange,
                   self.old_neglog_pac_ph: neglogpacs, self.old_vpred_ph: values,
                   self.ini_obs_value: avg_init_states, self.sor_omega: sorted_omega}
@@ -329,7 +331,7 @@ class PPO2(ActorCriticRLModel):
                 as writer:
             self._setup_learn()
 
-            runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam, 
+            runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam,
                             reward_n=self.reward_n, ggi_constant=self.weight_coef)
             self.episode_reward = np.zeros((self.n_envs,))
 
@@ -361,8 +363,9 @@ class PPO2(ActorCriticRLModel):
                             end = start + batch_size
                             mbinds = inds[start:end]
                             slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                            mb_loss_vals.append(self._train_step(lr_now, cliprange_now, avg_value, w, *slices, writer=writer,
-                                                                 update=timestep, cliprange_vf=cliprange_vf_now))
+                            mb_loss_vals.append(
+                                self._train_step(lr_now, cliprange_now, avg_value, w, *slices, writer=writer,
+                                                 update=timestep, cliprange_vf=cliprange_vf_now))
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0
@@ -379,9 +382,10 @@ class PPO2(ActorCriticRLModel):
                             mb_flat_inds = flat_indices[mb_env_inds].ravel()
                             slices = (arr[mb_flat_inds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                             mb_states = states[mb_env_inds]
-                            mb_loss_vals.append(self._train_step(lr_now, cliprange_now, avg_value, w, *slices, update=timestep,
-                                                                 writer=writer, states=mb_states,
-                                                                 cliprange_vf=cliprange_vf_now))
+                            mb_loss_vals.append(
+                                self._train_step(lr_now, cliprange_now, avg_value, w, *slices, update=timestep,
+                                                 writer=writer, states=mb_states,
+                                                 cliprange_vf=cliprange_vf_now))
 
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
@@ -389,7 +393,8 @@ class PPO2(ActorCriticRLModel):
 
                 if writer is not None:
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                      true_reward.reshape((self.n_envs, self.n_steps*self.reward_n)),
+                                                                      true_reward.reshape(
+                                                                          (self.n_envs, self.n_steps * self.reward_n)),
                                                                       masks.reshape((self.n_envs, self.n_steps)),
                                                                       writer, self.num_timesteps)
 
@@ -501,15 +506,14 @@ class Runner(AbstractEnvRunner):
         # initial state of Environment
         initial_state = self.env.initial_states()
         initial_state_value = self.model.value(np.squeeze(initial_state), self.states, self.dones)
-        
-        averaged_state_value = np.mean(initial_state_value, axis=0) # average value of initial state
+
+        averaged_state_value = np.mean(initial_state_value, axis=0)  # average value of initial state
         print("averaged_state_valueaveraged_state_valueaveraged_state_valueaveraged_state_value", averaged_state_value)
         # sort the ggi vector w.r.t v_{so}
-        sorted_omega = [np.where(averaged_state_value.argsort()==i)[0][0] for i in range(self.reward_n)]
+        sorted_omega = [np.where(averaged_state_value.argsort() == i)[0][0] for i in range(self.reward_n)]
         omega = np.array([1 / (self.ggi_constant ** i) for i in range(self.reward_n)])
         w = omega[sorted_omega]
         print("wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww", w)
-
 
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
@@ -519,7 +523,7 @@ class Runner(AbstractEnvRunner):
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
         mb_dones = np.asarray(mb_dones, dtype=np.bool)
         last_values = self.model.value(self.obs, self.states, self.dones)
-        
+
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
         true_reward = np.copy(mb_rewards)

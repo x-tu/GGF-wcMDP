@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-import numpy as np
 import gym
+import numpy as np
 
-from stable_baselines.common.cmd_util import mujoco_arg_parser
 from stable_baselines import bench, logger
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.vec_env.vec_normalize import VecNormalize
-from stable_baselines.ppo2 import PPO2
+from stable_baselines.common.cmd_util import mujoco_arg_parser
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.common.vec_env.vec_normalize import VecNormalize
+from stable_baselines.ppo2 import PPO2
 
 
 def train(env_id, num_timesteps, seed):
@@ -19,6 +19,7 @@ def train(env_id, num_timesteps, seed):
     :param num_timesteps: (int) the number of timesteps to run
     :param seed: (int) Used to seed the random generator.
     """
+
     def make_env():
         env_out = gym.make(env_id)
         env_out = bench.Monitor(env_out, logger.get_dir(), allow_early_resets=True)

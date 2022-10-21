@@ -64,15 +64,16 @@ def Deri_GGI(policy_gradient, averaged_states_value, reward_n, weight):
     :patams weight: weight coeffcient (default is 2)
     """
     sorted_index = tf.contrib.framework.argsort(averaged_states_value, axis=-1, direction='ASCENDING')
-    #sorted_index = tf.negative(tf.nn.top_k(tf.negative(averaged_states_value), k=reward_n)[1])
+    # sorted_index = tf.negative(tf.nn.top_k(tf.negative(averaged_states_value), k=reward_n)[1])
     if weight == 1:
-        ome = [1/n for n in range (1, reward_n+1)]
+        ome = [1 / n for n in range(1, reward_n + 1)]
     else:
-        ome = [1/weight**n for n in range (reward_n)]
+        ome = [1 / weight ** n for n in range(reward_n)]
     omega = tf.constant(ome, dtype=tf.float32)
     policy_gradient_sorted = tf.gather(policy_gradient, sorted_index, axis=1)
     w = tf.tensordot(policy_gradient_sorted, omega, axes=1)
     return w
+
 
 def ortho_init(scale=1.0):
     """
@@ -322,12 +323,13 @@ def discount_with_dones(rewards, dones, gamma, reward_n):
     :return: ([float]) The discounted rewards
     """
     discounted = []
-    #ret = 0  # Return: discounted reward
+    # ret = 0  # Return: discounted reward
     ret = np.zeros(reward_n)
     for reward, done in zip(rewards[::-1], dones[::-1]):
         ret = reward + gamma * ret * (1. - done)  # fixed off by one bug
         discounted.append(ret)
     return discounted[::-1]
+
 
 def make_path(path):
     """
@@ -602,7 +604,7 @@ def total_episode_reward_logger(rew_acc, rewards, masks, writer, steps):
                 summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
                 writer.add_summary(summary, steps + dones_idx[0, 0])
                 for k in range(1, len(dones_idx[:, 0])):
-                    rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[k-1, 0]:dones_idx[k, 0]])
+                    rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[k - 1, 0]:dones_idx[k, 0]])
                     summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
                     writer.add_summary(summary, steps + dones_idx[k, 0])
                 rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[-1, 0]:])
