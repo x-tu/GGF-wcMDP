@@ -7,7 +7,7 @@ import pyomo.environ as pyo
 # Parameters
 input_data = {
     "D_GROUP": 2,
-    "WEIGHT_D": [0.7, 0.3],
+    "WEIGHT_D": [0.6, 0.4],
     "N_STATE": 3,
     "N_ACTION": 2,
     "OPERATION_COST": [10, 20, 50],
@@ -78,6 +78,30 @@ def solve_ggf(data: dict) -> pyo.ConcreteModel:
     return model
 
 
+def extract_results(ggf_model: pyo.ConcreteModel, data: dict) -> None:
+    # Index
+    state_list = range(data["N_STATE"])
+    action_list = range(data["N_ACTION"])
+    group_list = range(data["D_GROUP"])
+
+    # Print Results
+    # Dual variable x
+    for d in group_list:
+        print(f"Group {d}")
+        for s in state_list:
+            for a in action_list:
+                print(f"x{d, s, a}: {ggf_model.varD._data[d, s, a].value}")
+
+    # Dual variable lambda
+    for d in group_list:
+        print(f"lambda{d}: {ggf_model.varL._data[d].value}")
+
+    # Dual variable nu
+    for d in group_list:
+        print(f"nu{d}: {ggf_model.varN._data[d].value}")
+
+
 ggf_model = solve_ggf(input_data)
 pyo.SolverFactory('cbc').solve(ggf_model).write()
+extract_results(ggf_model, input_data)
 print(ggf_model)
