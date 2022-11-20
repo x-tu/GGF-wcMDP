@@ -40,4 +40,11 @@ pip install -r requirements.txt
 pip3 install -r requirements.txt
 ```
 
+## Package Setup
+
+To run code other than the main branch, for example, to a remote branch called `remote-branch-name`:
+```
+git pull
+git checkout remote-branch-name
+```
 
