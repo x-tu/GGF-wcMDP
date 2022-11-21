@@ -65,9 +65,9 @@ def solve_ggf(data: dict) -> pyo.ConcreteModel:
             model.dual_constraints.add(
                 sum(model.varD[d, s, a] for a in action_list) - data["DISCOUNT"] * (sum(
                     # Keep the machine
-                    model.varD[d, next_s, 0] * data["TRANSITION_MATRIX"][next_s, 0] +
+                    model.varD[d, next_s, 0] * data["TRANSITION_MATRIX"][s, next_s] +
                     # Replace the machine
-                    model.varD[d, next_s, 1] * data["TRANSITION_MATRIX"][next_s, 1]
+                    model.varD[d, next_s, 1] * data["TRANSITION_MATRIX"][0, next_s]
                     for next_s in state_list
                 ))
                 == model.varM[s]
@@ -99,6 +99,10 @@ def extract_results(ggf_model: pyo.ConcreteModel, data: dict) -> None:
     # Dual variable nu
     for d in group_list:
         print(f"nu{d}: {ggf_model.varN._data[d].value}")
+
+    # Dual variable mu
+    for s in state_list:
+        print(f"mu{s}: {ggf_model.varM._data[s].value}")
 
 
 ggf_model = solve_ggf(input_data)
