@@ -1,27 +1,10 @@
 """This is an implementation for GGF-LP."""
 
-import itertools
-
-import numpy as np
 import pyomo.environ as pyo
-
-# Parameters
-input_data = {
-    "D_GROUP": 2,
-    # TODO: sort the weights
-    "WEIGHT_D": [0.5, 0.5],
-    "N_STATE": 3,
-    "N_ACTION": 2,
-    "OPERATION_COST": [10, 20, 50],
-    "REPLACE_COST": 100,
-    "DISCOUNT": 0.9,
-    "TRANSITION_MATRIX": np.array([[[0.5, 0.5], [0.5, 0.5], [0, 0]],
-                                   [[0, 0.5], [0.5, 0.5], [0.5, 0]],
-                                   [[0, 0.5], [0, 0.5], [1, 0]]])
-}
+from mrp_data import MRPData
 
 
-def solve_ggf(data: dict) -> pyo.ConcreteModel:
+def solve_ggf(data: MRPData) -> pyo.ConcreteModel:
     """The main function used to solve the dual MRP.
 
     Args:
@@ -33,126 +16,75 @@ def solve_ggf(data: dict) -> pyo.ConcreteModel:
     """
     model = pyo.ConcreteModel()
 
-    # Index
-    # Create group list
-    d_idx_list = range(data["D_GROUP"])
-    # Create state list: cartesian s^D
-    # Used to generate state cartesian product
-    state_D_dim_temp = [list(range(data["N_STATE"]))] * data["D_GROUP"]
-    s_tuple_list = list(itertools.product(*state_D_dim_temp))
-    s_idx_list = range(len(s_tuple_list))
-    # Create action list: [Keep] + [replace_1, ..., replace_D]
-    a_tuple_list = [np.zeros(data["D_GROUP"], dtype=int).tolist()]
-    a_tuple_list.extend(np.diag(np.ones(data["D_GROUP"], dtype=int)).tolist())
-    a_idx_list = range(len(a_tuple_list))
-
-    # Parameters
-    # Helper function 1
-    def generate_big_cost_matrix():
-        """Generate the cost matrix R(s, a, d) at state s taking action a for group d."""
-        bigC = np.zeros([len(s_tuple_list), len(a_tuple_list), len(d_idx_list)])
-
-        # Calculate immediate cost for a single machine
-        # TODO: Change the rewards between different groups
-        immediate_cost = np.zeros((data["N_STATE"], data["N_ACTION"]))
-        # Keeps the machine
-        immediate_cost[:, 0] = data["OPERATION_COST"]
-        # Replaces the machine (replace cost + new machine operation cost, no delivery lead time)
-        immediate_cost[:, 1] = data["REPLACE_COST"] + data["OPERATION_COST"][0]
-
-        for s in s_idx_list:
-            for a in a_idx_list:
-                for d in d_idx_list:
-                    bigC[s, a, d] = immediate_cost[s_tuple_list[s][d], a_tuple_list[a][d]]
-        return bigC
-
-    # Helper function 2
-    def generate_big_transition_matrix():
-        """Generate the transition matrix Pr(s, s', a) from state s to state s' taking action a."""
-        matrix_T = data["TRANSITION_MATRIX"]
-        bigT = np.zeros([len(s_tuple_list), len(s_tuple_list), len(a_tuple_list)])
-
-        for s in s_idx_list:
-            for a in a_idx_list:
-                for next_s in s_idx_list:
-                    tmpT = 1
-                    for d in d_idx_list:
-                        tmpT *= matrix_T[s_tuple_list[s][d], s_tuple_list[next_s][d], a_tuple_list[a][d]]
-                    bigT[s, next_s, a] = tmpT
-        return bigT
-
     # Create mu list
-    big_mu_list = [1 / len(s_tuple_list)] * len(s_tuple_list)
-    # Create reward list
-    global big_cost
-    big_cost = generate_big_cost_matrix()
-    # Create transition list
-    big_transition = generate_big_transition_matrix()
+    big_mu_list = [1 / len(data.tuple_list_s)] * len(data.tuple_list_s)
 
     # Variables
-    model.varL = pyo.Var(d_idx_list, within=pyo.NonNegativeReals)
-    model.varN = pyo.Var(d_idx_list, within=pyo.NonNegativeReals)
-    model.varD = pyo.Var(s_tuple_list, a_idx_list, within=pyo.NonNegativeReals)
+    model.varL = pyo.Var(data.idx_list_d, within=pyo.NonNegativeReals)
+    model.varN = pyo.Var(data.idx_list_d, within=pyo.NonNegativeReals)
+    model.varD = pyo.Var(data.tuple_list_s, data.idx_list_a, within=pyo.NonNegativeReals)
 
     # Objective
     model.cost = pyo.Objective(
-        expr=sum(model.varL[d] for d in d_idx_list) + sum(model.varN[d] for d in d_idx_list), sense=pyo.minimize)
+        expr=sum(model.varL[d] for d in data.idx_list_d) + sum(model.varN[d] for d in data.idx_list_d),
+        sense=pyo.minimize)
 
     # Constraints
     model.dual_constraints = pyo.ConstraintList()
     # Group 1 (D * D Constraints)
-    for d1 in d_idx_list:
-        for d2 in d_idx_list:
-            model.dual_constraints.add(model.varL[d1] + model.varN[d2] >= data["WEIGHT_D"][d1] * sum(
-                big_cost[s, a, d2] * model.varD[s_tuple_list[s], a]
-                for s in s_idx_list for a in a_idx_list))
+    for d1 in data.idx_list_d:
+        for d2 in data.idx_list_d:
+            model.dual_constraints.add(model.varL[d1] + model.varN[d2] >= data.weight[d1] * sum(
+                data.bigC[s, a, d2] * model.varD[data.tuple_list_s[s], a]
+                for s in data.idx_list_s for a in data.idx_list_a))
 
     # Group 2 (s ^ D Constraints)
-    for s in s_idx_list:
+    for s in data.idx_list_s:
         model.dual_constraints.add(
-            sum(model.varD[s_tuple_list[s], a] for a in a_idx_list)
-            - data["DISCOUNT"] * (sum(model.varD[s_tuple_list[next_s], a] * big_transition[s, next_s, a]
-                                      for next_s in s_idx_list for a in a_idx_list)) == big_mu_list[s]
+            sum(model.varD[data.tuple_list_s[s], a] for a in data.idx_list_a)
+            - data.discount * (sum(model.varD[data.tuple_list_s[next_s], a] * data.bigT[s, next_s, a]
+                                   for next_s in data.idx_list_s for a in data.idx_list_a)) == big_mu_list[s]
         )
     return model
 
 
-def extract_results(model: pyo.ConcreteModel, data: dict) -> None:
-    # Index
-    # Create group list
-    d_idx_list = range(data["D_GROUP"])
-    # Create state list: cartesian s^D
-    # Used to generate state cartesian product
-    state_D_dim_temp = [list(range(data["N_STATE"]))] * data["D_GROUP"]
-    s_tuple_list = list(itertools.product(*state_D_dim_temp))
-    s_idx_list = range(len(s_tuple_list))
-    # Create action list: [Keep] + [replace_1, ..., replace_D]
-    a_tuple_list = [np.zeros(data["D_GROUP"], dtype=int).tolist()]
-    a_tuple_list.extend(np.diag(np.ones(data["D_GROUP"], dtype=int)).tolist())
-    a_idx_list = range(len(a_tuple_list))
-
+def extract_results(model: pyo.ConcreteModel, data: MRPData) -> None:
     # Dual variable x
-    for s in s_idx_list:
-        for a in a_idx_list:
-            x_value = model.varD[s_tuple_list[s], a].value
+    for s in data.idx_list_s:
+        for a in data.idx_list_a:
+            x_value = model.varD[data.tuple_list_s[s], a].value
             if x_value > 1e-6:
-                print(f"x{s_tuple_list[s], a}: {x_value}")
+                print(f"x{data.tuple_list_s[s], a}: {x_value}")
+
+    # Policy interpretation
+    for s in data.idx_list_s:
+        x_sum = sum([model.varD[data.tuple_list_s[s], a].value for a in data.idx_list_a])
+        for a in data.idx_list_a:
+            x_value = model.varD[data.tuple_list_s[s], a].value
+            if x_value > 1e-6:
+                print(f"policy{data.tuple_list_s[s], a}: {x_value / x_sum}")
 
     # Dual variable lambda
-    for d in d_idx_list:
+    for d in data.idx_list_d:
         print(f"lambda{d}: {model.varL[d].value}")
 
     # Dual variable nu
-    for d in d_idx_list:
+    for d in data.idx_list_d:
         print(f"nu{d}: {model.varN[d].value}")
 
     # Costs for group
-    for d in d_idx_list:
-        all_cost = sum(big_cost[s, a, d] * model.varD[s_tuple_list[s], a].value
-                       for s in s_idx_list for a in a_idx_list)
+    for d in data.idx_list_d:
+        all_cost = sum(data.bigC[s, a, d] * model.varD[data.tuple_list_s[s], a].value
+                       for s in data.idx_list_s for a in data.idx_list_a)
         print(f"group {d}: {all_cost}")
 
 
+# Get data
+input_data = MRPData(n_group=2,
+                     n_state=3,
+                     n_action=2,
+                     weight=[0.6, 0.4]
+                     )
 ggf_model = solve_ggf(data=input_data)
 pyo.SolverFactory('cbc').solve(ggf_model).write()
 extract_results(model=ggf_model, data=input_data)
