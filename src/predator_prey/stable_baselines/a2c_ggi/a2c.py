@@ -6,12 +6,12 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
-from stable_baselines.a2c_ggi.utils import discount_with_dones, Scheduler, mse, total_episode_reward_logger
 from stable_baselines.common import explained_variance, tf_util, ActorCriticRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.policies_ggi import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
+from stable_baselines.a2c_ggi.utils import discount_with_dones, Scheduler, mse, Deri_GGI, \
+    total_episode_reward_logger
 from stable_baselines.ppo2.ppo2 import safe_mean
-
 
 class A2C(ActorCriticRLModel):
     """
@@ -45,8 +45,7 @@ class A2C(ActorCriticRLModel):
         If None, the number of cpu of the current machine will be used.
     """
 
-    def __init__(self, policy, env, reward_space, weight_coef, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01,
-                 max_grad_norm=0.5,
+    def __init__(self, policy, env, reward_space, weight_coef, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
                  learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='constant', verbose=0,
                  tensorboard_log=None, _init_setup_model=True, policy_kwargs=None,
                  full_tensorboard_log=False, seed=None, n_cpu_tf_sess=None):
@@ -107,7 +106,7 @@ class A2C(ActorCriticRLModel):
         with SetVerbosity(self.verbose):
 
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the A2C model must be an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
+                                                                "instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
@@ -128,8 +127,7 @@ class A2C(ActorCriticRLModel):
 
                 with tf.variable_scope("train_model", reuse=True,
                                        custom_getter=tf_util.outer_scope_getter("train_model")):
-                    train_model = self.policy(self.sess, self.observation_space, self.action_space, self.reward_n,
-                                              self.n_envs,
+                    train_model = self.policy(self.sess, self.observation_space, self.action_space, self.reward_n, self.n_envs,
                                               self.n_steps, n_batch_train, reuse=True, **self.policy_kwargs)
 
                 with tf.variable_scope("loss", reuse=False):
@@ -142,11 +140,11 @@ class A2C(ActorCriticRLModel):
 
                     neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
                     self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
-
+                    
                     policyy = self.advs_ph * tf.expand_dims(neglogpac, axis=1)
                     pg_ggi_loss = tf.tensordot(policyy, self.sor_omega, axes=1)
-                    self.pg_loss = tf.reduce_mean(pg_ggi_loss)
-
+                    self.pg_loss = tf.reduce_mean(pg_ggi_loss) 
+                    
                     self.vf_loss = mse(tf.squeeze(train_model.value_flat), self.rewards_ph)
                     # https://arxiv.org/pdf/1708.04782.pdf#page=9, https://arxiv.org/pdf/1602.01783.pdf#page=4
                     # and https://github.com/dennybritz/reinforcement-learning/issues/34
@@ -191,8 +189,7 @@ class A2C(ActorCriticRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-    def _train_step(self, obs, avg_init_states, sorted_omega, states, rewards, masks, actions, values, update,
-                    writer=None):
+    def _train_step(self, obs, avg_init_states, sorted_omega, states, rewards, masks, actions, values, update, writer=None):
         """
         applies a training step to the model
 
@@ -213,7 +210,7 @@ class A2C(ActorCriticRLModel):
             cur_lr = self.learning_rate_schedule.value()
         assert cur_lr is not None, "Error: the observation input array cannon be empty"
 
-        td_map = {self.train_model.obs_ph: obs, self.actions_ph: actions, self.advs_ph: advs, self.rewards_ph: rewards,
+        td_map = {self.train_model.obs_ph: obs, self.actions_ph: actions, self.advs_ph: advs, self.rewards_ph: rewards, 
                   self.learning_rate_ph: cur_lr, self.ini_obs_value: avg_init_states, self.sor_omega: sorted_omega}
         if states is not None:
             td_map[self.train_model.states_ph] = states
@@ -250,7 +247,7 @@ class A2C(ActorCriticRLModel):
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                     schedule=self.lr_schedule)
 
-            runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma,
+            runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma, 
                                reward_n=self.reward_n, ggi_constant=self.weight_coef)
             self.episode_reward = np.zeros((self.n_envs,))
             # Training stats (when using Monitor wrapper)
@@ -261,16 +258,14 @@ class A2C(ActorCriticRLModel):
                 # true_reward is the reward without discount
                 obs, avg_value, w, states, rewards, masks, actions, values, ep_infos, true_reward = runner.run()
                 ep_info_buf.extend(ep_infos)
-                _, value_loss, policy_entropy = self._train_step(obs, avg_value, w, states, rewards, masks, actions,
-                                                                 values,
+                _, value_loss, policy_entropy = self._train_step(obs, avg_value, w, states, rewards, masks, actions, values,
                                                                  self.num_timesteps // self.n_batch, writer)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
 
                 if writer is not None:
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                      true_reward.reshape(
-                                                                          (self.n_envs, self.n_steps * self.reward_n)),
+                                                                      true_reward.reshape((self.n_envs, self.n_steps*self.reward_n)),
                                                                       masks.reshape((self.n_envs, self.n_steps)),
                                                                       writer, self.num_timesteps)
 
@@ -368,17 +363,17 @@ class A2CRunner(AbstractEnvRunner):
             self.states = states
             self.dones = dones
             self.obs = obs
-            mb_rewards.append(rewards)
-
-            # initial state
+            mb_rewards.append(rewards)      
+            
+        # initial state
         initial_state = self.env.initial_states()
         initial_state_value = self.model.value(np.squeeze(initial_state), self.states, self.dones)
         # assumes always using parallel workers
         averaged_state_value = np.mean(initial_state_value, axis=0)
-        sorted_omega = [np.where(averaged_state_value.argsort() == i)[0][0] for i in range(self.reward_n)]
+        sorted_omega = [np.where(averaged_state_value.argsort()==i)[0][0] for i in range(self.reward_n)]
         omega = np.array([1 / (self.ggi_constant ** i) for i in range(self.reward_n)])
         w = omega[sorted_omega]
-
+        
         mb_dones.append(self.dones)
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
@@ -390,7 +385,7 @@ class A2CRunner(AbstractEnvRunner):
         mb_dones = mb_dones[:, 1:]
         true_rewards = np.copy(mb_rewards)
         last_values = self.model.value(self.obs, self.states, self.dones).tolist()
-
+        
         # discount/bootstrap off value fn
         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
             rewards = rewards.tolist()

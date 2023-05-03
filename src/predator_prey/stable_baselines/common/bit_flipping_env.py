@@ -18,7 +18,6 @@ class BitFlippingEnv(GoalEnv):
     :param discrete_obs_space: (bool) Whether to use the discrete observation
         version or not, by default, it uses the MultiBinary one
     """
-
     def __init__(self, n_bits=10, continuous=False, max_steps=None,
                  discrete_obs_space=False):
         super(BitFlippingEnv, self).__init__()
@@ -65,7 +64,7 @@ class BitFlippingEnv(GoalEnv):
         if self.discrete_obs_space:
             # The internal state is the binary representation of the
             # observed one
-            return int(sum([state[i] * 2 ** i for i in range(len(state))]))
+            return int(sum([state[i] * 2**i for i in range(len(state))]))
         return state
 
     def _get_obs(self):

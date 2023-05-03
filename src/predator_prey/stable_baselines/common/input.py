@@ -26,8 +26,9 @@ def observation_input(ob_space, batch_size=None, name='Ob', scale=False):
         processed_observations = tf.cast(observation_ph, tf.float32)
         # rescale to [1, 0] if the bounds are defined
         if (scale and
-                not np.any(np.isinf(ob_space.low)) and not np.any(np.isinf(ob_space.high)) and
-                np.any((ob_space.high - ob_space.low) != 0)):
+           not np.any(np.isinf(ob_space.low)) and not np.any(np.isinf(ob_space.high)) and
+           np.any((ob_space.high - ob_space.low) != 0)):
+
             # equivalent to processed_observations / 255.0 when bounds are set to [255, 0]
             processed_observations = ((processed_observations - ob_space.low) / (ob_space.high - ob_space.low))
         return observation_ph, processed_observations

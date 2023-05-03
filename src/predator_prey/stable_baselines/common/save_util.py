@@ -1,8 +1,8 @@
 import base64
+from collections import OrderedDict
 import io
 import json
 import pickle
-from collections import OrderedDict
 
 import cloudpickle
 import numpy as np

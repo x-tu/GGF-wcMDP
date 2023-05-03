@@ -1,23 +1,23 @@
-import glob
-import json
-import os
-import warnings
-import zipfile
 from abc import ABC, abstractmethod
+import os
+import glob
+import warnings
 from collections import OrderedDict
+import json
+import zipfile
 
 import cloudpickle
-import gym
 import numpy as np
+import gym
 import tensorflow as tf
 
-from stable_baselines import logger
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.policies import get_policy_from_name, ActorCriticPolicy
 from stable_baselines.common.save_util import (
-    data_to_json, json_to_data, params_to_bytes, bytes_to_params
+    is_json_serializable, data_to_json, json_to_data, params_to_bytes, bytes_to_params
 )
+from stable_baselines.common.policies import get_policy_from_name, ActorCriticPolicy
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
+from stable_baselines import logger
 
 
 class BaseRLModel(ABC):
@@ -799,7 +799,7 @@ class ActorCriticRLModel(BaseRLModel):
                 # Discrete action probability, over multiple categories
                 actions = np.swapaxes(actions, 0, 1)  # swap axis for easier categorical split
                 prob = np.prod([proba[np.arange(act.shape[0]), act]
-                                for proba, act in zip(actions_proba, actions)], axis=0)
+                                         for proba, act in zip(actions_proba, actions)], axis=0)
 
             elif isinstance(self.action_space, gym.spaces.MultiBinary):
                 actions = actions.reshape((-1, self.action_space.n))
@@ -809,12 +809,12 @@ class ActorCriticRLModel(BaseRLModel):
                 prob = np.prod(actions_proba * actions + (1 - actions_proba) * (1 - actions), axis=1)
 
             elif isinstance(self.action_space, gym.spaces.Box):
-                actions = actions.reshape((-1,) + self.action_space.shape)
+                actions = actions.reshape((-1, ) + self.action_space.shape)
                 mean, logstd = actions_proba
                 std = np.exp(logstd)
 
                 n_elts = np.prod(mean.shape[1:])  # first dimension is batch size
-                log_normalizer = n_elts / 2 * np.log(2 * np.pi) + 1 / 2 * np.sum(logstd, axis=1)
+                log_normalizer = n_elts/2 * np.log(2 * np.pi) + 1/2 * np.sum(logstd, axis=1)
 
                 # Diagonal Gaussian action probability, for every action
                 logprob = -np.sum(np.square(actions - mean) / (2 * std), axis=1) - log_normalizer
@@ -969,7 +969,6 @@ class OffPolicyRLModel(BaseRLModel):
 
         return model
 
-
 class _UnvecWrapper(VecEnvWrapper):
     def __init__(self, venv):
         """
@@ -1037,7 +1036,7 @@ class SetVerbosity:
     def __enter__(self):
         self.tf_level = os.environ.get('TF_CPP_MIN_LOG_LEVEL', '0')
         self.log_level = logger.get_level()
-        self.gym_level = gym.logger.min_level
+        self.gym_level = gym.logger.MIN_LEVEL
 
         if self.verbose <= 1:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'

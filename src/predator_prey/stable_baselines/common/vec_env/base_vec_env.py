@@ -1,9 +1,8 @@
+from abc import ABC, abstractmethod
 import inspect
 import pickle
-from abc import ABC, abstractmethod
 
 import cloudpickle
-
 from stable_baselines import logger
 
 

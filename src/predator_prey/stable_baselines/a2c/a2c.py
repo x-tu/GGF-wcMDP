@@ -6,13 +6,12 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
-from stable_baselines.a2c.utils import discount_with_dones, Scheduler, mse, \
-    total_episode_reward_logger
 from stable_baselines.common import explained_variance, tf_util, ActorCriticRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
+from stable_baselines.a2c.utils import discount_with_dones, Scheduler, mse, \
+    total_episode_reward_logger
 from stable_baselines.ppo2.ppo2 import safe_mean
-
 
 class A2C(ActorCriticRLModel):
     """
@@ -103,7 +102,7 @@ class A2C(ActorCriticRLModel):
         with SetVerbosity(self.verbose):
 
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the A2C model must be an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
+                                                                "instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from gym import spaces
 from tensorflow.python.ops import math_ops
+from gym import spaces
 
 from stable_baselines.a2c.utils import linear
 
@@ -10,7 +10,6 @@ class ProbabilityDistribution(object):
     """
     Base class for describing a probability distribution.
     """
-
     def __init__(self):
         super(ProbabilityDistribution, self).__init__()
 

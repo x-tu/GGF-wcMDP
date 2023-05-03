@@ -25,3 +25,4 @@ def tile_images(img_nhwc):
     # img_Hh_Ww_c
     out_image = out_image.reshape(new_height * height, new_width * width, n_channels)
     return out_image
+
