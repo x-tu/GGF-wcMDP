@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 
 
@@ -6,7 +8,7 @@ class MRPData:
         self.n_group = n_group
         self.n_state = n_state
         self.n_action = n_action
-        # TODO: generalization
+        # TODO: implement more general cases
         self.operation_cost = [10, 20, 50]
         self.replace_cost = 100
         self.discount = 0.9
@@ -18,64 +20,81 @@ class MRPData:
             ]
         )
 
-        # Get state tuple
-        self.tuple_list_s = self.get_state_tuple()
-        # Get action tuple
-        self.tuple_list_a = self.get_action_tuple()
+        # Get state list
+        self.state_list = self.get_state_list()
+        # Get action list
+        self.action_list = self.get_action_list()
 
-        # Create group list
+        # Create group index list
         self.idx_list_d = range(self.n_group)
-        # Create state list
-        self.idx_list_s = range(len(self.tuple_list_s))
-        # Create action list
-        self.idx_list_a = range(len(self.tuple_list_a))
+        # Create state index list
+        self.idx_list_s = range(len(self.state_list))
+        # Create action index list
+        self.idx_list_a = range(len(self.action_list))
 
-        # Create transition list
+        # Create transition matrix (s, s', a)
         self.bigT = self.generate_big_transition_matrix()
-        # Create cost list
+        # Create cost matrix (s, a, D)
         self.bigC = self.generate_big_cost_matrix()
 
-    def get_state_tuple(self) -> list:
-        """A helper function used to get state tuple: cartesian s^D.
+    def get_state_list(self) -> List[List]:
+        """ A helper function used to get state list: cartesian s^D.
 
         Example (3 states, 2 groups):
-            [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (3, 2), (1, 3), (2, 3), (3, 3)]
+            [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]
+
+        Returns:
+            state_list: state tuple list
 
         """
+        # generate state indices
         state_indices = np.arange(self.n_state)
+        # get cartesian product
         state_indices_cartesian = np.meshgrid(
             *([state_indices] * self.n_group), indexing="ij"
         )
-        tuple_list_s = (
+        # reshape and convert to list
+        state_list = (
             np.stack(state_indices_cartesian, axis=-1)
             .reshape(-1, self.n_group)
             .tolist()
         )
-        return tuple_list_s
+        return state_list
 
-    def get_action_tuple(self):
-        """ A helper function used to get action tuple list: [Keep] + [replace_1, ..., replace_D].
+    def get_action_list(self) -> List[List]:
+        """ A helper function used to get action list: [Keep] + [replace_1, ..., replace_D].
 
         Example (2 groups, 0: not replace, 1: replace):
-            [0, 0; 1, 0; 0, 1]
+            [[0, 0], [1, 0], [0, 1]]
+
+        Returns:
+            action_list: An action list of size (D+1) * D
 
         """
+        # do nothing for all machines
         keep_action = np.zeros(self.n_group, dtype=int)
+        # replace one machine
         replace_actions = np.eye(self.n_group, dtype=int)
-        tuple_list_a = np.vstack((keep_action, replace_actions)).tolist()
-        return tuple_list_a
+        # combine and return
+        action_list = np.vstack((keep_action, replace_actions)).tolist()
+        return action_list
 
-    def generate_big_cost_matrix(self):
-        """Generate the cost matrix R(s, a, d) at state s taking action a for group d."""
+    def generate_big_cost_matrix(self) -> np.ndarray:
+        """Generate the cost matrix R(s, a, d) at state s taking action a for group d.
+
+        Returns:
+            bigC: A cost matrix of size (S, A, D)
+
+        """
         bigC = np.zeros(
-            [len(self.tuple_list_s), len(self.tuple_list_a), len(self.idx_list_d)]
+            [len(self.state_list), len(self.action_list), len(self.idx_list_d)]
         )
 
         # Generates random immediate costs
         cost = np.zeros((self.n_state, self.n_action, self.n_group))
         for d in self.idx_list_d:
             # Keeps the machine
-            operation_cost = [op_cost + 10 * d for op_cost in self.operation_cost]
+            operation_cost = [op_cost for op_cost in self.operation_cost]
             cost[:, 0, d] = operation_cost
             # Replaces the machine (replace cost + new machine operation cost, no delivery lead time)
             cost[:, 1, d] = self.replace_cost + operation_cost[0]
@@ -84,15 +103,19 @@ class MRPData:
             for a in self.idx_list_a:
                 for d in self.idx_list_d:
                     bigC[s, a, d] = cost[
-                        self.tuple_list_s[s][d], self.tuple_list_a[a][d], d
+                        self.state_list[s][d], self.action_list[a][d], d
                     ]
         return bigC
 
     def generate_big_transition_matrix(self):
-        """Generate the transition matrix Pr(s, s', a) from state s to state s' taking action a."""
-        # matrix_T = self.transition_matrix
+        """Generate the transition matrix Pr(s, s', a) from state s to state s' taking action a.
+
+        Returns:
+            bigT: A transition matrix of size (S, S, A)
+
+        """
         bigT = np.zeros(
-            [len(self.tuple_list_s), len(self.tuple_list_s), len(self.tuple_list_a)]
+            [len(self.state_list), len(self.state_list), len(self.action_list)]
         )
 
         # Generates random transition matrix
@@ -117,9 +140,9 @@ class MRPData:
                     tmpT = 1
                     for d in self.idx_list_d:
                         tmpT *= matrix_T[
-                            self.tuple_list_s[s][d],
-                            self.tuple_list_s[next_s][d],
-                            self.tuple_list_a[a][d],
+                            self.state_list[s][d],
+                            self.state_list[next_s][d],
+                            self.action_list[a][d],
                             d,
                         ]
                     bigT[s, next_s, a] = tmpT
