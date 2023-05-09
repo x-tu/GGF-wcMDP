@@ -40,7 +40,7 @@ def calc_entropy_softmax(action_proba):
     :param action_proba: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The softmax entropy of the output values of the network
     """
-    return -tf.reduce_sum(action_proba * tf.log(action_proba + 1e-6), axis=1)
+    return - tf.reduce_sum(action_proba * tf.log(action_proba + 1e-6), axis=1)
 
 
 def mse(pred, target):
@@ -87,27 +87,15 @@ def ortho_init(scale=1.0):
             raise NotImplementedError
         gaussian_noise = np.random.normal(0.0, 1.0, flat_shape)
         u, _, v = np.linalg.svd(gaussian_noise, full_matrices=False)
-        weights = (
-            u if u.shape == flat_shape else v
-        )  # pick the one with the correct shape
+        weights = u if u.shape == flat_shape else v  # pick the one with the correct shape
         weights = weights.reshape(shape)
-        return (scale * weights[: shape[0], : shape[1]]).astype(np.float32)
+        return (scale * weights[:shape[0], :shape[1]]).astype(np.float32)
 
     return _ortho_init
 
 
-def conv(
-    input_tensor,
-    scope,
-    *,
-    n_filters,
-    filter_size,
-    stride,
-    pad="VALID",
-    init_scale=1.0,
-    data_format="NHWC",
-    one_dim_bias=False
-):
+def conv(input_tensor, scope, *, n_filters, filter_size, stride,
+         pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
     """
     Creates a 2d convolutional layer for TensorFlow
 
@@ -124,21 +112,18 @@ def conv(
     :return: (TensorFlow Tensor) 2d convolutional layer
     """
     if isinstance(filter_size, list) or isinstance(filter_size, tuple):
-        assert (
-            len(filter_size) == 2
-        ), "Filter size must have 2 elements (height, width), {} were given".format(
-            len(filter_size)
-        )
+        assert len(filter_size) == 2, \
+            "Filter size must have 2 elements (height, width), {} were given".format(len(filter_size))
         filter_height = filter_size[0]
         filter_width = filter_size[1]
     else:
         filter_height = filter_size
         filter_width = filter_size
-    if data_format == "NHWC":
+    if data_format == 'NHWC':
         channel_ax = 3
         strides = [1, stride, stride, 1]
         bshape = [1, 1, 1, n_filters]
-    elif data_format == "NCHW":
+    elif data_format == 'NCHW':
         channel_ax = 1
         strides = [1, 1, stride, stride]
         bshape = [1, n_filters, 1, 1]
@@ -149,14 +134,10 @@ def conv(
     wshape = [filter_height, filter_width, n_input, n_filters]
     with tf.variable_scope(scope):
         weight = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
-        bias = tf.get_variable(
-            "b", bias_var_shape, initializer=tf.constant_initializer(0.0)
-        )
-        if not one_dim_bias and data_format == "NHWC":
+        bias = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
+        if not one_dim_bias and data_format == 'NHWC':
             bias = tf.reshape(bias, bshape)
-        return bias + tf.nn.conv2d(
-            input_tensor, weight, strides=strides, padding=pad, data_format=data_format
-        )
+        return bias + tf.nn.conv2d(input_tensor, weight, strides=strides, padding=pad, data_format=data_format)
 
 
 def linear(input_tensor, scope, n_hidden, *, init_scale=1.0, init_bias=0.0):
@@ -172,12 +153,8 @@ def linear(input_tensor, scope, n_hidden, *, init_scale=1.0, init_bias=0.0):
     """
     with tf.variable_scope(scope):
         n_input = input_tensor.get_shape()[1].value
-        weight = tf.get_variable(
-            "w", [n_input, n_hidden], initializer=ortho_init(init_scale)
-        )
-        bias = tf.get_variable(
-            "b", [n_hidden], initializer=tf.constant_initializer(init_bias)
-        )
+        weight = tf.get_variable("w", [n_input, n_hidden], initializer=ortho_init(init_scale))
+        bias = tf.get_variable("b", [n_hidden], initializer=tf.constant_initializer(init_bias))
         return tf.matmul(input_tensor, weight) + bias
 
 
@@ -195,10 +172,7 @@ def batch_to_seq(tensor_batch, n_batch, n_steps, flat=False):
         tensor_batch = tf.reshape(tensor_batch, [n_batch, n_steps])
     else:
         tensor_batch = tf.reshape(tensor_batch, [n_batch, n_steps, -1])
-    return [
-        tf.squeeze(v, [1])
-        for v in tf.split(axis=1, num_or_size_splits=n_steps, value=tensor_batch)
-    ]
+    return [tf.squeeze(v, [1]) for v in tf.split(axis=1, num_or_size_splits=n_steps, value=tensor_batch)]
 
 
 def seq_to_batch(tensor_sequence, flat=False):
@@ -218,15 +192,7 @@ def seq_to_batch(tensor_sequence, flat=False):
         return tf.reshape(tf.stack(values=tensor_sequence, axis=1), [-1])
 
 
-def lstm(
-    input_tensor,
-    mask_tensor,
-    cell_state_hidden,
-    scope,
-    n_hidden,
-    init_scale=1.0,
-    layer_norm=False,
-):
+def lstm(input_tensor, mask_tensor, cell_state_hidden, scope, n_hidden, init_scale=1.0, layer_norm=False):
     """
     Creates an Long Short Term Memory (LSTM) cell for TensorFlow
 
@@ -241,54 +207,31 @@ def lstm(
     """
     _, n_input = [v.value for v in input_tensor[0].get_shape()]
     with tf.variable_scope(scope):
-        weight_x = tf.get_variable(
-            "wx", [n_input, n_hidden * 4], initializer=ortho_init(init_scale)
-        )
-        weight_h = tf.get_variable(
-            "wh", [n_hidden, n_hidden * 4], initializer=ortho_init(init_scale)
-        )
-        bias = tf.get_variable(
-            "b", [n_hidden * 4], initializer=tf.constant_initializer(0.0)
-        )
+        weight_x = tf.get_variable("wx", [n_input, n_hidden * 4], initializer=ortho_init(init_scale))
+        weight_h = tf.get_variable("wh", [n_hidden, n_hidden * 4], initializer=ortho_init(init_scale))
+        bias = tf.get_variable("b", [n_hidden * 4], initializer=tf.constant_initializer(0.0))
 
         if layer_norm:
             # Gain and bias of layer norm
-            gain_x = tf.get_variable(
-                "gx", [n_hidden * 4], initializer=tf.constant_initializer(1.0)
-            )
-            bias_x = tf.get_variable(
-                "bx", [n_hidden * 4], initializer=tf.constant_initializer(0.0)
-            )
+            gain_x = tf.get_variable("gx", [n_hidden * 4], initializer=tf.constant_initializer(1.0))
+            bias_x = tf.get_variable("bx", [n_hidden * 4], initializer=tf.constant_initializer(0.0))
 
-            gain_h = tf.get_variable(
-                "gh", [n_hidden * 4], initializer=tf.constant_initializer(1.0)
-            )
-            bias_h = tf.get_variable(
-                "bh", [n_hidden * 4], initializer=tf.constant_initializer(0.0)
-            )
+            gain_h = tf.get_variable("gh", [n_hidden * 4], initializer=tf.constant_initializer(1.0))
+            bias_h = tf.get_variable("bh", [n_hidden * 4], initializer=tf.constant_initializer(0.0))
 
-            gain_c = tf.get_variable(
-                "gc", [n_hidden], initializer=tf.constant_initializer(1.0)
-            )
-            bias_c = tf.get_variable(
-                "bc", [n_hidden], initializer=tf.constant_initializer(0.0)
-            )
+            gain_c = tf.get_variable("gc", [n_hidden], initializer=tf.constant_initializer(1.0))
+            bias_c = tf.get_variable("bc", [n_hidden], initializer=tf.constant_initializer(0.0))
 
     cell_state, hidden = tf.split(axis=1, num_or_size_splits=2, value=cell_state_hidden)
     for idx, (_input, mask) in enumerate(zip(input_tensor, mask_tensor)):
         cell_state = cell_state * (1 - mask)
         hidden = hidden * (1 - mask)
         if layer_norm:
-            gates = (
-                _ln(tf.matmul(_input, weight_x), gain_x, bias_x)
-                + _ln(tf.matmul(hidden, weight_h), gain_h, bias_h)
-                + bias
-            )
+            gates = _ln(tf.matmul(_input, weight_x), gain_x, bias_x) \
+                    + _ln(tf.matmul(hidden, weight_h), gain_h, bias_h) + bias
         else:
             gates = tf.matmul(_input, weight_x) + tf.matmul(hidden, weight_h) + bias
-        in_gate, forget_gate, out_gate, cell_candidate = tf.split(
-            axis=1, num_or_size_splits=4, value=gates
-        )
+        in_gate, forget_gate, out_gate, cell_candidate = tf.split(axis=1, num_or_size_splits=4, value=gates)
         in_gate = tf.nn.sigmoid(in_gate)
         forget_gate = tf.nn.sigmoid(forget_gate)
         out_gate = tf.nn.sigmoid(out_gate)
@@ -334,15 +277,7 @@ def lnlstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.
     :param init_scale: (int) The initialization scale
     :return: (TensorFlow Tensor) lnlstm cell
     """
-    return lstm(
-        input_tensor,
-        mask_tensor,
-        cell_state,
-        scope,
-        n_hidden,
-        init_scale,
-        layer_norm=True,
-    )
+    return lstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale, layer_norm=True)
 
 
 def conv_to_fc(input_tensor):
@@ -369,10 +304,9 @@ def discount_with_dones(rewards, dones, gamma):
     discounted = []
     ret = 0  # Return: discounted reward
     for reward, done in zip(rewards[::-1], dones[::-1]):
-        ret = reward + gamma * ret * (1.0 - done)  # fixed off by one bug
+        ret = reward + gamma * ret * (1. - done)  # fixed off by one bug
         discounted.append(ret)
     return discounted[::-1]
-
 
 def make_path(path):
     """
@@ -391,7 +325,7 @@ def constant(_):
     :param _: ignored
     :return: (float) 1
     """
-    return 1.0
+    return 1.
 
 
 def linear_schedule(progress):
@@ -448,11 +382,11 @@ def double_middle_drop(progress):
 
 
 SCHEDULES = {
-    "linear": linear_schedule,
-    "constant": constant,
-    "double_linear_con": double_linear_con,
-    "middle_drop": middle_drop,
-    "double_middle_drop": double_middle_drop,
+    'linear': linear_schedule,
+    'constant': constant,
+    'double_linear_con': double_linear_con,
+    'middle_drop': middle_drop,
+    'double_middle_drop': double_middle_drop
 }
 
 
@@ -465,7 +399,7 @@ class Scheduler(object):
         :param n_values: (int) the total number of iterations
         :param schedule: (function) the curve you wish to follow for your value
         """
-        self.step = 0.0
+        self.step = 0.
         self.initial_value = initial_value
         self.nvalues = n_values
         self.schedule = SCHEDULES[schedule]
@@ -477,7 +411,7 @@ class Scheduler(object):
         :return: (float) the current value
         """
         current_value = self.initial_value * self.schedule(self.step / self.nvalues)
-        self.step += 1.0
+        self.step += 1.
         return current_value
 
     def value_steps(self, steps):
@@ -560,9 +494,8 @@ def get_by_index(input_tensor, idx):
     assert len(input_tensor.get_shape()) == 2
     assert len(idx.get_shape()) == 1
     idx_flattened = tf.range(0, input_tensor.shape[0]) * input_tensor.shape[1] + idx
-    offset_tensor = tf.gather(
-        tf.reshape(input_tensor, [-1]), idx_flattened  # flatten input
-    )  # use flattened indices
+    offset_tensor = tf.gather(tf.reshape(input_tensor, [-1]),  # flatten input
+                              idx_flattened)  # use flattened indices
     return offset_tensor
 
 
@@ -575,9 +508,7 @@ def check_shape(tensors, shapes):
     """
     i = 0
     for (tensor, shape) in zip(tensors, shapes):
-        assert tensor.get_shape().as_list() == shape, (
-            "id " + str(i) + " shape " + str(tensor.get_shape()) + str(shape)
-        )
+        assert tensor.get_shape().as_list() == shape, "id " + str(i) + " shape " + str(tensor.get_shape()) + str(shape)
         i += 1
 
 
@@ -646,27 +577,13 @@ def total_episode_reward_logger(rew_acc, rewards, masks, writer, steps):
             if len(dones_idx) == 0:
                 rew_acc[env_idx] += sum(rewards[env_idx])
             else:
-                rew_acc[env_idx] += sum(rewards[env_idx, : dones_idx[0, 0]])
-                summary = tf.Summary(
-                    value=[
-                        tf.Summary.Value(
-                            tag="episode_reward", simple_value=rew_acc[env_idx]
-                        )
-                    ]
-                )
+                rew_acc[env_idx] += sum(rewards[env_idx, :dones_idx[0, 0]])
+                summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
                 writer.add_summary(summary, steps + dones_idx[0, 0])
                 for k in range(1, len(dones_idx[:, 0])):
-                    rew_acc[env_idx] = sum(
-                        rewards[env_idx, dones_idx[k - 1, 0] : dones_idx[k, 0]]
-                    )
-                    summary = tf.Summary(
-                        value=[
-                            tf.Summary.Value(
-                                tag="episode_reward", simple_value=rew_acc[env_idx]
-                            )
-                        ]
-                    )
+                    rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[k-1, 0]:dones_idx[k, 0]])
+                    summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
                     writer.add_summary(summary, steps + dones_idx[k, 0])
-                rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[-1, 0] :])
+                rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[-1, 0]:])
 
     return rew_acc

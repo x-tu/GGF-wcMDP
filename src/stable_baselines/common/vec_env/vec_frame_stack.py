@@ -21,9 +21,7 @@ class VecFrameStack(VecEnvWrapper):
         low = np.repeat(wrapped_obs_space.low, self.n_stack, axis=-1)
         high = np.repeat(wrapped_obs_space.high, self.n_stack, axis=-1)
         self.stackedobs = np.zeros((venv.num_envs,) + low.shape, low.dtype)
-        observation_space = spaces.Box(
-            low=low, high=high, dtype=venv.observation_space.dtype
-        )
+        observation_space = spaces.Box(low=low, high=high, dtype=venv.observation_space.dtype)
         VecEnvWrapper.__init__(self, venv, observation_space=observation_space)
 
     def step_wait(self):
@@ -32,18 +30,16 @@ class VecFrameStack(VecEnvWrapper):
         self.stackedobs = np.roll(self.stackedobs, shift=-last_ax_size, axis=-1)
         for i, done in enumerate(dones):
             if done:
-                if "terminal_observation" in infos[i]:
-                    old_terminal = infos[i]["terminal_observation"]
+                if 'terminal_observation' in infos[i]:
+                    old_terminal = infos[i]['terminal_observation']
                     new_terminal = np.concatenate(
-                        (self.stackedobs[i, ..., :-last_ax_size], old_terminal), axis=-1
-                    )
-                    infos[i]["terminal_observation"] = new_terminal
+                        (self.stackedobs[i, ..., :-last_ax_size], old_terminal), axis=-1)
+                    infos[i]['terminal_observation'] = new_terminal
                 else:
                     warnings.warn(
-                        "VecFrameStack wrapping a VecEnv without terminal_observation info"
-                    )
+                        "VecFrameStack wrapping a VecEnv without terminal_observation info")
                 self.stackedobs[i] = 0
-        self.stackedobs[..., -observations.shape[-1] :] = observations
+        self.stackedobs[..., -observations.shape[-1]:] = observations
         return self.stackedobs, rewards, dones, infos
 
     def reset(self):
@@ -52,7 +48,7 @@ class VecFrameStack(VecEnvWrapper):
         """
         obs = self.venv.reset()
         self.stackedobs[...] = 0
-        self.stackedobs[..., -obs.shape[-1] :] = obs
+        self.stackedobs[..., -obs.shape[-1]:] = obs
         return self.stackedobs
 
     def close(self):

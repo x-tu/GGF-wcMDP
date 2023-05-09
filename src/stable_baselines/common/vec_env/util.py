@@ -15,9 +15,7 @@ def copy_obs_dict(obs):
     :param obs: (OrderedDict<ndarray>): a dict of numpy arrays.
     :return (OrderedDict<ndarray>) a dict of copied numpy arrays.
     """
-    assert isinstance(obs, OrderedDict), "unexpected type for observations '{}'".format(
-        type(obs)
-    )
+    assert isinstance(obs, OrderedDict), "unexpected type for observations '{}'".format(type(obs))
     return OrderedDict([(k, np.copy(v)) for k, v in obs.items()])
 
 
@@ -36,14 +34,10 @@ def dict_to_obs(space, obs_dict):
     if isinstance(space, gym.spaces.Dict):
         return obs_dict
     elif isinstance(space, gym.spaces.Tuple):
-        assert len(obs_dict) == len(
-            space.spaces
-        ), "size of observation does not match size of observation space"
+        assert len(obs_dict) == len(space.spaces), "size of observation does not match size of observation space"
         return tuple((obs_dict[i] for i in range(len(space.spaces))))
     else:
-        assert set(obs_dict.keys()) == {
-            None
-        }, "multiple observation keys for unstructured observation space"
+        assert set(obs_dict.keys()) == {None}, "multiple observation keys for unstructured observation space"
         return obs_dict[None]
 
 
@@ -62,16 +56,12 @@ def obs_space_info(obs_space):
         dtypes: a dict mapping keys to dtypes.
     """
     if isinstance(obs_space, gym.spaces.Dict):
-        assert isinstance(
-            obs_space.spaces, OrderedDict
-        ), "Dict space must have ordered subspaces"
+        assert isinstance(obs_space.spaces, OrderedDict), "Dict space must have ordered subspaces"
         subspaces = obs_space.spaces
     elif isinstance(obs_space, gym.spaces.Tuple):
         subspaces = {i: space for i, space in enumerate(obs_space.spaces)}
     else:
-        assert not hasattr(
-            obs_space, "spaces"
-        ), "Unsupported structured space '{}'".format(type(obs_space))
+        assert not hasattr(obs_space, 'spaces'), "Unsupported structured space '{}'".format(type(obs_space))
         subspaces = {None: obs_space}
     keys = []
     shapes = {}

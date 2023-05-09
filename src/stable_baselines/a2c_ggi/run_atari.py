@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from stable_baselines import A2C, logger
-from stable_baselines.common.cmd_util import atari_arg_parser, make_atari_env
-from stable_baselines.common.policies import CnnLnLstmPolicy, CnnLstmPolicy, CnnPolicy
+from stable_baselines import logger, A2C
+from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from stable_baselines.common.vec_env import VecFrameStack
+from stable_baselines.common.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 
 
 def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):
@@ -19,11 +19,11 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):
     :param num_env: (int) The number of environments
     """
     policy_fn = None
-    if policy == "cnn":
+    if policy == 'cnn':
         policy_fn = CnnPolicy
-    elif policy == "lstm":
+    elif policy == 'lstm':
         policy_fn = CnnLstmPolicy
-    elif policy == "lnlstm":
+    elif policy == 'lnlstm':
         policy_fn = CnnLnLstmPolicy
     if policy_fn is None:
         raise ValueError("Error: policy {} not implemented".format(policy))
@@ -40,29 +40,14 @@ def main():
     Runs the test
     """
     parser = atari_arg_parser()
-    parser.add_argument(
-        "--policy",
-        choices=["cnn", "lstm", "lnlstm"],
-        default="cnn",
-        help="Policy architecture",
-    )
-    parser.add_argument(
-        "--lr_schedule",
-        choices=["constant", "linear"],
-        default="constant",
-        help="Learning rate schedule",
-    )
+    parser.add_argument('--policy', choices=['cnn', 'lstm', 'lnlstm'], default='cnn', help='Policy architecture')
+    parser.add_argument('--lr_schedule', choices=['constant', 'linear'], default='constant',
+                        help='Learning rate schedule')
     args = parser.parse_args()
     logger.configure()
-    train(
-        args.env,
-        num_timesteps=args.num_timesteps,
-        seed=args.seed,
-        policy=args.policy,
-        lr_schedule=args.lr_schedule,
-        num_env=16,
-    )
+    train(args.env, num_timesteps=args.num_timesteps, seed=args.seed, policy=args.policy, lr_schedule=args.lr_schedule,
+          num_env=16)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

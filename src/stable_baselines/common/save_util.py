@@ -1,8 +1,8 @@
 import base64
+from collections import OrderedDict
 import io
 import json
 import pickle
-from collections import OrderedDict
 
 import cloudpickle
 import numpy as np
@@ -48,14 +48,16 @@ def data_to_json(data):
             # Also store type of the class for consumption
             # from other languages/humans, so we have an
             # idea what was being stored.
-            base64_encoded = base64.b64encode(cloudpickle.dumps(data_item)).decode()
+            base64_encoded = base64.b64encode(
+                cloudpickle.dumps(data_item)
+            ).decode()
 
             # Use ":" to make sure we do
             # not override these keys
             # when we include variables of the object later
             cloudpickle_serialization = {
                 ":type:": str(type(data_item)),
-                ":serialized:": base64_encoded,
+                ":serialized:": base64_encoded
             }
 
             # Add first-level JSON-serializable items of the
@@ -66,9 +68,7 @@ def data_to_json(data):
             if hasattr(data_item, "__dict__") or isinstance(data_item, dict):
                 # Take elements from __dict__ for custom classes
                 item_generator = (
-                    data_item.items
-                    if isinstance(data_item, dict)
-                    else data_item.__dict__.items
+                    data_item.items if isinstance(data_item, dict) else data_item.__dict__.items
                 )
                 for variable_name, variable_item in item_generator():
                     # Check if serializable. If not, just include the
@@ -121,9 +121,9 @@ def json_to_data(json_string, custom_objects=None):
                 )
             except pickle.UnpicklingError:
                 raise RuntimeError(
-                    "Could not deserialize object {}. ".format(data_key)
-                    + "Consider using `custom_objects` argument to replace "
-                    + "this object."
+                    "Could not deserialize object {}. ".format(data_key) +
+                    "Consider using `custom_objects` argument to replace " +
+                    "this object."
                 )
             return_data[data_key] = deserialized_object
         else:

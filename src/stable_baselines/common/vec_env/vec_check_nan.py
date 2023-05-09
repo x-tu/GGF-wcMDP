@@ -34,9 +34,7 @@ class VecCheckNan(VecEnvWrapper):
     def step_wait(self):
         observations, rewards, news, infos = self.venv.step_wait()
 
-        self._check_val(
-            async_step=False, observations=observations, rewards=rewards, news=news
-        )
+        self._check_val(async_step=False, observations=observations, rewards=rewards, news=news)
 
         self._observations = observations
         return observations, rewards, news, infos
@@ -78,13 +76,9 @@ class VecCheckNan(VecEnvWrapper):
                 if self._actions is None:
                     msg += "environment observation (at reset)"
                 else:
-                    msg += "environment, Last given value was: \r\n\taction={}".format(
-                        self._actions
-                    )
+                    msg += "environment, Last given value was: \r\n\taction={}".format(self._actions)
             else:
-                msg += "RL model, Last given value was: \r\n\tobservations={}".format(
-                    self._observations
-                )
+                msg += "RL model, Last given value was: \r\n\tobservations={}".format(self._observations)
 
             if self.raise_exception:
                 raise ValueError(msg)

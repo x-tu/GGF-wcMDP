@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
-
 import numpy as np
+from abc import ABC, abstractmethod
 
 
 class AbstractEnvRunner(ABC):
@@ -15,11 +14,8 @@ class AbstractEnvRunner(ABC):
         self.env = env
         self.model = model
         n_env = env.num_envs
-        self.batch_ob_shape = (n_env * n_steps,) + env.observation_space.shape
-        self.obs = np.zeros(
-            (n_env,) + env.observation_space.shape,
-            dtype=env.observation_space.dtype.name,
-        )
+        self.batch_ob_shape = (n_env*n_steps,) + env.observation_space.shape
+        self.obs = np.zeros((n_env,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
         self.obs[:] = env.reset()
         self.n_steps = n_steps
         self.states = model.initial_state

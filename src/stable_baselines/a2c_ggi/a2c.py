@@ -6,27 +6,12 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
-from stable_baselines.a2c_ggi.utils import (
-    Deri_GGI,
-    Scheduler,
-    discount_with_dones,
-    mse,
-    total_episode_reward_logger,
-)
-from stable_baselines.common import (
-    ActorCriticRLModel,
-    SetVerbosity,
-    TensorboardWriter,
-    explained_variance,
-    tf_util,
-)
-from stable_baselines.common.policies_ggi import (
-    ActorCriticPolicy,
-    RecurrentActorCriticPolicy,
-)
+from stable_baselines.common import explained_variance, tf_util, ActorCriticRLModel, SetVerbosity, TensorboardWriter
+from stable_baselines.common.policies_ggi import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
+from stable_baselines.a2c_ggi.utils import discount_with_dones, Scheduler, mse, Deri_GGI, \
+    total_episode_reward_logger
 from stable_baselines.ppo2.ppo2 import safe_mean
-
 
 class A2C(ActorCriticRLModel):
     """
@@ -60,40 +45,14 @@ class A2C(ActorCriticRLModel):
         If None, the number of cpu of the current machine will be used.
     """
 
-    def __init__(
-        self,
-        policy,
-        env,
-        reward_space,
-        weight_coef,
-        gamma=0.99,
-        n_steps=5,
-        vf_coef=0.25,
-        ent_coef=0.01,
-        max_grad_norm=0.5,
-        learning_rate=7e-4,
-        alpha=0.99,
-        epsilon=1e-5,
-        lr_schedule="constant",
-        verbose=0,
-        tensorboard_log=None,
-        _init_setup_model=True,
-        policy_kwargs=None,
-        full_tensorboard_log=False,
-        seed=None,
-        n_cpu_tf_sess=None,
-    ):
+    def __init__(self, policy, env, reward_space, weight_coef, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
+                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='constant', verbose=0,
+                 tensorboard_log=None, _init_setup_model=True, policy_kwargs=None,
+                 full_tensorboard_log=False, seed=None, n_cpu_tf_sess=None):
 
-        super(A2C, self).__init__(
-            policy=policy,
-            env=env,
-            verbose=verbose,
-            requires_vec_env=True,
-            _init_setup_model=_init_setup_model,
-            policy_kwargs=policy_kwargs,
-            seed=seed,
-            n_cpu_tf_sess=n_cpu_tf_sess,
-        )
+        super(A2C, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
+                                  _init_setup_model=_init_setup_model, policy_kwargs=policy_kwargs,
+                                  seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
 
         self.n_steps = n_steps
         self.gamma = gamma
@@ -146,17 +105,13 @@ class A2C(ActorCriticRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            assert issubclass(self.policy, ActorCriticPolicy), (
-                "Error: the input policy for the A2C model must be an "
-                "instance of common.policies.ActorCriticPolicy."
-            )
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the A2C model must be an " \
+                                                                "instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.set_random_seed(self.seed)
-                self.sess = tf_util.make_session(
-                    num_cpu=self.n_cpu_tf_sess, graph=self.graph
-                )
+                self.sess = tf_util.make_session(num_cpu=self.n_cpu_tf_sess, graph=self.graph)
 
                 self.n_batch = self.n_envs * self.n_steps
                 self.reward_n = self.reward_space
@@ -167,80 +122,39 @@ class A2C(ActorCriticRLModel):
                     n_batch_step = self.n_envs
                     n_batch_train = self.n_envs * self.n_steps
 
-                step_model = self.policy(
-                    self.sess,
-                    self.observation_space,
-                    self.action_space,
-                    self.reward_n,
-                    self.n_envs,
-                    1,
-                    n_batch_step,
-                    reuse=False,
-                    **self.policy_kwargs
-                )
+                step_model = self.policy(self.sess, self.observation_space, self.action_space, self.reward_n,
+                                         self.n_envs, 1, n_batch_step, reuse=False, **self.policy_kwargs)
 
-                with tf.variable_scope(
-                    "train_model",
-                    reuse=True,
-                    custom_getter=tf_util.outer_scope_getter("train_model"),
-                ):
-                    train_model = self.policy(
-                        self.sess,
-                        self.observation_space,
-                        self.action_space,
-                        self.reward_n,
-                        self.n_envs,
-                        self.n_steps,
-                        n_batch_train,
-                        reuse=True,
-                        **self.policy_kwargs
-                    )
+                with tf.variable_scope("train_model", reuse=True,
+                                       custom_getter=tf_util.outer_scope_getter("train_model")):
+                    train_model = self.policy(self.sess, self.observation_space, self.action_space, self.reward_n, self.n_envs,
+                                              self.n_steps, n_batch_train, reuse=True, **self.policy_kwargs)
 
                 with tf.variable_scope("loss", reuse=False):
-                    self.actions_ph = train_model.pdtype.sample_placeholder(
-                        [None], name="action_ph"
-                    )
-                    self.advs_ph = tf.placeholder(
-                        tf.float32, [None, self.reward_n], name="advs_ph"
-                    )
-                    self.rewards_ph = tf.placeholder(
-                        tf.float32, [None, self.reward_n], name="rewards_ph"
-                    )
-                    self.learning_rate_ph = tf.placeholder(
-                        tf.float32, [], name="learning_rate_ph"
-                    )
-                    self.ini_obs_value = tf.placeholder(
-                        tf.float32, [self.reward_n], name="initial_obs_value"
-                    )
-                    self.sor_omega = tf.placeholder(
-                        tf.float32, [self.reward_n], name="self.sor_omega"
-                    )
+                    self.actions_ph = train_model.pdtype.sample_placeholder([None], name="action_ph")
+                    self.advs_ph = tf.placeholder(tf.float32, [None, self.reward_n], name="advs_ph")
+                    self.rewards_ph = tf.placeholder(tf.float32, [None, self.reward_n], name="rewards_ph")
+                    self.learning_rate_ph = tf.placeholder(tf.float32, [], name="learning_rate_ph")
+                    self.ini_obs_value = tf.placeholder(tf.float32, [self.reward_n], name="initial_obs_value")
+                    self.sor_omega = tf.placeholder(tf.float32, [self.reward_n], name="self.sor_omega")
 
                     neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
-                    self.entropy = tf.reduce_mean(
-                        train_model.proba_distribution.entropy()
-                    )
-
+                    self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+                    
                     policyy = self.advs_ph * tf.expand_dims(neglogpac, axis=1)
                     pg_ggi_loss = tf.tensordot(policyy, self.sor_omega, axes=1)
-                    self.pg_loss = tf.reduce_mean(pg_ggi_loss)
-
-                    self.vf_loss = mse(
-                        tf.squeeze(train_model.value_flat), self.rewards_ph
-                    )
+                    self.pg_loss = tf.reduce_mean(pg_ggi_loss) 
+                    
+                    self.vf_loss = mse(tf.squeeze(train_model.value_flat), self.rewards_ph)
                     # https://arxiv.org/pdf/1708.04782.pdf#page=9, https://arxiv.org/pdf/1602.01783.pdf#page=4
                     # and https://github.com/dennybritz/reinforcement-learning/issues/34
                     # suggest to add an entropy component in order to improve exploration.
-                    loss = (
-                        self.pg_loss
-                        - self.entropy * self.ent_coef
-                        + self.vf_loss * self.vf_coef
-                    )
+                    loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
-                    tf.summary.scalar("entropy_loss", self.entropy)
-                    tf.summary.scalar("policy_gradient_loss", self.pg_loss)
-                    tf.summary.scalar("value_function_loss", self.vf_loss)
-                    tf.summary.scalar("loss", loss)
+                    tf.summary.scalar('entropy_loss', self.entropy)
+                    tf.summary.scalar('policy_gradient_loss', self.pg_loss)
+                    tf.summary.scalar('value_function_loss', self.vf_loss)
+                    tf.summary.scalar('loss', loss)
 
                     self.params = tf_util.get_trainable_vars("model")
                     grads = tf.gradients(loss, self.params)
@@ -249,27 +163,20 @@ class A2C(ActorCriticRLModel):
                     grads = list(zip(grads, self.params))
 
                 with tf.variable_scope("input_info", reuse=False):
-                    tf.summary.scalar(
-                        "discounted_rewards", tf.reduce_mean(self.rewards_ph)
-                    )
-                    tf.summary.scalar(
-                        "learning_rate", tf.reduce_mean(self.learning_rate_ph)
-                    )
-                    tf.summary.scalar("advantage", tf.reduce_mean(self.advs_ph))
+                    tf.summary.scalar('discounted_rewards', tf.reduce_mean(self.rewards_ph))
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
+                    tf.summary.scalar('advantage', tf.reduce_mean(self.advs_ph))
                     if self.full_tensorboard_log:
-                        tf.summary.histogram("discounted_rewards", self.rewards_ph)
-                        tf.summary.histogram("learning_rate", self.learning_rate_ph)
-                        tf.summary.histogram("advantage", self.advs_ph)
+                        tf.summary.histogram('discounted_rewards', self.rewards_ph)
+                        tf.summary.histogram('learning_rate', self.learning_rate_ph)
+                        tf.summary.histogram('advantage', self.advs_ph)
                         if tf_util.is_image(self.observation_space):
-                            tf.summary.image("observation", train_model.obs_ph)
+                            tf.summary.image('observation', train_model.obs_ph)
                         else:
-                            tf.summary.histogram("observation", train_model.obs_ph)
+                            tf.summary.histogram('observation', train_model.obs_ph)
 
-                trainer = tf.train.RMSPropOptimizer(
-                    learning_rate=self.learning_rate_ph,
-                    decay=self.alpha,
-                    epsilon=self.epsilon,
-                )
+                trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha,
+                                                    epsilon=self.epsilon)
                 self.apply_backprop = trainer.apply_gradients(grads)
 
                 self.train_model = train_model
@@ -282,19 +189,7 @@ class A2C(ActorCriticRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-    def _train_step(
-        self,
-        obs,
-        avg_init_states,
-        sorted_omega,
-        states,
-        rewards,
-        masks,
-        actions,
-        values,
-        update,
-        writer=None,
-    ):
+    def _train_step(self, obs, avg_init_states, sorted_omega, states, rewards, masks, actions, values, update, writer=None):
         """
         applies a training step to the model
 
@@ -315,15 +210,8 @@ class A2C(ActorCriticRLModel):
             cur_lr = self.learning_rate_schedule.value()
         assert cur_lr is not None, "Error: the observation input array cannon be empty"
 
-        td_map = {
-            self.train_model.obs_ph: obs,
-            self.actions_ph: actions,
-            self.advs_ph: advs,
-            self.rewards_ph: rewards,
-            self.learning_rate_ph: cur_lr,
-            self.ini_obs_value: avg_init_states,
-            self.sor_omega: sorted_omega,
-        }
+        td_map = {self.train_model.obs_ph: obs, self.actions_ph: actions, self.advs_ph: advs, self.rewards_ph: rewards, 
+                  self.learning_rate_ph: cur_lr, self.ini_obs_value: avg_init_states, self.sor_omega: sorted_omega}
         if states is not None:
             td_map[self.train_model.states_ph] = states
             td_map[self.train_model.dones_ph] = masks
@@ -334,69 +222,33 @@ class A2C(ActorCriticRLModel):
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                    [
-                        self.summary,
-                        self.pg_loss,
-                        self.vf_loss,
-                        self.entropy,
-                        self.apply_backprop,
-                    ],
-                    td_map,
-                    options=run_options,
-                    run_metadata=run_metadata,
-                )
-                writer.add_run_metadata(
-                    run_metadata, "step%d" % (update * self.n_batch)
-                )
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop],
+                    td_map, options=run_options, run_metadata=run_metadata)
+                writer.add_run_metadata(run_metadata, 'step%d' % (update * self.n_batch))
             else:
                 summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                    [
-                        self.summary,
-                        self.pg_loss,
-                        self.vf_loss,
-                        self.entropy,
-                        self.apply_backprop,
-                    ],
-                    td_map,
-                )
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map)
             writer.add_summary(summary, update * self.n_batch)
 
         else:
             policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                [self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map
-            )
+                [self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map)
 
         return policy_loss, value_loss, policy_entropy
 
-    def learn(
-        self,
-        total_timesteps,
-        callback=None,
-        log_interval=100,
-        tb_log_name="A2C",
-        reset_num_timesteps=True,
-    ):
+    def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="A2C",
+              reset_num_timesteps=True):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
 
-        with SetVerbosity(self.verbose), TensorboardWriter(
-            self.graph, self.tensorboard_log, tb_log_name, new_tb_log
-        ) as writer:
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
+                as writer:
             self._setup_learn()
-            self.learning_rate_schedule = Scheduler(
-                initial_value=self.learning_rate,
-                n_values=total_timesteps,
-                schedule=self.lr_schedule,
-            )
+            self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
+                                                    schedule=self.lr_schedule)
 
-            runner = A2CRunner(
-                self.env,
-                self,
-                n_steps=self.n_steps,
-                gamma=self.gamma,
-                reward_n=self.reward_n,
-                ggi_constant=self.weight_coef,
-            )
+            runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma, 
+                               reward_n=self.reward_n, ggi_constant=self.weight_coef)
             self.episode_reward = np.zeros((self.n_envs,))
             # Training stats (when using Monitor wrapper)
             ep_info_buf = deque(maxlen=100)
@@ -404,35 +256,18 @@ class A2C(ActorCriticRLModel):
             t_start = time.time()
             for update in range(1, total_timesteps // self.n_batch + 1):
                 # true_reward is the reward without discount
-                obs, avg_value, w, states, rewards, masks, actions, values, ep_infos, true_reward = (
-                    runner.run()
-                )
+                obs, avg_value, w, states, rewards, masks, actions, values, ep_infos, true_reward = runner.run()
                 ep_info_buf.extend(ep_infos)
-                _, value_loss, policy_entropy = self._train_step(
-                    obs,
-                    avg_value,
-                    w,
-                    states,
-                    rewards,
-                    masks,
-                    actions,
-                    values,
-                    self.num_timesteps // self.n_batch,
-                    writer,
-                )
+                _, value_loss, policy_entropy = self._train_step(obs, avg_value, w, states, rewards, masks, actions, values,
+                                                                 self.num_timesteps // self.n_batch, writer)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
 
                 if writer is not None:
-                    self.episode_reward = total_episode_reward_logger(
-                        self.episode_reward,
-                        true_reward.reshape(
-                            (self.n_envs, self.n_steps * self.reward_n)
-                        ),
-                        masks.reshape((self.n_envs, self.n_steps)),
-                        writer,
-                        self.num_timesteps,
-                    )
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                      true_reward.reshape((self.n_envs, self.n_steps*self.reward_n)),
+                                                                      masks.reshape((self.n_envs, self.n_steps)),
+                                                                      writer, self.num_timesteps)
 
                 self.num_timesteps += self.n_batch
 
@@ -451,14 +286,8 @@ class A2C(ActorCriticRLModel):
                     logger.record_tabular("value_loss", float(value_loss))
                     logger.record_tabular("explained_variance", float(explained_var))
                     if len(ep_info_buf) > 0 and len(ep_info_buf[0]) > 0:
-                        logger.logkv(
-                            "ep_reward_mean",
-                            safe_mean([ep_info["r"] for ep_info in ep_info_buf]),
-                        )
-                        logger.logkv(
-                            "ep_len_mean",
-                            safe_mean([ep_info["l"] for ep_info in ep_info_buf]),
-                        )
+                        logger.logkv('ep_reward_mean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
+                        logger.logkv('ep_len_mean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))
                     logger.dump_tabular()
 
         return self
@@ -482,14 +311,12 @@ class A2C(ActorCriticRLModel):
             "n_cpu_tf_sess": self.n_cpu_tf_sess,
             "seed": self.seed,
             "_vectorize_action": self._vectorize_action,
-            "policy_kwargs": self.policy_kwargs,
+            "policy_kwargs": self.policy_kwargs
         }
 
         params_to_save = self.get_parameters()
 
-        self._save_to_file(
-            save_path, data=data, params=params_to_save, cloudpickle=cloudpickle
-        )
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
 
 
 class A2CRunner(AbstractEnvRunner):
@@ -518,9 +345,7 @@ class A2CRunner(AbstractEnvRunner):
         mb_states = self.states
         ep_infos = []
         for _ in range(self.n_steps):
-            actions, values, states, _ = self.model.step(
-                self.obs, self.states, self.dones
-            )
+            actions, values, states, _ = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
             mb_values.append(values)
@@ -528,62 +353,45 @@ class A2CRunner(AbstractEnvRunner):
             clipped_actions = actions
             # Clip the actions to avoid out of bound error
             if isinstance(self.env.action_space, gym.spaces.Box):
-                clipped_actions = np.clip(
-                    actions, self.env.action_space.low, self.env.action_space.high
-                )
+                clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
             obs, rewards, dones, infos = self.env.step(clipped_actions)
             for info in infos:
-                maybe_ep_info = info.get("episode")
+                maybe_ep_info = info.get('episode')
                 if maybe_ep_info is not None:
                     ep_infos.append(maybe_ep_info)
 
             self.states = states
             self.dones = dones
             self.obs = obs
-            mb_rewards.append(rewards)
-
+            mb_rewards.append(rewards)      
+            
         # initial state
         initial_state = self.env.initial_states()
-        initial_state_value = self.model.value(
-            np.squeeze(initial_state), self.states, self.dones
-        )
+        initial_state_value = self.model.value(np.squeeze(initial_state), self.states, self.dones)
         # assumes always using parallel workers
         averaged_state_value = np.mean(initial_state_value, axis=0)
-        sorted_omega = [
-            np.where(averaged_state_value.argsort() == i)[0][0]
-            for i in range(self.reward_n)
-        ]
+        sorted_omega = [np.where(averaged_state_value.argsort()==i)[0][0] for i in range(self.reward_n)]
         omega = np.array([1 / (self.ggi_constant ** i) for i in range(self.reward_n)])
         w = omega[sorted_omega]
-
+        
         mb_dones.append(self.dones)
         # batch of steps to batch of rollouts
-        mb_obs = (
-            np.asarray(mb_obs, dtype=self.obs.dtype)
-            .swapaxes(1, 0)
-            .reshape(self.batch_ob_shape)
-        )
+        mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(0, 1)
-        mb_actions = np.asarray(mb_actions, dtype=self.env.action_space.dtype).swapaxes(
-            0, 1
-        )
+        mb_actions = np.asarray(mb_actions, dtype=self.env.action_space.dtype).swapaxes(0, 1)
         mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(0, 1)
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(0, 1)
         mb_masks = mb_dones[:, :-1]
         mb_dones = mb_dones[:, 1:]
         true_rewards = np.copy(mb_rewards)
         last_values = self.model.value(self.obs, self.states, self.dones).tolist()
-
+        
         # discount/bootstrap off value fn
-        for n, (rewards, dones, value) in enumerate(
-            zip(mb_rewards, mb_dones, last_values)
-        ):
+        for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
             rewards = rewards.tolist()
             dones = dones.tolist()
             if dones[-1] == 0:
-                rewards = discount_with_dones(
-                    rewards + [value], dones + [0], self.gamma, self.reward_n
-                )[:-1]
+                rewards = discount_with_dones(rewards + [value], dones + [0], self.gamma, self.reward_n)[:-1]
             mb_rewards[n] = rewards
 
         # convert from [n_env, n_steps, ...] to [n_steps * n_env, ...]
@@ -592,15 +400,4 @@ class A2CRunner(AbstractEnvRunner):
         mb_values = mb_values.reshape(-1, *mb_values.shape[2:])
         mb_masks = mb_masks.reshape(-1, *mb_masks.shape[2:])
         true_rewards = true_rewards.reshape(-1, *true_rewards.shape[2:])
-        return (
-            mb_obs,
-            averaged_state_value,
-            w,
-            mb_states,
-            mb_rewards,
-            mb_masks,
-            mb_actions,
-            mb_values,
-            ep_infos,
-            true_rewards,
-        )
+        return mb_obs, averaged_state_value, w, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, ep_infos, true_rewards

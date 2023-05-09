@@ -1,6 +1,6 @@
-import numpy as np
-import tensorflow as tf
 from mpi4py import MPI
+import tensorflow as tf
+import numpy as np
 
 import stable_baselines.common.tf_util as tf_util
 
@@ -18,45 +18,30 @@ class RunningMeanStd(object):
             dtype=tf.float64,
             shape=shape,
             initializer=tf.constant_initializer(0.0),
-            name="runningsum",
-            trainable=False,
-        )
+            name="runningsum", trainable=False)
         self._sumsq = tf.get_variable(
             dtype=tf.float64,
             shape=shape,
             initializer=tf.constant_initializer(epsilon),
-            name="runningsumsq",
-            trainable=False,
-        )
+            name="runningsumsq", trainable=False)
         self._count = tf.get_variable(
             dtype=tf.float64,
             shape=(),
             initializer=tf.constant_initializer(epsilon),
-            name="count",
-            trainable=False,
-        )
+            name="count", trainable=False)
         self.shape = shape
 
         self.mean = tf.cast(self._sum / self._count, tf.float32)
-        self.std = tf.sqrt(
-            tf.maximum(
-                tf.cast(self._sumsq / self._count, tf.float32) - tf.square(self.mean),
-                1e-2,
-            )
-        )
+        self.std = tf.sqrt(tf.maximum(tf.cast(self._sumsq / self._count, tf.float32) - tf.square(self.mean),
+                                      1e-2))
 
-        newsum = tf.placeholder(shape=self.shape, dtype=tf.float64, name="sum")
-        newsumsq = tf.placeholder(shape=self.shape, dtype=tf.float64, name="var")
-        newcount = tf.placeholder(shape=[], dtype=tf.float64, name="count")
-        self.incfiltparams = tf_util.function(
-            [newsum, newsumsq, newcount],
-            [],
-            updates=[
-                tf.assign_add(self._sum, newsum),
-                tf.assign_add(self._sumsq, newsumsq),
-                tf.assign_add(self._count, newcount),
-            ],
-        )
+        newsum = tf.placeholder(shape=self.shape, dtype=tf.float64, name='sum')
+        newsumsq = tf.placeholder(shape=self.shape, dtype=tf.float64, name='var')
+        newcount = tf.placeholder(shape=[], dtype=tf.float64, name='count')
+        self.incfiltparams = tf_util.function([newsum, newsumsq, newcount], [],
+                                              updates=[tf.assign_add(self._sum, newsum),
+                                                       tf.assign_add(self._sumsq, newsumsq),
+                                                       tf.assign_add(self._count, newcount)])
 
     def update(self, data):
         """
@@ -64,22 +49,14 @@ class RunningMeanStd(object):
 
         :param data: (np.ndarray) the data
         """
-        data = data.astype("float64")
+        data = data.astype('float64')
         data_size = int(np.prod(self.shape))
-        totalvec = np.zeros(data_size * 2 + 1, "float64")
-        addvec = np.concatenate(
-            [
-                data.sum(axis=0).ravel(),
-                np.square(data).sum(axis=0).ravel(),
-                np.array([len(data)], dtype="float64"),
-            ]
-        )
+        totalvec = np.zeros(data_size * 2 + 1, 'float64')
+        addvec = np.concatenate([data.sum(axis=0).ravel(), np.square(data).sum(axis=0).ravel(),
+                                 np.array([len(data)], dtype='float64')])
         MPI.COMM_WORLD.Allreduce(addvec, totalvec, op=MPI.SUM)
-        self.incfiltparams(
-            totalvec[0:data_size].reshape(self.shape),
-            totalvec[data_size : 2 * data_size].reshape(self.shape),
-            totalvec[2 * data_size],
-        )
+        self.incfiltparams(totalvec[0: data_size].reshape(self.shape),
+                           totalvec[data_size: 2 * data_size].reshape(self.shape), totalvec[2 * data_size])
 
 
 @tf_util.in_session
@@ -88,16 +65,8 @@ def test_dist():
     test the running mean std
     """
     np.random.seed(0)
-    p_1, p_2, p_3 = (
-        np.random.randn(3, 1),
-        np.random.randn(4, 1),
-        np.random.randn(5, 1),
-    )
-    q_1, q_2, q_3 = (
-        np.random.randn(6, 1),
-        np.random.randn(7, 1),
-        np.random.randn(8, 1),
-    )
+    p_1, p_2, p_3 = (np.random.randn(3, 1), np.random.randn(4, 1), np.random.randn(5, 1))
+    q_1, q_2, q_3 = (np.random.randn(6, 1), np.random.randn(7, 1), np.random.randn(8, 1))
 
     comm = MPI.COMM_WORLD
     assert comm.Get_size() == 2
@@ -121,8 +90,14 @@ def test_dist():
         print(var_1, var_2)
         return np.allclose(var_1, var_2)
 
-    assert checkallclose(bigvec.mean(axis=0), rms.mean.eval())
-    assert checkallclose(bigvec.std(axis=0), rms.std.eval())
+    assert checkallclose(
+        bigvec.mean(axis=0),
+        rms.mean.eval(),
+    )
+    assert checkallclose(
+        bigvec.std(axis=0),
+        rms.std.eval(),
+    )
 
 
 if __name__ == "__main__":

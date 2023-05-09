@@ -1,6 +1,7 @@
 import numpy as np
+
 from gym import Env
-from gym.spaces import Box, Discrete, MultiBinary, MultiDiscrete
+from gym.spaces import Discrete, MultiDiscrete, MultiBinary, Box
 
 
 class IdentityEnv(Env):
@@ -36,7 +37,7 @@ class IdentityEnv(Env):
     def _get_reward(self, action):
         return 1 if np.all(self.state == action) else 0
 
-    def render(self, mode="human"):
+    def render(self, mode='human'):
         pass
 
 

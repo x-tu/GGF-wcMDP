@@ -1,22 +1,13 @@
-import numpy as np
 import tensorflow as tf
+import numpy as np
 from mpi4py import MPI
 
 import stable_baselines.common.tf_util as tf_utils
 
 
 class MpiAdam(object):
-    def __init__(
-        self,
-        var_list,
-        *,
-        beta1=0.9,
-        beta2=0.999,
-        epsilon=1e-08,
-        scale_grad_by_procs=True,
-        comm=None,
-        sess=None
-    ):
+    def __init__(self, var_list, *, beta1=0.9, beta2=0.999, epsilon=1e-08, scale_grad_by_procs=True, comm=None,
+                 sess=None):
         """
         A parallel MPI implementation of the Adam optimizer for TensorFlow
         https://arxiv.org/abs/1412.6980
@@ -37,10 +28,10 @@ class MpiAdam(object):
         size = sum(tf_utils.numel(v) for v in var_list)
         # Exponential moving average of gradient values
         # "first moment estimate" m in the paper
-        self.exp_avg = np.zeros(size, "float32")
+        self.exp_avg = np.zeros(size, 'float32')
         # Exponential moving average of squared gradient values
         # "second raw moment estimate" v in the paper
-        self.exp_avg_sq = np.zeros(size, "float32")
+        self.exp_avg_sq = np.zeros(size, 'float32')
         self.step = 0
         self.setfromflat = tf_utils.SetFromFlat(var_list, sess=sess)
         self.getflat = tf_utils.GetFlat(var_list, sess=sess)
@@ -55,7 +46,7 @@ class MpiAdam(object):
         """
         if self.step % 100 == 0:
             self.check_synced()
-        local_grad = local_grad.astype("float32")
+        local_grad = local_grad.astype('float32')
         global_grad = np.zeros_like(local_grad)
         self.comm.Allreduce(local_grad, global_grad, op=MPI.SUM)
         if self.scale_grad_by_procs:
@@ -63,17 +54,11 @@ class MpiAdam(object):
 
         self.step += 1
         # Learning rate with bias correction
-        step_size = (
-            learning_rate
-            * np.sqrt(1 - self.beta2 ** self.step)
-            / (1 - self.beta1 ** self.step)
-        )
+        step_size = learning_rate * np.sqrt(1 - self.beta2 ** self.step) / (1 - self.beta1 ** self.step)
         # Decay the first and second moment running average coefficient
         self.exp_avg = self.beta1 * self.exp_avg + (1 - self.beta1) * global_grad
-        self.exp_avg_sq = self.beta2 * self.exp_avg_sq + (1 - self.beta2) * (
-            global_grad * global_grad
-        )
-        step = (-step_size) * self.exp_avg / (np.sqrt(self.exp_avg_sq) + self.epsilon)
+        self.exp_avg_sq = self.beta2 * self.exp_avg_sq + (1 - self.beta2) * (global_grad * global_grad)
+        step = (- step_size) * self.exp_avg / (np.sqrt(self.exp_avg_sq) + self.epsilon)
         self.setfromflat(self.getflat() + step)
 
     def sync(self):
@@ -106,8 +91,8 @@ def test_mpi_adam():
     np.random.seed(0)
     tf.set_random_seed(0)
 
-    a_var = tf.Variable(np.random.randn(3).astype("float32"))
-    b_var = tf.Variable(np.random.randn(2, 5).astype("float32"))
+    a_var = tf.Variable(np.random.randn(3).astype('float32'))
+    b_var = tf.Variable(np.random.randn(2, 5).astype('float32'))
     loss = tf.reduce_sum(tf.square(a_var)) + tf.reduce_sum(tf.sin(b_var))
 
     learning_rate = 1e-2
@@ -122,9 +107,7 @@ def test_mpi_adam():
     tf.get_default_session().run(tf.global_variables_initializer())
 
     var_list = [a_var, b_var]
-    lossandgrad = tf_utils.function(
-        [], [loss, tf_utils.flatgrad(loss, var_list)], updates=[update_op]
-    )
+    lossandgrad = tf_utils.function([], [loss, tf_utils.flatgrad(loss, var_list)], updates=[update_op])
     adam = MpiAdam(var_list)
 
     for step in range(10):

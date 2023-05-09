@@ -15,15 +15,8 @@ from stable_baselines.common.misc_util import mpi_rank_or_zero
 from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 
-def make_atari_env(
-    env_id,
-    num_env,
-    seed,
-    wrapper_kwargs=None,
-    start_index=0,
-    allow_early_resets=True,
-    start_method=None,
-):
+def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None,
+                   start_index=0, allow_early_resets=True, start_method=None):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari.
 
@@ -44,24 +37,18 @@ def make_atari_env(
         def _thunk():
             env = make_atari(env_id)
             env.seed(seed + rank)
-            env = Monitor(
-                env,
-                logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
-                allow_early_resets=allow_early_resets,
-            )
+            env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
+                          allow_early_resets=allow_early_resets)
             return wrap_deepmind(env, **wrapper_kwargs)
-
         return _thunk
-
     set_global_seeds(seed)
 
     # When using one environment, no need to start subprocesses
     if num_env == 1:
         return DummyVecEnv([make_env(0)])
 
-    return SubprocVecEnv(
-        [make_env(i + start_index) for i in range(num_env)], start_method=start_method
-    )
+    return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)],
+                         start_method=start_method)
 
 
 def make_mujoco_env(env_id, seed, allow_early_resets=True):
@@ -75,11 +62,7 @@ def make_mujoco_env(env_id, seed, allow_early_resets=True):
     """
     set_global_seeds(seed + 10000 * mpi_rank_or_zero())
     env = gym.make(env_id)
-    env = Monitor(
-        env,
-        os.path.join(logger.get_dir(), str(rank)),
-        allow_early_resets=allow_early_resets,
-    )
+    env = Monitor(env, os.path.join(logger.get_dir(), str(rank)), allow_early_resets=allow_early_resets)
     env.seed(seed)
     return env
 
@@ -96,13 +79,10 @@ def make_robotics_env(env_id, seed, rank=0, allow_early_resets=True):
     """
     set_global_seeds(seed)
     env = gym.make(env_id)
-    env = FlattenDictWrapper(env, ["observation", "desired_goal"])
+    env = FlattenDictWrapper(env, ['observation', 'desired_goal'])
     env = Monitor(
-        env,
-        logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
-        info_keywords=("is_success",),
-        allow_early_resets=allow_early_resets,
-    )
+        env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
+        info_keywords=('is_success',), allow_early_resets=allow_early_resets)
     env.seed(seed)
     return env
 
@@ -114,10 +94,7 @@ def arg_parser():
     :return: (ArgumentParser)
     """
     import argparse
-
-    return argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    return argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 def atari_arg_parser():
@@ -127,11 +104,9 @@ def atari_arg_parser():
     :return: (ArgumentParser) parser {'--env': 'BreakoutNoFrameskip-v4', '--seed': 0, '--num-timesteps': int(1e7)}
     """
     parser = arg_parser()
-    parser.add_argument(
-        "--env", help="environment ID", default="BreakoutNoFrameskip-v4"
-    )
-    parser.add_argument("--seed", help="RNG seed", type=int, default=0)
-    parser.add_argument("--num-timesteps", type=int, default=int(1e7))
+    parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
+    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--num-timesteps', type=int, default=int(1e7))
     return parser
 
 
@@ -142,10 +117,10 @@ def mujoco_arg_parser():
     :return:  (ArgumentParser) parser {'--env': 'Reacher-v2', '--seed': 0, '--num-timesteps': int(1e6), '--play': False}
     """
     parser = arg_parser()
-    parser.add_argument("--env", help="environment ID", type=str, default="Reacher-v2")
-    parser.add_argument("--seed", help="RNG seed", type=int, default=0)
-    parser.add_argument("--num-timesteps", type=int, default=int(1e6))
-    parser.add_argument("--play", default=False, action="store_true")
+    parser.add_argument('--env', help='environment ID', type=str, default='Reacher-v2')
+    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
+    parser.add_argument('--play', default=False, action='store_true')
     return parser
 
 
@@ -156,9 +131,7 @@ def robotics_arg_parser():
     :return: (ArgumentParser) parser {'--env': 'FetchReach-v0', '--seed': 0, '--num-timesteps': int(1e6)}
     """
     parser = arg_parser()
-    parser.add_argument(
-        "--env", help="environment ID", type=str, default="FetchReach-v0"
-    )
-    parser.add_argument("--seed", help="RNG seed", type=int, default=0)
-    parser.add_argument("--num-timesteps", type=int, default=int(1e6))
+    parser.add_argument('--env', help='environment ID', type=str, default='FetchReach-v0')
+    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     return parser

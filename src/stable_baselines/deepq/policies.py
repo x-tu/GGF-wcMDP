@@ -1,6 +1,6 @@
-import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as tf_layers
+import numpy as np
 from gym.spaces import Discrete
 
 from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
@@ -23,34 +23,12 @@ class DQNPolicy(BasePolicy):
     :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     """
 
-    def __init__(
-        self,
-        sess,
-        ob_space,
-        ac_space,
-        n_env,
-        n_steps,
-        n_batch,
-        reuse=False,
-        scale=False,
-        obs_phs=None,
-        dueling=False,
-    ):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False,
+                 obs_phs=None, dueling=False):
         # DQN policies need an override for the obs placeholder, due to the architecture of the code
-        super(DQNPolicy, self).__init__(
-            sess,
-            ob_space,
-            ac_space,
-            n_env,
-            n_steps,
-            n_batch,
-            reuse=reuse,
-            scale=scale,
-            obs_phs=obs_phs,
-        )
-        assert isinstance(
-            ac_space, Discrete
-        ), "Error: the action space for DQN must be of type gym.spaces.Discrete"
+        super(DQNPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=scale,
+                                        obs_phs=obs_phs)
+        assert isinstance(ac_space, Discrete), "Error: the action space for DQN must be of type gym.spaces.Discrete"
         self.n_actions = ac_space.n
         self.value_fn = None
         self.q_values = None
@@ -110,36 +88,12 @@ class FeedForwardPolicy(DQNPolicy):
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(
-        self,
-        sess,
-        ob_space,
-        ac_space,
-        n_env,
-        n_steps,
-        n_batch,
-        reuse=False,
-        layers=None,
-        cnn_extractor=nature_cnn,
-        feature_extraction="cnn",
-        obs_phs=None,
-        layer_norm=False,
-        dueling=False,
-        act_fun=tf.nn.relu,
-        **kwargs
-    ):
-        super(FeedForwardPolicy, self).__init__(
-            sess,
-            ob_space,
-            ac_space,
-            n_env,
-            n_steps,
-            n_batch,
-            dueling=dueling,
-            reuse=reuse,
-            scale=(feature_extraction == "cnn"),
-            obs_phs=obs_phs,
-        )
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
+                 cnn_extractor=nature_cnn, feature_extraction="cnn",
+                 obs_phs=None, layer_norm=False, dueling=False, act_fun=tf.nn.relu, **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps,
+                                                n_batch, dueling=dueling, reuse=reuse,
+                                                scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
 
         self._kwargs_check(feature_extraction, kwargs)
 
@@ -155,38 +109,24 @@ class FeedForwardPolicy(DQNPolicy):
                     extracted_features = tf.layers.flatten(self.processed_obs)
                     action_out = extracted_features
                     for layer_size in layers:
-                        action_out = tf_layers.fully_connected(
-                            action_out, num_outputs=layer_size, activation_fn=None
-                        )
+                        action_out = tf_layers.fully_connected(action_out, num_outputs=layer_size, activation_fn=None)
                         if layer_norm:
-                            action_out = tf_layers.layer_norm(
-                                action_out, center=True, scale=True
-                            )
+                            action_out = tf_layers.layer_norm(action_out, center=True, scale=True)
                         action_out = act_fun(action_out)
 
-                action_scores = tf_layers.fully_connected(
-                    action_out, num_outputs=self.n_actions, activation_fn=None
-                )
+                action_scores = tf_layers.fully_connected(action_out, num_outputs=self.n_actions, activation_fn=None)
 
             if self.dueling:
                 with tf.variable_scope("state_value"):
                     state_out = extracted_features
                     for layer_size in layers:
-                        state_out = tf_layers.fully_connected(
-                            state_out, num_outputs=layer_size, activation_fn=None
-                        )
+                        state_out = tf_layers.fully_connected(state_out, num_outputs=layer_size, activation_fn=None)
                         if layer_norm:
-                            state_out = tf_layers.layer_norm(
-                                state_out, center=True, scale=True
-                            )
+                            state_out = tf_layers.layer_norm(state_out, center=True, scale=True)
                         state_out = act_fun(state_out)
-                    state_score = tf_layers.fully_connected(
-                        state_out, num_outputs=1, activation_fn=None
-                    )
+                    state_score = tf_layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
                 action_scores_mean = tf.reduce_mean(action_scores, axis=1)
-                action_scores_centered = action_scores - tf.expand_dims(
-                    action_scores_mean, axis=1
-                )
+                action_scores_centered = action_scores - tf.expand_dims(action_scores_mean, axis=1)
                 q_out = state_score + action_scores_centered
             else:
                 q_out = action_scores
@@ -195,9 +135,7 @@ class FeedForwardPolicy(DQNPolicy):
         self._setup_init()
 
     def step(self, obs, state=None, mask=None, deterministic=True):
-        q_values, actions_proba = self.sess.run(
-            [self.q_values, self.policy_proba], {self.obs_ph: obs}
-        )
+        q_values, actions_proba = self.sess.run([self.q_values, self.policy_proba], {self.obs_ph: obs})
         if deterministic:
             actions = np.argmax(q_values, axis=1)
         else:
@@ -206,9 +144,7 @@ class FeedForwardPolicy(DQNPolicy):
             # maybe with Gumbel-max trick ? (http://amid.fish/humble-gumbel)
             actions = np.zeros((len(obs),), dtype=np.int64)
             for action_idx in range(len(obs)):
-                actions[action_idx] = np.random.choice(
-                    self.n_actions, p=actions_proba[action_idx]
-                )
+                actions[action_idx] = np.random.choice(self.n_actions, p=actions_proba[action_idx])
 
         return actions, q_values, None
 
@@ -233,33 +169,11 @@ class CnnPolicy(FeedForwardPolicy):
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(
-        self,
-        sess,
-        ob_space,
-        ac_space,
-        n_env,
-        n_steps,
-        n_batch,
-        reuse=False,
-        obs_phs=None,
-        dueling=False,
-        **_kwargs
-    ):
-        super(CnnPolicy, self).__init__(
-            sess,
-            ob_space,
-            ac_space,
-            n_env,
-            n_steps,
-            n_batch,
-            reuse,
-            feature_extraction="cnn",
-            obs_phs=obs_phs,
-            dueling=dueling,
-            layer_norm=False,
-            **_kwargs
-        )
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=False, **_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="cnn", obs_phs=obs_phs, dueling=dueling,
+                                        layer_norm=False, **_kwargs)
 
 
 class LnCnnPolicy(FeedForwardPolicy):
@@ -279,33 +193,11 @@ class LnCnnPolicy(FeedForwardPolicy):
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(
-        self,
-        sess,
-        ob_space,
-        ac_space,
-        n_env,
-        n_steps,
-        n_batch,
-        reuse=False,
-        obs_phs=None,
-        dueling=False,
-        **_kwargs
-    ):
-        super(LnCnnPolicy, self).__init__(
-            sess,
-            ob_space,
-            ac_space,
-            n_env,
-            n_steps,
-            n_batch,
-            reuse,
-            feature_extraction="cnn",
-            obs_phs=obs_phs,
-            dueling=dueling,
-            layer_norm=True,
-            **_kwargs
-        )
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=False, **_kwargs):
+        super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                          feature_extraction="cnn", obs_phs=obs_phs, dueling=dueling,
+                                          layer_norm=True, **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
@@ -325,33 +217,11 @@ class MlpPolicy(FeedForwardPolicy):
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(
-        self,
-        sess,
-        ob_space,
-        ac_space,
-        n_env,
-        n_steps,
-        n_batch,
-        reuse=False,
-        obs_phs=None,
-        dueling=False,
-        **_kwargs
-    ):
-        super(MlpPolicy, self).__init__(
-            sess,
-            ob_space,
-            ac_space,
-            n_env,
-            n_steps,
-            n_batch,
-            reuse,
-            feature_extraction="mlp",
-            obs_phs=obs_phs,
-            dueling=dueling,
-            layer_norm=False,
-            **_kwargs
-        )
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=False, **_kwargs):
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="mlp", obs_phs=obs_phs, dueling=dueling,
+                                        layer_norm=False, **_kwargs)
 
 
 class LnMlpPolicy(FeedForwardPolicy):
@@ -371,33 +241,11 @@ class LnMlpPolicy(FeedForwardPolicy):
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(
-        self,
-        sess,
-        ob_space,
-        ac_space,
-        n_env,
-        n_steps,
-        n_batch,
-        reuse=False,
-        obs_phs=None,
-        dueling=False,
-        **_kwargs
-    ):
-        super(LnMlpPolicy, self).__init__(
-            sess,
-            ob_space,
-            ac_space,
-            n_env,
-            n_steps,
-            n_batch,
-            reuse,
-            feature_extraction="mlp",
-            obs_phs=obs_phs,
-            layer_norm=True,
-            dueling=True,
-            **_kwargs
-        )
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=False, **_kwargs):
+        super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                          feature_extraction="mlp", obs_phs=obs_phs,
+                                          layer_norm=True, dueling=True, **_kwargs)
 
 
 register_policy("CnnPolicy", CnnPolicy)

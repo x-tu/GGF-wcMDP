@@ -1,7 +1,7 @@
+import os
 import collections
 import functools
 import multiprocessing
-import os
 
 import numpy as np
 import tensorflow as tf
@@ -24,7 +24,6 @@ def is_image(tensor):
 # Mathematical utils
 # ================================================================
 
-
 def huber_loss(tensor, delta=1.0):
     """
     Reference: https://en.wikipedia.org/wiki/Huber_loss
@@ -36,14 +35,13 @@ def huber_loss(tensor, delta=1.0):
     return tf.where(
         tf.abs(tensor) < delta,
         tf.square(tensor) * 0.5,
-        delta * (tf.abs(tensor) - 0.5 * delta),
+        delta * (tf.abs(tensor) - 0.5 * delta)
     )
 
 
 # ================================================================
 # Global session
 # ================================================================
-
 
 def make_session(num_cpu=None, make_default=False, graph=None):
     """
@@ -55,12 +53,11 @@ def make_session(num_cpu=None, make_default=False, graph=None):
     :return: (TensorFlow session)
     """
     if num_cpu is None:
-        num_cpu = int(os.getenv("RCALL_NUM_CPU", multiprocessing.cpu_count()))
+        num_cpu = int(os.getenv('RCALL_NUM_CPU', multiprocessing.cpu_count()))
     tf_config = tf.ConfigProto(
         allow_soft_placement=True,
         inter_op_parallelism_threads=num_cpu,
-        intra_op_parallelism_threads=num_cpu,
-    )
+        intra_op_parallelism_threads=num_cpu)
     # Prevent tensorflow from taking all the gpu memory
     tf_config.gpu_options.allow_growth = True
     if make_default:
@@ -116,7 +113,6 @@ def initialize(sess=None):
 # Theano-like Function
 # ================================================================
 
-
 def function(inputs, outputs, updates=None, givens=None):
     """
     Take a bunch of tensorflow placeholders and expressions
@@ -150,9 +146,7 @@ def function(inputs, outputs, updates=None, givens=None):
         return _Function(inputs, outputs, updates, givens=givens)
     elif isinstance(outputs, (dict, collections.OrderedDict)):
         func = _Function(inputs, outputs.values(), updates, givens=givens)
-        return lambda *args, **kwargs: type(outputs)(
-            zip(outputs.keys(), func(*args, **kwargs))
-        )
+        return lambda *args, **kwargs: type(outputs)(zip(outputs.keys(), func(*args, **kwargs)))
     else:
         func = _Function(inputs, [outputs], updates, givens=givens)
         return lambda *args, **kwargs: func(*args, **kwargs)[0]
@@ -172,12 +166,8 @@ class _Function(object):
         :param givens: (dict) the values known for the output
         """
         for inpt in inputs:
-            if not hasattr(inpt, "make_feed_dict") and not (
-                isinstance(inpt, tf.Tensor) and len(inpt.op.inputs) == 0
-            ):
-                assert (
-                    False
-                ), "inputs should all be placeholders, constants, or have a make_feed_dict method"
+            if not hasattr(inpt, 'make_feed_dict') and not (isinstance(inpt, tf.Tensor)and len(inpt.op.inputs) == 0):
+                assert False, "inputs should all be placeholders, constants, or have a make_feed_dict method"
         self.inputs = inputs
         updates = updates or []
         self.update_group = tf.group(*updates)
@@ -186,7 +176,7 @@ class _Function(object):
 
     @classmethod
     def _feed_input(cls, feed_dict, inpt, value):
-        if hasattr(inpt, "make_feed_dict"):
+        if hasattr(inpt, 'make_feed_dict'):
             feed_dict.update(inpt.make_feed_dict(value))
         else:
             feed_dict[inpt] = value
@@ -210,7 +200,6 @@ class _Function(object):
 # Flat vectors
 # ================================================================
 
-
 def var_shape(tensor):
     """
     get TensorFlow Tensor shape
@@ -219,9 +208,8 @@ def var_shape(tensor):
     :return: ([int]) the shape
     """
     out = tensor.get_shape().as_list()
-    assert all(
-        isinstance(a, int) for a in out
-    ), "shape function assumes that shape is fully known"
+    assert all(isinstance(a, int) for a in out), \
+        "shape function assumes that shape is fully known"
     return out
 
 
@@ -257,13 +245,10 @@ def flatgrad(loss, var_list, clip_norm=None):
     grads = tf.gradients(loss, var_list)
     if clip_norm is not None:
         grads = [tf.clip_by_norm(grad, clip_norm=clip_norm) for grad in grads]
-    return tf.concat(
-        axis=0,
-        values=[
-            tf.reshape(grad if grad is not None else tf.zeros_like(v), [numel(v)])
-            for (v, grad) in zip(var_list, grads)
-        ],
-    )
+    return tf.concat(axis=0, values=[
+        tf.reshape(grad if grad is not None else tf.zeros_like(v), [numel(v)])
+        for (v, grad) in zip(var_list, grads)
+    ])
 
 
 class SetFromFlat(object):
@@ -283,18 +268,14 @@ class SetFromFlat(object):
         assigns = []
         for (shape, _var) in zip(shapes, var_list):
             size = intprod(shape)
-            assigns.append(
-                tf.assign(_var, tf.reshape(theta[start : start + size], shape))
-            )
+            assigns.append(tf.assign(_var, tf.reshape(theta[start:start + size], shape)))
             start += size
         self.operation = tf.group(*assigns)
         self.sess = sess
 
     def __call__(self, theta):
         if self.sess is None:
-            return tf.get_default_session().run(
-                self.operation, feed_dict={self.theta: theta}
-            )
+            return tf.get_default_session().run(self.operation, feed_dict={self.theta: theta})
         else:
             return self.sess.run(self.operation, feed_dict={self.theta: theta})
 
@@ -307,9 +288,7 @@ class GetFlat(object):
         :param var_list: ([TensorFlow Tensor]) the variables
         :param sess: (TensorFlow Session)
         """
-        self.operation = tf.concat(
-            axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list]
-        )
+        self.operation = tf.concat(axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
         self.sess = sess
 
     def __call__(self):
@@ -322,7 +301,6 @@ class GetFlat(object):
 # ================================================================
 # retrieving variables
 # ================================================================
-
 
 def get_trainable_vars(name):
     """
@@ -352,10 +330,8 @@ def outer_scope_getter(scope, new_scope=""):
     :param new_scope: (str) optional replacement name
     :return: (function (function, str, ``*args``, ``**kwargs``): Tensorflow Tensor)
     """
-
     def _getter(getter, name, *args, **kwargs):
         name = name.replace(scope + "/", new_scope, 1)
         val = getter(name, *args, **kwargs)
         return val
-
     return _getter
