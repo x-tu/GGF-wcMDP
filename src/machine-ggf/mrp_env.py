@@ -47,8 +47,6 @@ class MachineReplace(gym.Env):
         """
         # set initial state to 0 (all machines are new)
         self.step_counter = 0
-        if self.run != 0:
-            self.save_csv()
         self.run += 1
         self.metrics = []
 
@@ -85,6 +83,8 @@ class MachineReplace(gym.Env):
         if not self.ggi:
             reward = sum(reward)
         self.step_counter += 1
+        if done:
+            self.save_csv()
         return self.state, reward, done, info
 
     def render(self, mode="human"):
