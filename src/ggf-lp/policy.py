@@ -1,6 +1,6 @@
 import numpy as np
 import pyomo.environ as pyo
-from ggf_mdp import build_ggf, extract_results as extract_results_ggf
+from ggf_dual import build_ggf, extract_results as extract_results_ggf
 from mrp_data import MRPData
 
 r3, r4 = [], []

@@ -1,6 +1,6 @@
 import pyomo.environ as pyo
 import seaborn as sns
-from ggf_mdp import build_ggf, extract_results as extract_results_ggf
+from ggf_dual import build_ggf, extract_results as extract_results_ggf
 from matplotlib import pyplot as plt
 from momdp import extract_results, solve_mrp
 from mrp_data import MRPData

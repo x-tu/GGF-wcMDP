@@ -87,7 +87,7 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData):
                 print(f"x{data.tuple_list_s[s], a}: {x_value}")
 
     # Policy interpretation
-    policy = np.zeros((9, 3))
+    # policy = np.zeros((9, 3))
     for s in data.idx_list_s:
         x_sum = sum(
             [model.varD[data.tuple_list_s[s], a].value for a in data.idx_list_a]
@@ -96,7 +96,7 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData):
             x_value = model.varD[data.tuple_list_s[s], a].value
             if x_value > 1e-6:
                 print(f"policy{data.tuple_list_s[s], a}: {x_value / x_sum}")
-                policy[s, a] += x_value / x_sum
+                # policy[s, a] += x_value / x_sum
 
     # Dual variable lambda
     for d in data.idx_list_d:
@@ -117,7 +117,7 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData):
         reward.append(all_cost)
         print(f"group {d}: {all_cost}")
 
-    return reward, policy
+    return reward  # , policy
 
 
 def solve_ggf(model):
@@ -141,7 +141,7 @@ def solve_ggf(model):
 
 
 # Get data
-input_data = MRPData(n_group=2, n_state=3, n_action=2, weight=[0.5, 0.5])
+input_data = MRPData(n_group=2, n_state=3, n_action=2, weight=[0.75, 0.25])
 
 ggf_model = build_ggf(data=input_data)
 results, ggf_model = solve_ggf(model=ggf_model)
