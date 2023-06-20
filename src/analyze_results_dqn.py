@@ -128,8 +128,8 @@ def plot_ggf(df, algs_list):
     plt.show()
 
 
-pattern_list = ["sb3_reward_dqn", "sb3_reward_dqn_ggi"]
-keys_list = ["DQN", "GGF-DQN"]
+pattern_list = ["sb3_reward_dqn", "sb3_reward_dqn_ggi", "reward_optimal"]
+keys_list = ["DQN", "GGF-DQN", "Opt-Agent"]
 result_df = read_result_data(pattern_list, keys_list)
 result_df_filter = result_df[result_df["step"] % 10 == 0]
 plot_ggf(result_df_filter, keys_list)
