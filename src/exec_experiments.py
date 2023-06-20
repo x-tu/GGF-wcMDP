@@ -21,6 +21,11 @@ subprocess.run(["python", script_path + "dqn_mrp.py", "-ggi"])
 subprocess.run(["python", script_path + "dqn_mrp.py"])
 print("dqn done")
 
+# optimal agent
+for i in range(10):
+    subprocess.run(["python", script_path + "optimal_mrp.py", "-id", str(i)])
+print("optimal done")
+
 # random
 for i in range(10):
     subprocess.run(["python", script_path + "random_mrp.py", "-id", str(i)])

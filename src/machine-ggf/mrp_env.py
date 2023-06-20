@@ -32,7 +32,7 @@ class MachineReplace(gym.Env):
         self.state = 0  # index of state
         self.run = 0
         self.step_counter = 0
-        self.episode_length = 1000
+        self.episode_length = 2000
         self.reset()
 
     def seed(self, seed=None):
@@ -73,7 +73,7 @@ class MachineReplace(gym.Env):
             np.arange(len(next_state_prob)), p=next_state_prob
         )
         # get the reward
-        reward = self.mrp_data.bigC[self.state, action, :]
+        reward = -self.mrp_data.bigC[self.state, action, :] + 110
         # get the done
         done = self.step_counter >= self.episode_length
         # register the information
@@ -113,11 +113,11 @@ class MachineReplace(gym.Env):
             elif self.save_mode == "append":
                 if self.run == 1:
                     df = pd.DataFrame(self.metrics)
-                    df.to_csv(self.out_csv_name + ".csv", index=False)
+                    df.to_csv(self.out_csv_name + ".csv", header=True, index=False)
                 else:
                     df = pd.DataFrame(self.metrics)
                     df.to_csv(
-                        self.out_csv_name + ".csv", mode="a", header=True, index=False
+                        self.out_csv_name + ".csv", mode="a", header=False, index=False
                     )
             else:
                 raise TypeError("Invalid save mode")
