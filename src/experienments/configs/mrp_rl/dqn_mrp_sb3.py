@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import torch
 from gym import spaces
-from mrp_env import MachineReplace
 
+from src.env.mrp_env import MachineReplace
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 
@@ -18,9 +18,9 @@ def make_env(rank, ggi):
 
     def _init():
         out_csv_name = (
-            "results/sb3_reward_dqn_{}".format(rank)
+            "../results/sb3_reward_dqn_{}".format(rank)
             if not ggi
-            else "results/sb3_reward_dqn_ggi_{}".format(rank)
+            else "../results/sb3_reward_dqn_ggi_{}".format(rank)
         )
         env = MachineReplace(
             n_group=2, n_state=3, n_action=2, out_csv_name=out_csv_name, ggi=ggi

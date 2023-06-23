@@ -1,5 +1,34 @@
 # Fair-RL
 
+## Code Structure
+
+```buildoutcfg
+├── src                         # source code for the project
+│   ├── envs                    # RL environments
+│   │   ├── predator_prey       # [To be Maintained] Predator-Prey environment (rewritten based on the ICML 2020 paper)
+│   │   └── mrp_env.py          # Machine Replacement Problem environment
+│   ├── experiments             # main scripts for running experiments
+│   │   ├── analysis            # functions used for analyzing/visualizing the results
+│   │   ├── configs             # [In Progress] configurations for creating the RL agents
+│   │   ├── main                # main scripts for running experiments
+│   │   ├── results             # saved intermediate results of the experiments
+│   │   └── exec_experiments.py # currently used as main script for running experiments
+│   ├── solver                  # solver for solving the LP model
+│   │   ├── fix_policy          # [To be added] solve the GGF-MDP(D) model with a fixed policy from RL
+│   │   ├── ggf_dual            # solve the GGF-MDP(D) model
+│   │   └── momdp               # solve the MOMDP model (no fairness)
+│   ├── stable_baselines        # RL algorithms (stable-baselines, TensorFlow 1.x version)
+│   ├── stable_baselines3       # RL algorithms (stable-baselines3, PyTorch version)
+│   └── utils                   # shared useful functions/classes
+└── requirements.txt            # all the packages needed for the project
+```
+
+**Official document for Python library used**:
+1. [stable-baselines](https://stable-baselines.readthedocs.io/en/master/index.html)
+2. [stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/)
+3. [pyomo](http://www.pyomo.org/)
+
+
 ## Package Setup
 
 ### Virtual Environment
@@ -49,16 +78,3 @@ git pull
 # Switch to the remote branch
 git checkout remote-branch-name
 ```
-
-## Code Structure
-
-**LP-based methods**: at the folder `src/ggf-lp`.
-+ `ggf_dual`: an implementation for GGF-MDP dual formulation
-+ `momdp`: not really on vector optimization, but a weighted sum of objectives
-
-**RL environment**
-+ machine replacement environment at the folder `src/machine-ggf`
-+ predator-prey environment at the folder `src/predator_prey` (from the ICML 2020 paper)
-
-**RL algorithms**: at the folder `src/stable_baseline`
-+ contains the implementation of the RL algorithms adapted based on the Python library [stable-baseline](https://stable-baselines.readthedocs.io/en/master/index.html)

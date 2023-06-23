@@ -1,8 +1,16 @@
 import argparse
 
-from mrp_env import MachineReplace
+from src.env.mrp_env import MachineReplace
+from stable_baselines import A2C
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines.common.policies import MlpPolicy
 
-from stable_baselines.common.vec_env import SubprocVecEnv
+# import sys
+# sys.path.append("src/stable_baselines")
+
+
+# from stable_baselines.a2c_ggi import A2C_GGI
+# from stable_baselines.common.policies_ggi import MlpPolicy as GGIMlpPolicy
 
 
 def make_env(rank, ggi):
@@ -18,9 +26,9 @@ def make_env(rank, ggi):
 
     def _init():
         out_csv_name = (
-            "results/reward_a2c_{}".format(rank)
+            "../results/reward_a2c_{}".format(rank)
             if not ggi
-            else "results/reward_a2c_ggi_{}".format(rank)
+            else "../results/reward_a2c_ggi_{}".format(rank)
         )
         env = MachineReplace(
             n_group=2, n_state=3, n_action=2, out_csv_name=out_csv_name, ggi=ggi
@@ -71,9 +79,6 @@ if __name__ == "__main__":
     reward_space = 2
 
     if ggi:
-        from stable_baselines.a2c_ggi import A2C_GGI
-        from stable_baselines.common.policies_ggi import MlpPolicy as GGIMlpPolicy
-
         model = A2C_GGI(
             GGIMlpPolicy,
             env,
@@ -85,9 +90,6 @@ if __name__ == "__main__":
             lr_schedule="constant",
         )
     else:
-        from stable_baselines import A2C
-        from stable_baselines.common.policies import MlpPolicy
-
         model = A2C(
             MlpPolicy,
             env,

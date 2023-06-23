@@ -13,10 +13,18 @@ from gym import spaces
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.buffers import DictReplayBuffer, ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.fix_policy import policy_convertor
 from stable_baselines3.common.noise import ActionNoise, VectorizedActionNoise
 from stable_baselines3.common.policies import BasePolicy
 from stable_baselines3.common.save_util import load_from_pkl, save_to_pkl
-from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, RolloutReturn, Schedule, TrainFreq, TrainFrequencyUnit
+from stable_baselines3.common.type_aliases import (
+    GymEnv,
+    MaybeCallback,
+    RolloutReturn,
+    Schedule,
+    TrainFreq,
+    TrainFrequencyUnit,
+)
 from stable_baselines3.common.utils import safe_mean, should_collect_more_steps
 from stable_baselines3.common.vec_env import VecEnv
 from stable_baselines3.her.her_replay_buffer import HerReplayBuffer
@@ -164,7 +172,9 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                 ) from e
 
             if not isinstance(train_freq[0], int):
-                raise ValueError(f"The frequency of `train_freq` must be an integer and not {train_freq[0]}")
+                raise ValueError(
+                    f"The frequency of `train_freq` must be an integer and not {train_freq[0]}"
+                )
 
             self.train_freq = TrainFreq(*train_freq)
 
@@ -183,7 +193,9 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             # the environment when using HerReplayBuffer
             replay_buffer_kwargs = self.replay_buffer_kwargs.copy()
             if issubclass(self.replay_buffer_class, HerReplayBuffer):
-                assert self.env is not None, "You must pass an environment when using `HerReplayBuffer`"
+                assert (
+                    self.env is not None
+                ), "You must pass an environment when using `HerReplayBuffer`"
                 replay_buffer_kwargs["env"] = self.env
             self.replay_buffer = self.replay_buffer_class(
                 self.buffer_size,
@@ -206,7 +218,9 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         # Convert train freq parameter to TrainFreq object
         self._convert_train_freq()
 
-    def save_replay_buffer(self, path: Union[str, pathlib.Path, io.BufferedIOBase]) -> None:
+    def save_replay_buffer(
+        self, path: Union[str, pathlib.Path, io.BufferedIOBase]
+    ) -> None:
         """
         Save the replay buffer as a pickle file.
 
@@ -231,16 +245,22 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             If set to ``False``, we assume that we continue the same trajectory (same episode).
         """
         self.replay_buffer = load_from_pkl(path, self.verbose)
-        assert isinstance(self.replay_buffer, ReplayBuffer), "The replay buffer must inherit from ReplayBuffer class"
+        assert isinstance(
+            self.replay_buffer, ReplayBuffer
+        ), "The replay buffer must inherit from ReplayBuffer class"
 
         # Backward compatibility with SB3 < 2.1.0 replay buffer
         # Keep old behavior: do not handle timeout termination separately
-        if not hasattr(self.replay_buffer, "handle_timeout_termination"):  # pragma: no cover
+        if not hasattr(
+            self.replay_buffer, "handle_timeout_termination"
+        ):  # pragma: no cover
             self.replay_buffer.handle_timeout_termination = False
             self.replay_buffer.timeouts = np.zeros_like(self.replay_buffer.dones)
 
         if isinstance(self.replay_buffer, HerReplayBuffer):
-            assert self.env is not None, "You must pass an environment at load time when using `HerReplayBuffer`"
+            assert (
+                self.env is not None
+            ), "You must pass an environment at load time when using `HerReplayBuffer`"
             self.replay_buffer.set_env(self.get_env())
             if truncate_last_traj:
                 self.replay_buffer.truncate_last_trajectory()
@@ -281,11 +301,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             replay_buffer.dones[pos] = True
 
         return super()._setup_learn(
-            total_timesteps,
-            callback,
-            reset_num_timesteps,
-            tb_log_name,
-            progress_bar,
+            total_timesteps, callback, reset_num_timesteps, tb_log_name, progress_bar
         )
 
     def learn(
@@ -298,11 +314,7 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         progress_bar: bool = False,
     ) -> SelfOffPolicyAlgorithm:
         total_timesteps, callback = self._setup_learn(
-            total_timesteps,
-            callback,
-            reset_num_timesteps,
-            tb_log_name,
-            progress_bar,
+            total_timesteps, callback, reset_num_timesteps, tb_log_name, progress_bar
         )
 
         callback.on_training_start(locals(), globals())
@@ -324,10 +336,19 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             if self.num_timesteps > 0 and self.num_timesteps > self.learning_starts:
                 # If no `gradient_steps` is specified,
                 # do as many gradients steps as steps performed during the rollout
-                gradient_steps = self.gradient_steps if self.gradient_steps >= 0 else rollout.episode_timesteps
+                gradient_steps = (
+                    self.gradient_steps
+                    if self.gradient_steps >= 0
+                    else rollout.episode_timesteps
+                )
                 # Special case when the user passes `gradient_steps=0`
                 if gradient_steps > 0:
-                    self.train(batch_size=self.batch_size, gradient_steps=gradient_steps)
+                    self.train(
+                        batch_size=self.batch_size, gradient_steps=gradient_steps
+                    )
+
+            # implement a policy network convertor here
+            policy_lp = policy_convertor(self.policy)
 
         callback.on_training_end()
 
@@ -362,9 +383,13 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             The two differs when the action space is not normalized (bounds are not [-1, 1]).
         """
         # Select action randomly or according to policy
-        if self.num_timesteps < learning_starts and not (self.use_sde and self.use_sde_at_warmup):
+        if self.num_timesteps < learning_starts and not (
+            self.use_sde and self.use_sde_at_warmup
+        ):
             # Warmup phase
-            unscaled_action = np.array([self.action_space.sample() for _ in range(n_envs)])
+            unscaled_action = np.array(
+                [self.action_space.sample() for _ in range(n_envs)]
+            )
         else:
             # Note: when using continuous actions,
             # we assume that the policy uses tanh to scale the action
@@ -392,20 +417,34 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         """
         Write log.
         """
-        time_elapsed = max((time.time_ns() - self.start_time) / 1e9, sys.float_info.epsilon)
+        time_elapsed = max(
+            (time.time_ns() - self.start_time) / 1e9, sys.float_info.epsilon
+        )
         fps = int((self.num_timesteps - self._num_timesteps_at_start) / time_elapsed)
         self.logger.record("time/episodes", self._episode_num, exclude="tensorboard")
         if len(self.ep_info_buffer) > 0 and len(self.ep_info_buffer[0]) > 0:
-            self.logger.record("rollout/ep_rew_mean", safe_mean([ep_info["r"] for ep_info in self.ep_info_buffer]))
-            self.logger.record("rollout/ep_len_mean", safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]))
+            self.logger.record(
+                "rollout/ep_rew_mean",
+                safe_mean([ep_info["r"] for ep_info in self.ep_info_buffer]),
+            )
+            self.logger.record(
+                "rollout/ep_len_mean",
+                safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]),
+            )
         self.logger.record("time/fps", fps)
-        self.logger.record("time/time_elapsed", int(time_elapsed), exclude="tensorboard")
-        self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
+        self.logger.record(
+            "time/time_elapsed", int(time_elapsed), exclude="tensorboard"
+        )
+        self.logger.record(
+            "time/total_timesteps", self.num_timesteps, exclude="tensorboard"
+        )
         if self.use_sde:
             self.logger.record("train/std", (self.actor.get_std()).mean().item())
 
         if len(self.ep_success_buffer) > 0:
-            self.logger.record("rollout/success_rate", safe_mean(self.ep_success_buffer))
+            self.logger.record(
+                "rollout/success_rate", safe_mean(self.ep_success_buffer)
+            )
         # Pass the number of timesteps for tensorboard
         self.logger.dump(step=self.num_timesteps)
 
@@ -466,15 +505,12 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     next_obs[i] = infos[i]["terminal_observation"]
                     # VecNormalize normalizes the terminal observation
                     if self._vec_normalize_env is not None:
-                        next_obs[i] = self._vec_normalize_env.unnormalize_obs(next_obs[i, :])
+                        next_obs[i] = self._vec_normalize_env.unnormalize_obs(
+                            next_obs[i, :]
+                        )
 
         replay_buffer.add(
-            self._last_original_obs,
-            next_obs,
-            buffer_action,
-            reward_,
-            dones,
-            infos,
+            self._last_original_obs, next_obs, buffer_action, reward_, dones, infos
         )
 
         self._last_obs = new_obs
@@ -520,10 +556,16 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         assert train_freq.frequency > 0, "Should at least collect one step or episode."
 
         if env.num_envs > 1:
-            assert train_freq.unit == TrainFrequencyUnit.STEP, "You must use only one env when doing episodic training."
+            assert (
+                train_freq.unit == TrainFrequencyUnit.STEP
+            ), "You must use only one env when doing episodic training."
 
         # Vectorize action noise if needed
-        if action_noise is not None and env.num_envs > 1 and not isinstance(action_noise, VectorizedActionNoise):
+        if (
+            action_noise is not None
+            and env.num_envs > 1
+            and not isinstance(action_noise, VectorizedActionNoise)
+        ):
             action_noise = VectorizedActionNoise(action_noise, env.num_envs)
 
         if self.use_sde:
@@ -531,13 +573,21 @@ class OffPolicyAlgorithm(BaseAlgorithm):
 
         callback.on_rollout_start()
         continue_training = True
-        while should_collect_more_steps(train_freq, num_collected_steps, num_collected_episodes):
-            if self.use_sde and self.sde_sample_freq > 0 and num_collected_steps % self.sde_sample_freq == 0:
+        while should_collect_more_steps(
+            train_freq, num_collected_steps, num_collected_episodes
+        ):
+            if (
+                self.use_sde
+                and self.sde_sample_freq > 0
+                and num_collected_steps % self.sde_sample_freq == 0
+            ):
                 # Sample a new noise matrix
                 self.actor.reset_noise(env.num_envs)
 
             # Select action randomly or according to policy
-            actions, buffer_actions = self._sample_action(learning_starts, action_noise, env.num_envs)
+            actions, buffer_actions = self._sample_action(
+                learning_starts, action_noise, env.num_envs
+            )
 
             # Rescale and perform action
             new_obs, rewards, dones, infos = env.step(actions)
@@ -549,15 +599,23 @@ class OffPolicyAlgorithm(BaseAlgorithm):
             callback.update_locals(locals())
             # Only stop training if return value is False, not when it is None.
             if callback.on_step() is False:
-                return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training=False)
+                return RolloutReturn(
+                    num_collected_steps * env.num_envs,
+                    num_collected_episodes,
+                    continue_training=False,
+                )
 
             # Retrieve reward and episode length if using Monitor wrapper
             self._update_info_buffer(infos, dones)
 
             # Store data in replay buffer (normalized action and unnormalized observation)
-            self._store_transition(replay_buffer, buffer_actions, new_obs, rewards, dones, infos)
+            self._store_transition(
+                replay_buffer, buffer_actions, new_obs, rewards, dones, infos
+            )
 
-            self._update_current_progress_remaining(self.num_timesteps, self._total_timesteps)
+            self._update_current_progress_remaining(
+                self.num_timesteps, self._total_timesteps
+            )
 
             # For DQN, check if the target network should be updated
             # and update the exploration schedule
@@ -576,8 +634,15 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                         action_noise.reset(**kwargs)
 
                     # Log training infos
-                    if log_interval is not None and self._episode_num % log_interval == 0:
+                    if (
+                        log_interval is not None
+                        and self._episode_num % log_interval == 0
+                    ):
                         self._dump_logs()
         callback.on_rollout_end()
 
-        return RolloutReturn(num_collected_steps * env.num_envs, num_collected_episodes, continue_training)
+        return RolloutReturn(
+            num_collected_steps * env.num_envs,
+            num_collected_episodes,
+            continue_training,
+        )
