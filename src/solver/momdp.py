@@ -1,11 +1,13 @@
-"""This is an implementation for MOMDP."""
+"""This script includes all the functions used for solving the MOMDP model."""
 
 import pyomo.environ as pyo
-from mrp_data import MRPData
+from pyomo.opt import SolverFactory
+
+from src.utils.mrp_lp import MRPData
 
 
-def solve_mrp(data: MRPData) -> pyo.ConcreteModel:
-    """The main function used to solve the MRP.
+def build_mrp(data: MRPData) -> pyo.ConcreteModel:
+    """The main function used to build the MRP model.
 
     Args:
         data (`dict`): parameters used to solve the model
@@ -96,8 +98,21 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData) -> list:
     return reward
 
 
-# Get data
-input_data = MRPData(n_group=3, n_state=3, n_action=2, weight=[1, 0.5, 0.25])
-ggf_model = solve_mrp(data=input_data)
-pyo.SolverFactory("cbc").solve(ggf_model).write()
-extract_results(model=ggf_model, data=input_data)
+def solve_mrp(model):
+    """ Selects the solver and set the optimization settings.
+
+    Args:
+        model: the MRP model to be optimized
+
+    Returns:
+        results: the default optimization report
+        model: the optimized model
+
+    """
+
+    # Set the solver to be used
+    optimizer = SolverFactory("gurobi", solver_io="python")
+    # optimizer.options["sec"] = MAX_SOLVING_TIME
+    results = optimizer.solve(model, tee=True)
+
+    return results, model

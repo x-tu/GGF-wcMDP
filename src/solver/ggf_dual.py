@@ -1,9 +1,9 @@
-"""This is an implementation for GGF-MDP dual form."""
+"""This script includes all the functions used for solving GGF-MDP dual model."""
 
-import numpy as np
 import pyomo.environ as pyo
-from mrp_data import MRPData
 from pyomo.opt import SolverFactory
+
+from src.utils.mrp_lp import MRPData
 
 
 def build_ggf(data: MRPData) -> pyo.ConcreteModel:
@@ -138,11 +138,3 @@ def solve_ggf(model):
     results = optimizer.solve(model, tee=True)
 
     return results, model
-
-
-# Get data
-input_data = MRPData(n_group=2, n_state=3, n_action=2, weight=[0.75, 0.25])
-
-ggf_model = build_ggf(data=input_data)
-results, ggf_model = solve_ggf(model=ggf_model)
-extract_results(model=ggf_model, data=input_data)
