@@ -4,15 +4,14 @@
 
 ```buildoutcfg
 ├── src                         # source code for the project
-│   ├── envs                    # RL environments
-│   │   ├── predator_prey       # [To be Maintained] Predator-Prey environment (rewritten based on the ICML 2020 paper)
+│   ├── env                     # RL environments
+│   │   ├── predator_prey       # [To be Maintained] Predator-Prey environment (was rewritten based on ICML 2020 paper)
 │   │   └── mrp_env.py          # Machine Replacement Problem environment
 │   ├── experiments             # main scripts for running experiments
 │   │   ├── analysis            # functions used for analyzing/visualizing the results
 │   │   ├── configs             # [In Progress] configurations for creating the RL agents
 │   │   ├── main                # main scripts for running experiments
-│   │   ├── results             # saved intermediate results of the experiments
-│   │   └── exec_experiments.py # currently used as main script for running experiments
+│   │   └── results             # saved intermediate results of the experiments
 │   ├── solver                  # solver for solving the LP model
 │   │   ├── fix_policy          # [To be added] solve the GGF-MDP(D) model with a fixed policy from RL
 │   │   ├── ggf_dual            # solve the GGF-MDP(D) model
