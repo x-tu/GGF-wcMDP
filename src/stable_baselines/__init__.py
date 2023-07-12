@@ -1,5 +1,8 @@
+import os
+
 from stable_baselines.a2c import A2C
 from stable_baselines.a2c_ggi import A2C_GGI
+from stable_baselines.common import set_global_seeds
 from stable_baselines.deepq import DQN
 from stable_baselines.deepq_ggi import DQN_GGI
 from stable_baselines.ppo2 import PPO2
