@@ -18,9 +18,10 @@ class MRPData:
         # if len(weight) != n_group:
         #     print("Unmatched weight size. Use equal weight instead.")
         #     weight = [1 / n_group] * n_group
-        # if sum(weight) != 1:
-        #     sum_weight = sum(weight)
-        #     weight = [w / sum_weight for w in weight]
+        # normalize the weight
+        if sum(weight) != 1:
+            sum_weight = sum(weight)
+            weight = [w / sum_weight for w in weight]
         self.weight = weight
         # TODO: generalization
         self.operation_cost = [10, 20, 50]

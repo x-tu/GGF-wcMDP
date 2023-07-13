@@ -1,3 +1,6 @@
+""" This module contains the functions used for solving fixed policy by the LP solver."""
+
+
 def policy_convertor(policy_nn) -> dict:
     """ Convert the policy network to policy acceptable by the LP solver.
 
@@ -12,5 +15,4 @@ def policy_convertor(policy_nn) -> dict:
     state_action_pair = {}
     for state in range(state_dim):
         state_action_pair[state] = int(policy_nn.predict(state)[0])
-
     return state_action_pair
