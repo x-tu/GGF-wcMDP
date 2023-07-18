@@ -105,7 +105,7 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData, policy_rl: dict):
         )
         for a in data.idx_list_a:
             x_value = model.varD[data.tuple_list_s[s], a].value
-            if x_value > 1e-6:
+            if x_value and x_value > 1e-6:
                 print(f"policy{data.tuple_list_s[s], a}: {x_value / x_sum}")
                 # policy[s, a] += x_value / x_sum
 
