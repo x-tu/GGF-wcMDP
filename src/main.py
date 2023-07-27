@@ -122,11 +122,9 @@ if __name__ == '__main__':
     for state in states_list:
         observation = np.array(state) / num_states
         dqn_action = agent.act(observation)
-        print("State: {} -> DQN Action: {}".format(str(state), str(dqn_action)))
         mlp_action = policy_mlp(state, mlp_model, data_mrp)
-        print("State: {} -> MLP Action: {}".format(str(state), str(mlp_action)))
         dlp_action = policy_mlp(state, dlp_model, data_mrp)
-        print("State: {} -> DLP Action: {}".format(str(state), str(dlp_action)))
+        print("State: {} -> DQN Action: {}, MLP Action: {}, DLP Action: {}".format(str(state), str(dqn_action), str(mlp_action), str(dlp_action)))
 
     fig, ax = plt.subplots()
     ax.plot(range(len(rewards_dqn)), rewards_dqn, label="DQN")
