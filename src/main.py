@@ -23,15 +23,15 @@ if __name__ == '__main__':
     # The discount factor
     discount = 0.95
     # The fair weight coefficient
-    weight_coefficient = 1
+    weight_coefficient = 2
     # The number of time steps (for higher discount factor should be set higher)
     num_steps = 200
     # The number of learning episodes
     num_episodes = 200
+    # The data for multi-objective MDP and the dual form of it
+    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
 
     # ----------------------------------- DUAL MO-MDP Setup -----------------------------------
-
-    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
     lp_model = build_lp(data_mrp)
     lp_results, lp_model = solve_lp(model=lp_model)
     extract_lp(model=lp_model, lp_data=data_mrp)
@@ -42,8 +42,6 @@ if __name__ == '__main__':
     opt_rewards = []
 
     # ----------------------------------- Multi-Objective Setup -----------------------------------
-
-    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
     mlp_model = build_mlp(data_mrp)
     mlp_results, mlp_model = solve_mlp(model=mlp_model)
     extract_mlp(model=mlp_model, data=data_mrp)
