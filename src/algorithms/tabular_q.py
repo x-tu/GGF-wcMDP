@@ -21,12 +21,12 @@ class QAgent:
             action = np.argmax(self.q_table[state][:])
         return action
 
-    def update_Q_function(self, state, action, reward, state_next):
+    def update_q_function(self, state, action, reward, state_next):
         # Update the Q function with linear function approximation
         # In this case, equivalent to the tabular Q-Learning
-        Q_next = max(self.q_table[state_next][:])
+        q_next = max(self.q_table[state_next][:])
         self.q_table[state, action] = self.q_table[state, action] + self.alpha * (
-            reward + self.gamma * Q_next - self.q_table[state, action]
+            reward + self.gamma * q_next - self.q_table[state, action]
         )
 
     def get_policy(self):
@@ -37,7 +37,7 @@ class QAgent:
         return state_action_pair
 
 
-def run_tabular_Q(
+def run_tabular_q(
     env, num_episodes=200, len_episode=1000, alpha=0.1, epsilon=0.2, gamma=0.99
 ):
     episode_rewards = []
@@ -60,7 +60,7 @@ def run_tabular_Q(
             # Move
             state_next, reward, done, _ = env.step(action)
             # Update Q table
-            agent.update_Q_function(state, action, reward, state_next)
+            agent.update_q_function(state, action, reward, state_next)
             # Update observation
             state = state_next
             total_reward += (gamma ** t) * reward
@@ -69,5 +69,4 @@ def run_tabular_Q(
             print(f"Episode: {episode}; " f"Running reward: {total_reward:.1f}.")
         episode_rewards.append(total_reward)
     state_action_pair = agent.get_policy()
-    print(episode_rewards)
-    return state_action_pair
+    return state_action_pair, episode_rewards

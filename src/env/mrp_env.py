@@ -17,7 +17,7 @@ class MachineReplace(gym.Env):
         n_group: int,
         n_state: int,
         n_action: int,
-        out_csv_name: str,
+        out_csv_name: str = None,
         ggi: bool = False,
         init_state: int = 0,
         save_mode="append",
@@ -87,7 +87,6 @@ class MachineReplace(gym.Env):
         # register the information
         info = {f"reward_{n}": reward[n] for n in range(len(reward))}
         self.metrics.append(info)
-        print(info)
         if not self.ggi:
             reward = sum(reward)
         self.step_counter += 1
