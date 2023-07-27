@@ -52,7 +52,6 @@ if __name__ == '__main__':
     mlp_rewards = []
 
     # ----------------------------------- DQN Setup -----------------------------------
-
     initial_lr = 1e-3
     dqn_csv_name = "results_dqn_ggi"
     env_dqn = MachineReplacement(
