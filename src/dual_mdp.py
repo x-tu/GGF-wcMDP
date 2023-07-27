@@ -82,7 +82,7 @@ class LPData:
         return global_transitions
 
 
-def build_lp(lp_data) -> pyo.ConcreteModel:
+def build_dlp(lp_data) -> pyo.ConcreteModel:
     model = pyo.ConcreteModel()
 
     # Create mu list
@@ -134,7 +134,7 @@ def build_lp(lp_data) -> pyo.ConcreteModel:
     return model
 
 
-def solve_lp(model):
+def solve_dlp(model):
     """ Selects the solver and set the optimization settings.
 
     Args:
@@ -154,7 +154,7 @@ def solve_lp(model):
     return results, model
 
 
-def extract_lp(model: pyo.ConcreteModel, lp_data):
+def extract_dlp(model: pyo.ConcreteModel, lp_data):
     """ This function is used to extract optimized results.
 
     Args:
@@ -207,7 +207,7 @@ def extract_lp(model: pyo.ConcreteModel, lp_data):
     return reward  # , policy
 
 
-def policy_lp(state, model: pyo.ConcreteModel, lp_data):
+def policy_dlp(state, model: pyo.ConcreteModel, lp_data):
     for a in lp_data.action_indices:
         x_value = model.varD[tuple(state), a].value
         if x_value > 1e-6:

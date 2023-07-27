@@ -40,7 +40,7 @@ class MarkovChain:
     def __init__(self,
                  num_states: int,
                  num_arms: int,
-                 prob_remain=0.5,
+                 prob_remain,
                  mat_type=1):
         self.num_s = num_states
         self.num_a = num_arms
