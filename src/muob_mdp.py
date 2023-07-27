@@ -67,8 +67,8 @@ def extract_mlp(model: pyo.ConcreteModel, data) -> list:
     for s in data.state_indices:
         for a in data.action_indices:
             x_value = model.varD[data.state_tuples[s], a].value
-            if x_value > 1e-6:
-                print(f"x{data.state_tuples[s], a}: {x_value}")
+            # if x_value > 1e-6:
+            #     print(f"x{data.state_tuples[s], a}: {x_value}")
 
     # Policy interpretation
     for s in data.state_indices:
@@ -77,8 +77,8 @@ def extract_mlp(model: pyo.ConcreteModel, data) -> list:
         )
         for a in data.action_indices:
             x_value = model.varD[data.state_tuples[s], a].value
-            if x_value > 1e-6:
-                print(f"policy{data.state_tuples[s], a}: {x_value / x_sum}")
+            # if x_value > 1e-6:
+            #     print(f"policy{data.state_tuples[s], a}: {x_value / x_sum}")
 
     # Costs for group
     reward = []

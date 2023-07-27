@@ -170,8 +170,8 @@ def extract_lp(model: pyo.ConcreteModel, lp_data):
     for s in lp_data.state_indices:
         for a in lp_data.action_indices:
             x_value = model.varD[lp_data.state_tuples[s], a].value
-            if x_value > 1e-6:
-                print(f"x{lp_data.state_tuples[s], a}: {x_value}")
+            # if x_value > 1e-6:
+            #     print(f"x{lp_data.state_tuples[s], a}: {x_value}")
 
     # Policy interpretation
     # policy = np.zeros((9, 3))
@@ -181,8 +181,8 @@ def extract_lp(model: pyo.ConcreteModel, lp_data):
         )
         for a in lp_data.action_indices:
             x_value = model.varD[lp_data.state_tuples[s], a].value
-            if x_value > 1e-6:
-                print(f"policy{lp_data.state_tuples[s], a}: {x_value / x_sum}")
+            # if x_value > 1e-6:
+            #     print(f"policy{lp_data.state_tuples[s], a}: {x_value / x_sum}")
                 # policy[s, a] += x_value / x_sum
 
     # Dual variable lambda
