@@ -80,7 +80,7 @@ class MachineReplacement(gym.Env):
             # get the reward
             reward_list[n] = self.rewards[int(state_list[n]), n, action_list[n]]
         self.observations = next_state_list / self.num_states
-        reward = np.dot(self.observations, self.weights)
+        reward = np.dot(reward_list, self.weights)
         # get the done
         done = self.step_counter >= self.num_steps
         # register the information
