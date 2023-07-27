@@ -12,16 +12,14 @@ class MRPData:
         self.n_state = n_state
         self.n_action = n_action
         # TODO: validate the weights sum to 1
-        # if weight is None:
-        #     print("No weight input. Use equal weight instead.")
-        #     weight = [1 / n_group] * n_group
-        # if len(weight) != n_group:
-        #     print("Unmatched weight size. Use equal weight instead.")
-        #     weight = [1 / n_group] * n_group
+        if weight is None:
+            weight = [1 / n_group] * n_group
         # normalize the weight
-        if sum(weight) != 1:
+        elif sum(weight) != 1:
             sum_weight = sum(weight)
             weight = [w / sum_weight for w in weight]
+        elif len(weight) != n_group:
+            weight = [1 / n_group] * n_group
         self.weight = weight
         # TODO: generalization
         self.operation_cost = [10, 20, 50]

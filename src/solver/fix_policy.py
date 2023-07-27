@@ -94,14 +94,18 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData, policy_rl: dict):
     for s in data.idx_list_s:
         for a in data.idx_list_a:
             x_value = model.varD[data.tuple_list_s[s], a].value
-            if x_value > 1e-6:
+            if x_value and x_value > 1e-6:
                 print(f"x{data.tuple_list_s[s], a}: {x_value}")
 
     # Policy interpretation
     # policy = np.zeros((9, 3))
     for s in data.idx_list_s:
         x_sum = sum(
-            [model.varD[data.tuple_list_s[s], a].value for a in data.idx_list_a]
+            [
+                model.varD[data.tuple_list_s[s], a].value
+                for a in data.idx_list_a
+                if model.varD[data.tuple_list_s[s], a].value
+            ]
         )
         for a in data.idx_list_a:
             x_value = model.varD[data.tuple_list_s[s], a].value

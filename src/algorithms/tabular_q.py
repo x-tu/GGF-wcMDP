@@ -37,7 +37,9 @@ class QAgent:
         return state_action_pair
 
 
-def run_tabular_Q(env, num_episodes=1000, alpha=0.1, epsilon=0.2, gamma=0.99):
+def run_tabular_Q(
+    env, num_episodes=200, len_episode=1000, alpha=0.1, epsilon=0.2, gamma=0.99
+):
     episode_rewards = []
     agent = QAgent(
         env=env,
@@ -52,19 +54,20 @@ def run_tabular_Q(env, num_episodes=1000, alpha=0.1, epsilon=0.2, gamma=0.99):
         # Initialize environment
         state = env.reset()
         total_reward = 0
-
-        # Get an action
-        action = agent.get_action(state)
-        # Move
-        state_next, reward, done, _ = env.step(action)
-        # Update Q table
-        agent.update_Q_function(state, action, reward, state_next)
-        # Update observation
-        state = state_next
-        total_reward += reward
-    # Display running rewards
-    if episode % 10 == 0:
-        print(f"Episode: {episode}; " f"Running reward: {total_reward:.1f}.")
-    episode_rewards.append(total_reward)
+        for t in range(len_episode):
+            # Get an action
+            action = agent.get_action(state)
+            # Move
+            state_next, reward, done, _ = env.step(action)
+            # Update Q table
+            agent.update_Q_function(state, action, reward, state_next)
+            # Update observation
+            state = state_next
+            total_reward += (gamma ** t) * reward
+        # Display running rewards
+        if episode % 20 == 0:
+            print(f"Episode: {episode}; " f"Running reward: {total_reward:.1f}.")
+        episode_rewards.append(total_reward)
     state_action_pair = agent.get_policy()
     print(episode_rewards)
+    return state_action_pair
