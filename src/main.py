@@ -124,7 +124,8 @@ if __name__ == '__main__':
         dqn_action = agent.act(observation)
         mlp_action = policy_mlp(state, mlp_model, data_mrp)
         dlp_action = policy_mlp(state, dlp_model, data_mrp)
-        print("State: {} -> DQN Action: {}, MLP Action: {}, DLP Action: {}".format(str(state), str(dqn_action), str(mlp_action), str(dlp_action)))
+        print("State: {} -> DQN Action: {}, MLP Action: {}, DLP Action: {}"
+              .format(str(state), str(dqn_action), str(mlp_action), str(dlp_action)))
 
     fig, ax = plt.subplots()
     ax.plot(range(len(rewards_dqn)), rewards_dqn, label="DQN")
