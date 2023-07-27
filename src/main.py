@@ -32,14 +32,14 @@ if __name__ == '__main__':
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
 
     # ----------------------------------- DUAL MO-MDP Setup -----------------------------------
-    lp_model = build_lp(data_mrp)
-    lp_results, lp_model = solve_lp(model=lp_model)
-    extract_lp(model=lp_model, lp_data=data_mrp)
-    opt_csv_name = "results_opt_ggi"
+    dlp_model = build_lp(data_mrp)
+    dlp_results, dlp_model = solve_lp(model=dlp_model)
+    extract_lp(model=dlp_model, lp_data=data_mrp)
+    dlp_csv_name = "results_dlp_ggi"
     env_lp = MachineReplacement(
-        num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, opt_csv_name
+        num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dlp_csv_name
     )
-    opt_rewards = []
+    dlp_rewards = []
 
     # ----------------------------------- Multi-Objective Setup -----------------------------------
     mlp_model = build_mlp(data_mrp)
@@ -68,17 +68,17 @@ if __name__ == '__main__':
         print("Episode: " + str(i_episode))
 
         state = env_lp.reset()
-        opt_reward = 0
+        dlp_reward = 0
         for t in range(num_steps):
-            action = policy_lp(state, lp_model, data_mrp)
+            action = policy_lp(state, dlp_model, data_mrp)
             next_observation, reward, done, _ = env_lp.step(action)
             state = np.zeros(num_arms)
             for n in range(num_arms):
                 state[n] = int(next_observation[n] * num_states)
-            opt_reward += discount ** t * reward
+            dlp_reward += discount ** t * reward
             if done:
                 break
-        opt_rewards.append(opt_reward)
+        dlp_rewards.append(dlp_reward)
 
         state = env_mlp.reset()
         mlp_reward = 0
@@ -105,14 +105,14 @@ if __name__ == '__main__':
                 break
         dqn_rewards.append(dqn_reward)
 
-    opt_rewards = np.array(opt_rewards)
+    dlp_rewards = np.array(dlp_rewards)
     mlp_rewards = np.array(mlp_rewards)
     dqn_rewards = np.array(dqn_rewards)
-    rewards_opt = opt_rewards.copy()
+    rewards_dlp = dlp_rewards.copy()
     rewards_mlp = mlp_rewards.copy()
     rewards_dqn = dqn_rewards.copy()
     for i in range(num_episodes):
-        rewards_opt[i] = np.mean(opt_rewards[0:i])
+        rewards_dlp[i] = np.mean(dlp_rewards[0:i])
         rewards_mlp[i] = np.mean(mlp_rewards[0:i])
         rewards_dqn[i] = np.mean(dqn_rewards[0:i])
 
@@ -121,12 +121,16 @@ if __name__ == '__main__':
     states_list = get_state_list(num_states, num_arms)
     for state in states_list:
         observation = np.array(state) / num_states
-        action = agent.act(observation)
-        print("State: {} -> DQN Action: {}".format(str(state), str(action)))
+        dqn_action = agent.act(observation)
+        print("State: {} -> DQN Action: {}".format(str(state), str(dqn_action)))
+        mlp_action = policy_mlp(state, mlp_model, data_mrp)
+        print("State: {} -> MLP Action: {}".format(str(state), str(mlp_action)))
+        dlp_action = policy_mlp(state, dlp_model, data_mrp)
+        print("State: {} -> DLP Action: {}".format(str(state), str(dlp_action)))
 
     fig, ax = plt.subplots()
     ax.plot(range(len(rewards_dqn)), rewards_dqn, label="DQN")
-    ax.plot(range(len(rewards_opt)), rewards_opt, label="OPT")
+    ax.plot(range(len(rewards_dlp)), rewards_dlp, label="DLP")
     ax.plot(range(len(rewards_mlp)), rewards_mlp, label="MLP")
     ax.set(xlabel='Episodes', ylabel='Discounted Reward',
            title='Learning Curve')
