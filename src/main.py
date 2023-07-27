@@ -27,9 +27,9 @@ if __name__ == '__main__':
     # The number of time steps (for higher discount factor should be set higher)
     num_steps = 200
     # The number of learning episodes
-    num_episodes = 50
+    num_episodes = 200
 
-    # ----------------------------------- DUAL Implementation -----------------------------------
+    # ----------------------------------- DUAL MO-MDP Setup -----------------------------------
 
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
     lp_model = build_lp(data_mrp)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     )
     opt_rewards = []
 
-    # ----------------------------------- Multi-Objective Implementation -----------------------------------
+    # ----------------------------------- Multi-Objective Setup -----------------------------------
 
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
     mlp_model = build_mlp(data_mrp)
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     )
     mlp_rewards = []
 
-    # ----------------------------------- DQN Implementation -----------------------------------
+    # ----------------------------------- DQN Setup -----------------------------------
 
     initial_lr = 1e-3
     dqn_csv_name = "results_dqn_ggi"
@@ -120,11 +120,11 @@ if __name__ == '__main__':
 
     # ----------------------------------------- Results -----------------------------------------
 
-    # states_list = get_state_list(num_states, num_arms)
-    # for state in states_list:
-    #     observation = np.array(state) / num_states
-    #     action = agent.act(observation)
-    #     print("State: {} -> Action: {}".format(str(state), str(action)))
+    states_list = get_state_list(num_states, num_arms)
+    for state in states_list:
+        observation = np.array(state) / num_states
+        action = agent.act(observation)
+        print("State: {} -> DQN Action: {}".format(str(state), str(action)))
 
     fig, ax = plt.subplots()
     ax.plot(range(len(rewards_dqn)), rewards_dqn, label="DQN")
