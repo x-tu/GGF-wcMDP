@@ -13,7 +13,7 @@ class MachineReplacement(gym.Env):
             num_arms: int,
             num_states: int,
             rccc_wrt_max: float,
-            prob_remain: float,
+            prob_remain,
             mat_type: int,
             weight_coefficient: int,
             num_steps: int,
