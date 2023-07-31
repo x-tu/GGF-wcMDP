@@ -15,7 +15,7 @@ class MachineReplacement(gym.Env):
             rccc_wrt_max: float,
             prob_remain,
             mat_type: int,
-            weight_coefficient: int,
+            weights,
             num_steps: int,
             out_csv_name: str
     ):
@@ -32,8 +32,7 @@ class MachineReplacement(gym.Env):
         self.rewards = rew_class.rewards
         dyn_class = MarkovChain(num_states, num_arms, prob_remain, mat_type)
         self.transitions = dyn_class.transitions
-        wgh_class = FairWeight(num_arms, weight_coefficient)
-        self.weights = wgh_class.weights
+        self.weights = weights
 
         # Initialization
         self.n_runs = 0
