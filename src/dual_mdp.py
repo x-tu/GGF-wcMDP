@@ -6,14 +6,15 @@ from params_mrp import CostReward, MarkovChain, FairWeight
 
 
 class LPData:
-    def __init__(self, num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount):
+    def __init__(self, num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount):
         self.num_arms = num_arms
         self.num_states = num_states
         self.num_actions = num_arms + 1
         self.rccc_wrt_max = rccc_wrt_max
         self.prob_remain = prob_remain
         self.mat_type = mat_type
-        self.weight_coefficient = weight_coefficient
+        self.weights = weights
+        self.discount = discount
         self.state_tuples = self.get_state_tuples()
         self.action_tuples = self.get_action_tuples()
         # print(self.state_tuples)
@@ -28,9 +29,6 @@ class LPData:
         dyn_class = MarkovChain(self.num_states, self.num_arms, self.prob_remain, self.mat_type)
         transitions = dyn_class.transitions
         self.global_transitions = self.get_global_transitions(transitions)
-        wgh_class = FairWeight(num_arms, weight_coefficient)
-        self.weights = wgh_class.weights
-        self.discount = discount
 
     def get_state_tuples(self):
         """A helper function used to get state tuple: cartesian S ** D.
