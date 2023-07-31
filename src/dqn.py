@@ -42,14 +42,17 @@ class DQNAgent:
         self.loss_fn = nn.MSELoss()
 
     def act(self, observation):
+        # Random exploration
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.data_mrp.num_actions)
+        # Expolitation
         else:
             if self.ggi_flag:
                 q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
                 for a_idx in range(self.data_mrp.num_actions):
                     temp_action = self.data_mrp.action_tuples[a_idx]
                     nn_input = np.hstack((observation, np.array(temp_action)))
+                    # Can this part be written in 1 line?
                     for w in range(len(self.weights)):
                         q_values[a_idx] += torch.tensor(self.weights)[w] * self.q_network(torch.tensor(nn_input).float())[w]
                 return torch.argmax(q_values).item()
