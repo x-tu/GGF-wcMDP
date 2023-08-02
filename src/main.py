@@ -2,10 +2,10 @@ from params_mrp import get_state_list, FairWeight
 from env_mrp import MachineReplacement
 from dqn import DQNAgent
 from dual_mdp import LPData, build_dlp, solve_dlp, extract_dlp, policy_dlp
-from muob_mdp import build_mlp, solve_mlp, extract_mlp, policy_mlp
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # The data for multi-objective MDP and the dual form of it
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
 
-    policy_flags = [1, 0, 1]
+    policy_flags = [1, 1]
 
     # ----------------------------------- DUAL MO-MDP Setup -----------------------------------
     if policy_flags[0] == 1:
@@ -51,18 +51,8 @@ if __name__ == '__main__':
             num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, num_steps, dlp_csv_name
         )
 
-    # ----------------------------------- Multi-Objective Setup -----------------------------------
-    if policy_flags[1] == 1:
-        mlp_model = build_mlp(data_mrp)
-        mlp_results, mlp_model = solve_mlp(model=mlp_model)
-        extract_mlp(model=mlp_model, data=data_mrp)
-        mlp_csv_name = "results_mlp_ggi"
-        env_mlp = MachineReplacement(
-            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, num_steps, mlp_csv_name
-        )
-
     # ----------------------------------- DQN Setup -----------------------------------
-    if policy_flags[2] == 1:
+    if policy_flags[1] == 1:
         initial_lr = 1e-3
         dqn_csv_name = "results_dqn_ggi"
         env_dqn = MachineReplacement(
@@ -73,7 +63,6 @@ if __name__ == '__main__':
     # ----------------------------------- Monte-Carlo Simulations -----------------------------------
 
     dlp_rewards = []
-    mlp_rewards = []
     dqn_rewards = []
     for i_episode in range(num_episodes):
 
@@ -83,40 +72,39 @@ if __name__ == '__main__':
             dlp_reward = 0
             for t in range(num_steps):
                 action = policy_dlp(state, dlp_model, data_mrp)
-                next_observation, reward, done, _ = env_dlp.step(action)
+                next_observation, reward_list, done, _ = env_dlp.step(action)
                 state = np.zeros(num_arms)
                 for n in range(num_arms):
                     state[n] = int(next_observation[n] * num_states)
-                dlp_reward += discount ** t * reward
+                dlp_reward += discount ** t * reward_list
                 if done:
                     break
+            if ggi_flag:
+                dlp_reward_sorted = np.sort(dlp_reward)
+                dlp_reward = np.dot(dlp_reward_sorted, weights)/sum(weights)
+            else:
+                dlp_reward = np.mean(dlp_reward)
             dlp_rewards.append(dlp_reward)
 
         if policy_flags[1] == 1:
-            state = env_mlp.reset()
-            mlp_reward = 0
-            for t in range(num_steps):
-                action = policy_mlp(state, mlp_model, data_mrp)
-                next_observation, reward, done, _ = env_mlp.step(action)
-                state = np.zeros(num_arms)
-                for n in range(num_arms):
-                    state[n] = int(next_observation[n] * num_states)
-                mlp_reward += discount ** t * reward
-                if done:
-                    break
-            mlp_rewards.append(mlp_reward)
-
-        if policy_flags[2] == 1:
             observation = env_dqn.reset()
             dqn_reward = 0
             for t in range(num_steps):
                 action = agent.act(observation)
-                next_observation, reward, done, _ = env_dqn.step(action)
-                dqn_reward += discount ** t * reward
-                agent.update(observation, action, reward, next_observation, done)
+                next_observation, reward_list, done, _ = env_dqn.step(action)
+                if ggi_flag:
+                    dqn_reward += discount ** t * reward_list
+                else:
+                    dqn_reward += discount ** t * np.mean(reward_list)
+                agent.update(observation, action, reward_list, next_observation, done)
                 observation = next_observation
                 if done:
                     break
+            if ggi_flag:
+                dqn_reward_sorted = np.sort(dqn_reward)
+                dqn_reward = np.dot(dqn_reward_sorted, weights)/sum(weights)
+            else:
+                dqn_reward = np.mean(dqn_reward)
             dqn_rewards.append(dqn_reward)
 
     if policy_flags[0] == 1:
@@ -125,11 +113,6 @@ if __name__ == '__main__':
         for i in range(num_episodes):
             rewards_dlp[i] = np.mean(dlp_rewards[0:i])
     if policy_flags[1] == 1:
-        mlp_rewards = np.array(mlp_rewards)
-        rewards_mlp = mlp_rewards.copy()
-        for i in range(num_episodes):
-            rewards_mlp[i] = np.mean(mlp_rewards[0:i])
-    if policy_flags[2] == 1:
         dqn_rewards = np.array(dqn_rewards)
         rewards_dqn = dqn_rewards.copy()
         for i in range(num_episodes):
@@ -142,17 +125,14 @@ if __name__ == '__main__':
     #     observation = np.array(state) / num_states
     #     dqn_action = agent.act(observation)
     #     print("State: {} -> DQN Action: {}".format(str(state), str(dqn_action)))
-    #     # mlp_action = policy_mlp(state, mlp_model, data_mrp)
     #     # dlp_action = policy_dlp(state, dlp_model, data_mrp)
-    #     # print("State: {} -> DQN Action: {}, MLP Action: {}, DLP Action: {}"
-    #     #       .format(str(state), str(dqn_action), str(mlp_action), str(dlp_action)))
+    #     # print("State: {} -> DQN Action: {}, DLP Action: {}"
+    #     #       .format(str(state), str(dqn_action), str(dlp_action)))
 
     fig, ax = plt.subplots()
     if policy_flags[0] == 1:
         ax.plot(range(len(rewards_dlp)), rewards_dlp, label="DLP")
     if policy_flags[1] == 1:
-        ax.plot(range(len(rewards_mlp)), rewards_mlp, label="MLP")
-    if policy_flags[2] == 1:
         ax.plot(range(len(rewards_dqn)), rewards_dqn, label="DQN")
     ax.set(xlabel='Episodes', ylabel='Discounted Reward',
            title='Learning Curve')

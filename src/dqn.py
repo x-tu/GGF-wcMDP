@@ -42,60 +42,61 @@ class DQNAgent:
         self.loss_fn = nn.MSELoss()
 
     def act(self, observation):
-        # Random exploration
+        # Exploration
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.data_mrp.num_actions)
-        # Expolitation
+        # Exploitation
         else:
-            if self.ggi_flag:
-                q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-                for a_idx in range(self.data_mrp.num_actions):
-                    temp_action = self.data_mrp.action_tuples[a_idx]
-                    nn_input = np.hstack((observation, np.array(temp_action)))
-                    # Can this part be written in 1 line?
+            q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
+            for a_idx in range(self.data_mrp.num_actions):
+                temp_action = self.data_mrp.action_tuples[a_idx]
+                nn_input = np.hstack((observation, np.array(temp_action)))
+                if self.ggi_flag:
+                    state_list = observation * self.data_mrp.num_states
+                    action_list = np.zeros(self.data_mrp.num_arms, dtype=int)
+                    if a_idx > 0:
+                        action_list[a_idx - 1] = 1
+                    reward_list = np.zeros(self.data_mrp.num_arms)
+                    for n in range(self.data_mrp.num_arms):
+                        reward_list[n] = 1 - self.data_mrp.costs[int(state_list[n]), n, action_list[n]]
+                    q_values_sorted = torch.sort(torch.tensor(reward_list) + self.discount * self.q_network(torch.tensor(nn_input).float()))
+                    # q_values = torch.dot(q_values_sorted, torch.tensor(self.weights))
                     for w in range(len(self.weights)):
-                        q_values[a_idx] += torch.tensor(self.weights)[w] * self.q_network(torch.tensor(nn_input).float())[w]
-                return torch.argmax(q_values).item()
-            else:
-                q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-                for a_idx in range(self.data_mrp.num_actions):
-                    temp_action = self.data_mrp.action_tuples[a_idx]
-                    nn_input = np.hstack((observation, np.array(temp_action)))
+                        q_values[a_idx] += torch.tensor(self.weights)[w] * q_values_sorted[0][w]
+                else:
                     q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
-                return torch.argmax(q_values).item()
+            return torch.argmax(q_values).item()
 
     def update(self, observation, action, reward, next_observation, done):
-        if self.ggi_flag:
-            q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-            next_q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-            for a_idx in range(self.data_mrp.num_actions):
-                temp_action = self.data_mrp.action_tuples[a_idx]
-                nn_input = np.hstack((observation, np.array(temp_action)))
-                next_nn_input = np.hstack((next_observation, np.array(temp_action)))
+        rq_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
+        next_rq_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
+        q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
+        next_q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
+        for a_idx in range(self.data_mrp.num_actions):
+            temp_action = self.data_mrp.action_tuples[a_idx]
+            nn_input = np.hstack((observation, np.array(temp_action)))
+            next_nn_input = np.hstack((next_observation, np.array(temp_action)))
+            if self.ggi_flag:
+                rq_values_sorted = torch.sort(torch.tensor(reward) + self.discount * self.q_network(torch.tensor(nn_input).float()) * (1 - done))
+                next_rq_values_sorted = torch.sort(torch.tensor(reward) + self.discount * self.q_network(torch.tensor(next_nn_input).float()) * (1 - done))
+                # rq_values = torch.dot(rq_values_sorted, torch.tensor(self.weights))
+                # next_rq_values = torch.dot(next_rq_values_sorted, torch.tensor(self.weights))
                 for w in range(len(self.weights)):
-                    q_values[a_idx] += torch.tensor(self.weights)[w] * self.q_network(torch.tensor(nn_input).float())[w]
-                    next_q_values[a_idx] += torch.tensor(self.weights)[w] * self.q_network(torch.tensor(next_nn_input).float())[w]
-            target = reward + self.discount * torch.max(next_q_values).item() * (1 - done)
-            target_q_values = q_values.clone()
-            target_q_values[action] = target
-            loss = self.loss_fn(q_values, target_q_values)
-        else:
-            # Used for another type of architecture
-            # q_values = self.q_network(torch.tensor(observation).float())
-            # next_q_values = self.q_network(torch.tensor(next_observation).float())
-            q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-            next_q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-            for a_idx in range(self.data_mrp.num_actions):
-                temp_action = self.data_mrp.action_tuples[a_idx]
-                nn_input = np.hstack((observation, np.array(temp_action)))
-                next_nn_input = np.hstack((next_observation, np.array(temp_action)))
+                    rq_values[a_idx] += torch.tensor(self.weights)[w] * rq_values_sorted[0][w]
+                    next_rq_values[a_idx] += torch.tensor(self.weights)[w] * next_rq_values_sorted[0][w]
+            else:
                 q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
                 next_q_values[a_idx] = self.q_network(torch.tensor(next_nn_input).float())
-            target = reward + self.discount * torch.max(next_q_values).item() * (1 - done)
+        if self.ggi_flag:
+            target = torch.max(next_rq_values).item()
+            target_rq_values = rq_values.clone()
+            target_rq_values[action] = target
+            loss = self.loss_fn(rq_values, target_rq_values)
+        else:
+            target = np.mean(reward) + self.discount * torch.max(next_q_values).item() * (1 - done)
             target_q_values = q_values.clone()
             target_q_values[action] = target
             loss = self.loss_fn(q_values, target_q_values)
-
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

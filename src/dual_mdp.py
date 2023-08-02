@@ -24,11 +24,11 @@ class LPData:
         self.state_indices = range(len(self.state_tuples))
         self.action_indices = range(len(self.action_tuples))
         rew_class = CostReward(self.num_states, self.num_arms, self.rccc_wrt_max)
-        costs = rew_class.costs
-        self.global_costs = self.get_global_costs(costs)
+        self.costs = rew_class.costs
+        self.global_costs = self.get_global_costs()
         dyn_class = MarkovChain(self.num_states, self.num_arms, self.prob_remain, self.mat_type)
-        transitions = dyn_class.transitions
-        self.global_transitions = self.get_global_transitions(transitions)
+        self.transitions = dyn_class.transitions
+        self.global_transitions = self.get_global_transitions()
 
     def get_state_tuples(self):
         """A helper function used to get state tuple: cartesian S ** D.
@@ -54,16 +54,16 @@ class LPData:
         tuple_list_a.extend(np.diag(np.ones(self.num_arms, dtype=int)).tolist())
         return tuple_list_a
 
-    def get_global_costs(self, costs):
+    def get_global_costs(self):
         """Generate the cost matrix R(s, a, d) at state s taking action a for group d."""
         global_costs = np.zeros([len(self.state_tuples), len(self.action_tuples), self.num_arms])
         for s in self.state_indices:
             for a in self.action_indices:
                 for d in self.arm_indices:
-                    global_costs[s, a, d] = costs[self.state_tuples[s][d], d, self.action_tuples[a][d]]
+                    global_costs[s, a, d] = self.costs[self.state_tuples[s][d], d, self.action_tuples[a][d]]
         return global_costs
 
-    def get_global_transitions(self, transitions):
+    def get_global_transitions(self):
         """Generate the transition matrix Pr(s, s', a) from state s to state s' taking action a."""
         global_transitions = np.zeros([len(self.state_tuples), len(self.state_tuples), len(self.action_tuples)])
 
@@ -72,7 +72,7 @@ class LPData:
                 for next_s in self.state_indices:
                     temp_trans = 1
                     for d in self.arm_indices:
-                        temp_trans *= transitions[self.state_tuples[s][d],
+                        temp_trans *= self.transitions[self.state_tuples[s][d],
                                                   self.state_tuples[next_s][d],
                                                   d,
                                                   self.action_tuples[a][d]]
