@@ -2,16 +2,31 @@ import numpy as np
 
 
 class QAgent:
-    def __init__(self, env, num_states, num_actions, alpha, epsilon, gamma):
+    def __init__(
+        self,
+        env,
+        num_states,
+        num_actions,
+        num_groups,
+        alpha,
+        decaying_factor,
+        epsilon,
+        gamma,
+    ):
         self.env = env
         self.num_states = num_states
         self.num_actions = num_actions
+        self.num_groups = num_groups
+        self.ggi = env.ggi
         self.q_table = np.random.uniform(
-            low=0, high=0.01, size=(num_states, num_actions)
+            low=2000, high=2100, size=(num_states, num_actions)
         )
         self.epsilon = epsilon
+        self.min_epsilon = 0.01
+        self.decaying_factor = decaying_factor
         self.alpha = alpha
         self.gamma = gamma
+        self.lr_decay_schedule = []
 
     def get_action(self, state):
         # We use epsilon-greedy to get an action
@@ -38,18 +53,27 @@ class QAgent:
 
 
 def run_tabular_q(
-    env, num_episodes=200, len_episode=1000, alpha=0.1, epsilon=0.2, gamma=0.99
+    env,
+    num_episodes=200,
+    len_episode=1000,
+    alpha=0.1,
+    epsilon=0.2,
+    decaying_factor=0.95,
+    gamma=0.99,
 ):
     episode_rewards = []
     agent = QAgent(
         env=env,
         num_states=env.observation_space.n,
         num_actions=env.action_space.n,
+        num_groups=env.mrp_data.n_group,
         alpha=alpha,
         epsilon=epsilon,
+        decaying_factor=decaying_factor,
         gamma=gamma,
     )
-    # Run 1000 episodes
+    agent.lr_decay_schedule = np.linspace(alpha, 0, num_episodes)
+    # Run 200 episodes
     for episode in range(num_episodes):
         # Initialize environment
         state = env.reset()
@@ -64,9 +88,13 @@ def run_tabular_q(
             # Update observation
             state = state_next
             total_reward += (gamma ** t) * reward
+        # We use a decaying epsilon-greedy method
+        if agent.epsilon > 0.001:
+            agent.epsilon = agent.epsilon * agent.decaying_factor
+        agent.alpha = agent.lr_decay_schedule[episode]
         # Display running rewards
         if episode % 20 == 0:
-            print(f"Episode: {episode}; " f"Running reward: {total_reward:.1f}.")
+            print(f"Episode: {episode}; " f"Running reward: {total_reward:.1f}")
         episode_rewards.append(total_reward)
     state_action_pair = agent.get_policy()
     return state_action_pair, episode_rewards
