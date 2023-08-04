@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # The number of time steps (for higher discount factor should be set higher)
     num_steps = 200
     # The number of learning episodes
-    num_episodes = 200
+    num_episodes = 50
     # The data for multi-objective MDP and the dual form of it
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
                     break
             if ggi_flag:
                 dlp_reward_sorted = np.sort(dlp_reward)
-                dlp_reward = np.dot(dlp_reward_sorted, weights)/sum(weights)
+                dlp_reward = np.dot(dlp_reward_sorted, weights)
             else:
                 dlp_reward = np.mean(dlp_reward)
             dlp_rewards.append(dlp_reward)
@@ -92,17 +92,14 @@ if __name__ == '__main__':
             for t in range(num_steps):
                 action = agent.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
-                if ggi_flag:
-                    dqn_reward += discount ** t * reward_list
-                else:
-                    dqn_reward += discount ** t * np.mean(reward_list)
+                dqn_reward += discount ** t * reward_list
                 agent.update(observation, action, reward_list, next_observation, done)
                 observation = next_observation
                 if done:
                     break
             if ggi_flag:
                 dqn_reward_sorted = np.sort(dqn_reward)
-                dqn_reward = np.dot(dqn_reward_sorted, weights)/sum(weights)
+                dqn_reward = np.dot(dqn_reward_sorted, weights)
             else:
                 dqn_reward = np.mean(dqn_reward)
             dqn_rewards.append(dqn_reward)
