@@ -96,10 +96,10 @@ class FairWeight:
     def __init__(self, num_arms: int, weight_coefficient):
         if np.isscalar(weight_coefficient):
             self.weights = np.array([1 / (weight_coefficient ** i) for i in range(num_arms)])
-            self.weights = self.weights / np.max(self.weights)
+            self.weights = self.weights / np.sum(self.weights)
         elif len(weight_coefficient) == num_arms:
             self.weights = weight_coefficient
-            self.weights = self.weights / np.max(self.weights)
+            self.weights = self.weights / np.sum(self.weights)
         else:
             raise TypeError("`weight_coef` should be either scalar or array with length reward_space")
 
