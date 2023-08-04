@@ -24,6 +24,7 @@ class LPData:
         self.state_indices = range(len(self.state_tuples))
         self.action_indices = range(len(self.action_tuples))
         rew_class = CostReward(self.num_states, self.num_arms, self.rccc_wrt_max)
+        self.rewards = rew_class.rewards
         self.costs = rew_class.costs
         self.global_costs = self.get_global_costs()
         dyn_class = MarkovChain(self.num_states, self.num_arms, self.prob_remain, self.mat_type)
