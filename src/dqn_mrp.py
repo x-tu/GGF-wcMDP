@@ -5,11 +5,11 @@ import torch.optim as optim
 
 
 class DQNNetwork(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, hidden_dim, output_dim):
         super(DQNNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, output_dim)
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
         x = torch.nn.functional.relu(self.fc1(x))
@@ -20,10 +20,11 @@ class DQNNetwork(nn.Module):
 class RDQNAgent:
     def __init__(self,
                  data_mrp,
+                 discount,
                  ggi_flag,
                  weights,
-                 discount=0.99,
-                 initial_lr=1e-3,
+                 l_rate=1e-3,
+                 h_size=64,
                  epsilon=1.0,
                  epsilon_decay=0.99,
                  min_epsilon=0.01):
@@ -33,8 +34,8 @@ class RDQNAgent:
         output_dim = 1
         if ggi_flag:
             output_dim = data_mrp.num_arms
-        self.q_network = DQNNetwork(input_dim, output_dim)
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=initial_lr)
+        self.q_network = DQNNetwork(input_dim, h_size, output_dim)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=l_rate)
         self.weights = weights
         self.discount = discount
         self.epsilon = epsilon
