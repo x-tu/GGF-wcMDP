@@ -1,10 +1,12 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse as ap
+import os
 from params_mrp import FairWeight
 from env_mrp import MachineReplacement
-from dqn import RDQNAgent
+from dqn_mrp import RDQNAgent
 from dual_mdp import LPData, build_dlp, solve_dlp, extract_dlp, policy_dlp
-import numpy as np
-import matplotlib.pyplot as plt
-import os
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 if __name__ == '__main__':
@@ -22,10 +24,10 @@ if __name__ == '__main__':
     # The discount factor
     discount = 0.95
     # Whether to consider GGI case or the average model:
-    ggi_flag = True
+    ggi_flag = False
     # The fair weight coefficient
     if ggi_flag:
-        weight_coefficient = 2
+        weight_coefficient = 1
     else:
         weight_coefficient = 1
     wgh_class = FairWeight(num_arms, weight_coefficient)
@@ -52,12 +54,18 @@ if __name__ == '__main__':
 
     # ----------------------------------- DQN Setup -----------------------------------
     if policy_flags[1] == 1:
-        initial_lr = 1e-3
         dqn_csv_name = "results_dqn_ggi"
         env_dqn = MachineReplacement(
             num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dqn_csv_name
         )
-        agent1 = RDQNAgent(data_mrp, ggi_flag, weights, discount, initial_lr)
+        # parser = ap.ArgumentParser('Hyper-parameters for DQNetwork')
+        # parser.add_argument('l-rate', type=float, default=0.001, help='learning rate')
+        # parser.add_argument('h-size', type=float, default=64, help='hidden layer size')
+        # parser.add_argument('ep-max', type=float, default=1.0, help='initial epsilon')
+        # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
+        # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
+        # args = parser.parse_args()
+        agent1 = RDQNAgent(data_mrp, discount, ggi_flag, weights)
         # agent2 = DQNAgent(env_dqn.num_arms, env_dqn.num_actions, discount, initial_lr)
         dqn1_rewards = []
         dqn2_rewards = []
@@ -93,7 +101,8 @@ if __name__ == '__main__':
                 observation = next_observation
                 if done:
                     break
-            dqn1_rewards.append(np.dot(dqn1_reward, weights))
+            rewards_sorted = np.sort(dqn1_reward)
+            dqn1_rewards.append(np.dot(rewards_sorted, weights))
 
             # observation = env_dqn.reset()
             # dqn2_reward = 0
