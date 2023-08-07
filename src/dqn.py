@@ -4,15 +4,12 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-class DQNetwork(nn.Module):
-    def __init__(self, observation_dim, num_arms, ggi_flag):
-        super(DQNetwork, self).__init__()
-        self.fc1 = nn.Linear(observation_dim + num_arms, 64)
+class DQNNetwork(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(DQNNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 64)
         self.fc2 = nn.Linear(64, 64)
-        if ggi_flag:
-            self.fc3 = nn.Linear(64, num_arms)
-        else:
-            self.fc3 = nn.Linear(64, 1)
+        self.fc3 = nn.Linear(64, output_dim)
 
     def forward(self, x):
         x = torch.nn.functional.relu(self.fc1(x))
@@ -20,7 +17,7 @@ class DQNetwork(nn.Module):
         return self.fc3(x)
 
 
-class DQNAgent:
+class RDQNAgent:
     def __init__(self,
                  data_mrp,
                  ggi_flag,
@@ -32,10 +29,14 @@ class DQNAgent:
                  min_epsilon=0.01):
         self.data_mrp = data_mrp
         self.ggi_flag = ggi_flag
-        self.q_network = DQNetwork(data_mrp.num_states, data_mrp.num_arms, ggi_flag)
+        input_dim = 2 * data_mrp.num_arms
+        output_dim = 1
+        if ggi_flag:
+            output_dim = data_mrp.num_arms
+        self.q_network = DQNNetwork(input_dim, output_dim)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=initial_lr)
         self.weights = weights
         self.discount = discount
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=initial_lr)
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.min_epsilon = min_epsilon
@@ -50,7 +51,7 @@ class DQNAgent:
             # The Q-values for GGF case
             q_ggfvalues = torch.tensor(np.zeros(self.data_mrp.num_actions))
             # The Q-values for non-GGF case
-            q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
+            q_values = torch.zeros(self.data_mrp.num_actions)
             # Loop over all actions
             for a_idx in range(self.data_mrp.num_actions):
                 # The one-hot-encoded action
@@ -66,7 +67,7 @@ class DQNAgent:
                 else:
                     # The exploitation action is selected according to argmax_{a} q(s, a)
                     q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
-                    return torch.argmax(q_values).item()
+            return torch.argmax(q_values).item()
 
     def update(self, observation, action, reward, next_observation, done):
         # Required variables for GGI case
@@ -108,7 +109,7 @@ class DQNAgent:
             # The greedy action for the next_state
             next_greedy_action = torch.argmax(next_q_values).item()
             # Compute the target
-            target = np.mean(reward) + self.discount * next_q_values[next_greedy_action] * (1 - done)
+            target = np.dot(reward, self.weights) + self.discount * next_q_values[next_greedy_action].item() * (1 - done)
             target_q_values = q_values.clone()
             target_q_values[action] = target
             # Compute the loss

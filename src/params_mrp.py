@@ -20,7 +20,7 @@ class CostReward:
     def linear(self):
         costs = np.zeros([self.num_s, self.num_a])
         for n in range(self.num_a):
-            costs[:, n] = np.linspace(0, self.num_s-1, num=self.num_s) / (self.num_s-1)
+            costs[:, n] = np.linspace(0, self.num_s-1, num=self.num_s)
         return costs
 
     def constant(self, k):
@@ -30,7 +30,7 @@ class CostReward:
         costs = np.zeros([self.num_s, self.num_a])
         for a in range(self.num_a):
             for s in range(self.num_s):
-                costs[s, a] = s**2 / (self.num_s-1)**2
+                costs[s, a] = s**2
         return costs
 
 
