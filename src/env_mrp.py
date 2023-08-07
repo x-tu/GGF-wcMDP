@@ -15,7 +15,7 @@ class MachineReplacement(gym.Env):
             rccc_wrt_max: float,
             prob_remain,
             mat_type: int,
-            weights,
+            weight_coefficient: int,
             num_steps: int,
             out_csv_name: str
     ):
@@ -32,7 +32,8 @@ class MachineReplacement(gym.Env):
         self.rewards = rew_class.rewards
         dyn_class = MarkovChain(num_states, num_arms, prob_remain, mat_type)
         self.transitions = dyn_class.transitions
-        self.weights = weights
+        wgh_class = FairWeight(num_arms, weight_coefficient)
+        self.weights = wgh_class.weights
 
         # Initialization
         self.n_runs = 0
@@ -68,10 +69,10 @@ class MachineReplacement(gym.Env):
         next_state_list = np.copy(state_list)
         # convert the action integer into the action list
         action_list = np.zeros(self.num_arms, dtype=int)
-        if action > 0:
-            action_list[action - 1] = 1
         # get the vector of rewards
         reward_list = np.zeros(self.num_arms)
+        if action > 0:
+            action_list[action - 1] = 1
         for n in range(self.num_arms):
             next_state_prob = self.transitions[int(state_list[n]), :, n, action_list[n]]
             # get the state
@@ -84,11 +85,6 @@ class MachineReplacement(gym.Env):
         # register the information
         info = {f"reward_{n}": reward_list[n] for n in range(self.num_arms)}
         self.reward_info.append(info)
-        # print(str(self.step_counter) + ' out of ' + str(self.max_steps))
-        # print('state: ' + str(state_list))
-        # print('action: ' + str(action))
-        # print('reward: ' + str(reward))
-        # print('------------------------------------')
         self.step_counter += 1
         if done:
             self.save_csv()

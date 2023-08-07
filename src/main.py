@@ -1,12 +1,10 @@
-from params_mrp import get_state_list, FairWeight
+from params_mrp import FairWeight
 from env_mrp import MachineReplacement
-from dqn import DQNAgent
+from dqn import RDQNAgent
 from dual_mdp import LPData, build_dlp, solve_dlp, extract_dlp, policy_dlp
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import time
-
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 if __name__ == '__main__':
@@ -33,13 +31,13 @@ if __name__ == '__main__':
     wgh_class = FairWeight(num_arms, weight_coefficient)
     weights = wgh_class.weights
     # The number of time steps (for higher discount factor should be set higher)
-    num_steps = 200
+    num_steps = 100
     # The number of learning episodes
     num_episodes = 50
     # The data for multi-objective MDP and the dual form of it
-    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
+    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
 
-    policy_flags = [1, 1]
+    policy_flags = [0, 1]
 
     # ----------------------------------- DUAL MO-MDP Setup -----------------------------------
     if policy_flags[0] == 1:
@@ -48,61 +46,66 @@ if __name__ == '__main__':
         extract_dlp(model=dlp_model, lp_data=data_mrp)
         dlp_csv_name = "results_dlp_ggi"
         env_dlp = MachineReplacement(
-            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, num_steps, dlp_csv_name
+            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dlp_csv_name
         )
+        dlp_rewards = []
 
     # ----------------------------------- DQN Setup -----------------------------------
     if policy_flags[1] == 1:
         initial_lr = 1e-3
         dqn_csv_name = "results_dqn_ggi"
         env_dqn = MachineReplacement(
-            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, num_steps, dqn_csv_name
+            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dqn_csv_name
         )
-        agent = DQNAgent(data_mrp, ggi_flag, weights, discount, initial_lr)
+        agent1 = RDQNAgent(data_mrp, ggi_flag, weights, discount, initial_lr)
+        # agent2 = DQNAgent(env_dqn.num_arms, env_dqn.num_actions, discount, initial_lr)
+        dqn1_rewards = []
+        dqn2_rewards = []
 
     # ----------------------------------- Monte-Carlo Simulations -----------------------------------
 
-    dlp_rewards = []
-    dqn_rewards = []
     for i_episode in range(num_episodes):
 
         print("Episode: " + str(i_episode))
-        if policy_flags[0] == 1:
-            state = env_dlp.reset()
-            dlp_reward = 0
-            for t in range(num_steps):
-                action = policy_dlp(state, dlp_model, data_mrp)
-                next_observation, reward_list, done, _ = env_dlp.step(action)
-                state = np.zeros(num_arms)
-                for n in range(num_arms):
-                    state[n] = int(next_observation[n] * num_states)
-                dlp_reward += discount ** t * reward_list
-                if done:
-                    break
-            if ggi_flag:
-                dlp_reward_sorted = np.sort(dlp_reward)
-                dlp_reward = np.dot(dlp_reward_sorted, weights)
-            else:
-                dlp_reward = np.mean(dlp_reward)
-            dlp_rewards.append(dlp_reward)
+
+        # if policy_flags[0] == 1:
+        #     state = env_dlp.reset()
+        #     dlp_reward = 0
+        #     for t in range(num_steps):
+        #         action = policy_dlp(state, dlp_model, data_mrp)
+        #         next_observation, reward, done, _ = env_dlp.step(action)
+        #         state = np.zeros(num_arms)
+        #         for n in range(num_arms):
+        #             state[n] = int(next_observation[n] * num_states)
+        #         dlp_reward += discount ** t * reward
+        #         if done:
+        #             break
+        #     dlp_rewards.append(dlp_reward)
 
         if policy_flags[1] == 1:
             observation = env_dqn.reset()
-            dqn_reward = 0
+            dqn1_reward = 0
             for t in range(num_steps):
-                action = agent.act(observation)
+                action = agent1.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
-                dqn_reward += discount ** t * reward_list
-                agent.update(observation, action, reward_list, next_observation, done)
+                dqn1_reward += discount ** t * reward_list
+                agent1.update(observation, action, reward_list, next_observation, done)
                 observation = next_observation
                 if done:
                     break
-            if ggi_flag:
-                dqn_reward_sorted = np.sort(dqn_reward)
-                dqn_reward = np.dot(dqn_reward_sorted, weights)
-            else:
-                dqn_reward = np.mean(dqn_reward)
-            dqn_rewards.append(dqn_reward)
+            dqn1_rewards.append(np.dot(dqn1_reward, weights))
+
+            # observation = env_dqn.reset()
+            # dqn2_reward = 0
+            # for t in range(num_steps):
+            #     action = agent2.act(observation)
+            #     next_observation, reward, done, _ = env_dqn.step(action)
+            #     dqn2_reward += discount ** t * reward
+            #     agent2.update(observation, action, reward, next_observation, done)
+            #     observation = next_observation
+            #     if done:
+            #         break
+            # dqn2_rewards.append(dqn2_reward)
 
     if policy_flags[0] == 1:
         dlp_rewards = np.array(dlp_rewards)
@@ -110,10 +113,15 @@ if __name__ == '__main__':
         for i in range(num_episodes):
             rewards_dlp[i] = np.mean(dlp_rewards[0:i])
     if policy_flags[1] == 1:
-        dqn_rewards = np.array(dqn_rewards)
-        rewards_dqn = dqn_rewards.copy()
+        dqn1_rewards = np.array(dqn1_rewards)
+        rewards_dqn1 = dqn1_rewards.copy()
         for i in range(num_episodes):
-            rewards_dqn[i] = np.mean(dqn_rewards[0:i])
+            rewards_dqn1[i] = np.mean(dqn1_rewards[0:i])
+
+        # dqn2_rewards = np.array(dqn2_rewards)
+        # rewards_dqn2 = dqn2_rewards.copy()
+        # for i in range(num_episodes):
+        #     rewards_dqn2[i] = np.mean(dqn2_rewards[0:i])
 
     # ----------------------------------------- Results -----------------------------------------
 
@@ -122,15 +130,17 @@ if __name__ == '__main__':
     #     observation = np.array(state) / num_states
     #     dqn_action = agent.act(observation)
     #     print("State: {} -> DQN Action: {}".format(str(state), str(dqn_action)))
+    #     # mlp_action = policy_mlp(state, mlp_model, data_mrp)
     #     # dlp_action = policy_dlp(state, dlp_model, data_mrp)
-    #     # print("State: {} -> DQN Action: {}, DLP Action: {}"
-    #     #       .format(str(state), str(dqn_action), str(dlp_action)))
+    #     # print("State: {} -> DQN Action: {}, MLP Action: {}, DLP Action: {}"
+    #     #       .format(str(state), str(dqn_action), str(mlp_action), str(dlp_action)))
 
     fig, ax = plt.subplots()
+    if policy_flags[1] == 1:
+        ax.plot(range(len(rewards_dqn1)), rewards_dqn1, label="DQN1")
+        # ax.plot(range(len(rewards_dqn2)), rewards_dqn2, label="DQN2")
     if policy_flags[0] == 1:
         ax.plot(range(len(rewards_dlp)), rewards_dlp, label="DLP")
-    if policy_flags[1] == 1:
-        ax.plot(range(len(rewards_dqn)), rewards_dqn, label="DQN")
     ax.set(xlabel='Episodes', ylabel='Discounted Reward',
            title='Learning Curve')
     ax.grid()
