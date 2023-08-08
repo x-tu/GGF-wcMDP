@@ -95,9 +95,9 @@ class RDQNAgent:
                 q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
                 next_q_values[a_idx] = self.q_network(torch.tensor(next_nn_input).float())
         if self.ggi_flag:
-            # The greedy action for the next_state
+            # Compute the target: GGF(r(s, a) + discount * q(s', a_max)) where
+            # a_max = argmax_{a} GGF(q(s', a)) is the greedy action for the next_state.
             next_greedy_action = torch.argmax(next_q_ggfvalues).item()
-            # Compute the target
             target_ggfsorted = torch.sort(torch.tensor(reward) + self.discount * next_q_ggfvalues[next_greedy_action] * (1 - done))
             target_ggf = 0
             for w in range(len(self.weights)):
@@ -107,9 +107,9 @@ class RDQNAgent:
             # Compute the loss
             loss = self.loss_fn(q_ggfvalues, target_q_ggfvalues)
         else:
-            # The greedy action for the next_state
+            # Compute the target: average reward over arms + discount * q(s', a_max) where
+            # a_max = argmax_{a} q(s', a) is the greedy action for the next_state.
             next_greedy_action = torch.argmax(next_q_values).item()
-            # Compute the target
             target = np.dot(reward, self.weights) + self.discount * next_q_values[next_greedy_action].item() * (1 - done)
             target_q_values = q_values.clone()
             target_q_values[action] = target
