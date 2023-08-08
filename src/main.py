@@ -65,10 +65,10 @@ if __name__ == '__main__':
         # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
         # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
         # args = parser.parse_args()
-        agent1 = RDQNAgent(data_mrp, discount, ggi_flag, weights)
         # agent2 = DQNAgent(env_dqn.num_arms, env_dqn.num_actions, discount, initial_lr)
+        # dqn2_rewards = []
+        agent1 = RDQNAgent(data_mrp, discount, ggi_flag, weights)
         dqn1_rewards = []
-        dqn2_rewards = []
 
     # ----------------------------------- Monte-Carlo Simulations -----------------------------------
 
