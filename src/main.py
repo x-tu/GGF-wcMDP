@@ -97,10 +97,11 @@ if __name__ == '__main__':
                 action = agent1.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn1_reward += discount ** t * reward_list
-                agent1.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent1.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn1_reward)
             dqn1_rewards.append(np.dot(rewards_sorted, weights))
 
