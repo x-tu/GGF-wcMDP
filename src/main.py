@@ -4,7 +4,7 @@ import argparse as ap
 import os
 from params_mrp import FairWeight
 from env_mrp import MachineReplacement
-from dqn_mrp import RDQNAgent
+from dqn_mrp import RDQNAgent, DQNAgent
 from dual_mdp import LPData, build_dlp, solve_dlp, extract_dlp, policy_dlp
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # The discount factor
     discount = 0.95
     # Whether to consider GGI case or the average model:
-    ggi_flag = False
+    ggi_flag = True
     # The fair weight coefficient
     if ggi_flag:
         weight_coefficient = 1
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         # args = parser.parse_args()
         # agent2 = DQNAgent(env_dqn.num_arms, env_dqn.num_actions, discount, initial_lr)
         # dqn2_rewards = []
-        agent1 = RDQNAgent(data_mrp, discount, ggi_flag, weights)
+        agent1 = DQNAgent(data_mrp, discount, ggi_flag, weights)
         dqn1_rewards = []
 
     # ----------------------------------- Monte-Carlo Simulations -----------------------------------
