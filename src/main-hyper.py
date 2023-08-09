@@ -4,7 +4,7 @@ import argparse as ap
 import os
 from params_mrp import FairWeight
 from env_mrp import MachineReplacement
-from dqn_mrp import RDQNAgent
+from dqn_mrp import RDQNAgent, ODQNAgent
 from dual_mdp import LPData, build_dlp, solve_dlp, extract_dlp, policy_dlp
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -35,9 +35,9 @@ if __name__ == '__main__':
     # The number of time steps (for higher discount factor should be set higher)
     num_steps = 100
     # The number of learning episodes
-    num_episodes = 200
+    num_episodes = 500
     # The data for multi-objective MDP and the dual form of it
-    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, discount)
+    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
 
     policy_flags = [0, 1]
 
@@ -77,7 +77,6 @@ if __name__ == '__main__':
         agent10 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 128)
         agent11 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 256)
         agent12 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 512)
-        # agent2 = DQNAgent(env_dqn.num_arms, env_dqn.num_actions, discount, initial_lr)
         dqn1_rewards = []
         dqn2_rewards = []
         dqn3_rewards = []
@@ -97,19 +96,21 @@ if __name__ == '__main__':
 
         print("Episode: " + str(i_episode))
 
-        # if policy_flags[0] == 1:
-        #     state = env_dlp.reset()
-        #     dlp_reward = 0
-        #     for t in range(num_steps):
-        #         action = policy_dlp(state, dlp_model, data_mrp)
-        #         next_observation, reward, done, _ = env_dlp.step(action)
-        #         state = np.zeros(num_arms)
-        #         for n in range(num_arms):
-        #             state[n] = int(next_observation[n] * num_states)
-        #         dlp_reward += discount ** t * reward
-        #         if done:
-        #             break
-        #     dlp_rewards.append(dlp_reward)
+        if policy_flags[0] == 1:
+            state = env_dlp.reset()
+            dlp_reward = 0
+            for t in range(num_steps):
+                action = policy_dlp(state, dlp_model, data_mrp)
+                next_observation, reward, done, _ = env_dlp.step(action)
+                dlp_reward += discount ** t * reward
+                if done:
+                    break
+                else:
+                    state = np.zeros(num_arms)
+                    for n in range(num_arms):
+                        state[n] = int(next_observation[n] * num_states)
+            rewards_sorted = np.sort(dlp_reward)
+            dlp_rewards.append(np.dot(rewards_sorted, weights))
 
         if policy_flags[1] == 1:
             observation = env_dqn.reset()
@@ -118,10 +119,11 @@ if __name__ == '__main__':
                 action = agent1.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn1_reward += discount ** t * reward_list
-                agent1.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent1.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn1_reward)
             dqn1_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -131,10 +133,11 @@ if __name__ == '__main__':
                 action = agent2.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn2_reward += discount ** t * reward_list
-                agent2.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent2.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn2_reward)
             dqn2_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -144,10 +147,11 @@ if __name__ == '__main__':
                 action = agent3.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn3_reward += discount ** t * reward_list
-                agent3.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent3.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn3_reward)
             dqn3_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -157,10 +161,11 @@ if __name__ == '__main__':
                 action = agent4.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn4_reward += discount ** t * reward_list
-                agent4.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent4.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn4_reward)
             dqn4_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -170,10 +175,11 @@ if __name__ == '__main__':
                 action = agent5.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn5_reward += discount ** t * reward_list
-                agent5.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent5.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn5_reward)
             dqn5_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -183,10 +189,11 @@ if __name__ == '__main__':
                 action = agent6.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn6_reward += discount ** t * reward_list
-                agent6.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent6.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn6_reward)
             dqn6_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -196,10 +203,11 @@ if __name__ == '__main__':
                 action = agent7.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn7_reward += discount ** t * reward_list
-                agent7.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent7.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn7_reward)
             dqn7_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -209,10 +217,11 @@ if __name__ == '__main__':
                 action = agent8.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn8_reward += discount ** t * reward_list
-                agent8.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent8.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn8_reward)
             dqn8_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -222,10 +231,11 @@ if __name__ == '__main__':
                 action = agent9.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn9_reward += discount ** t * reward_list
-                agent9.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent9.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn9_reward)
             dqn9_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -235,10 +245,11 @@ if __name__ == '__main__':
                 action = agent10.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn10_reward += discount ** t * reward_list
-                agent10.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent10.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn10_reward)
             dqn10_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -248,10 +259,11 @@ if __name__ == '__main__':
                 action = agent11.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn11_reward += discount ** t * reward_list
-                agent11.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent11.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn11_reward)
             dqn11_rewards.append(np.dot(rewards_sorted, weights))
 
@@ -261,10 +273,11 @@ if __name__ == '__main__':
                 action = agent12.act(observation)
                 next_observation, reward_list, done, _ = env_dqn.step(action)
                 dqn12_reward += discount ** t * reward_list
-                agent12.update(observation, action, reward_list, next_observation, done)
-                observation = next_observation
                 if done:
                     break
+                else:
+                    agent12.update(observation, action, reward_list, next_observation)
+                    observation = next_observation
             rewards_sorted = np.sort(dqn12_reward)
             dqn12_rewards.append(np.dot(rewards_sorted, weights))
 

@@ -66,11 +66,13 @@ class RDQNAgent:
                     q_values_sorted = torch.sort(qg_values[a_idx, :])
                     for w in range(len(self.weights)):
                         q_ggfvalues[a_idx] += torch.tensor(self.weights)[w] * q_values_sorted[0][w]
-                    return torch.argmax(q_ggfvalues).item()
                 else:
                     # The exploitation action is selected according to argmax_{a} q(s, a)
                     q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
-                    return torch.argmax(q_values).item()
+            if self.ggi_flag:
+                return torch.argmax(q_ggfvalues).item()
+            else:
+                return torch.argmax(q_values).item()
 
     def update(self, observation, action, reward, next_observation):
         # Required variables for GGI case
@@ -133,7 +135,7 @@ class RDQNAgent:
             self.epsilon *= self.epsilon_decay
 
 
-class DQNAgent:
+class ODQNAgent:
     def __init__(self,
                  data_mrp,
                  discount,
@@ -177,16 +179,26 @@ class DQNAgent:
                 # The input to the DQN
                 nn_input = np.hstack((observation, np.array(temp_action)))
                 if self.ggi_flag:
-                    # The exploitation action is selected according to argmax_{a} GGF(q(s, a))
+                    # The exploitation action is selected according to argmax_{a} GGF(q(s, a)) or argmax_{a} GGF(r(s, a) + gamma q(s, a))?
+                    # Get the per-step reward
+                    state_list = observation * self.data_mrp.num_states
+                    action_list = np.zeros(self.data_mrp.num_arms, dtype=int)
+                    if a_idx > 0:
+                        action_list[a_idx - 1] = 1
+                    reward_list = np.zeros(self.data_mrp.num_arms)
+                    for n in range(self.data_mrp.num_arms):
+                        reward_list[n] = self.data_mrp.rewards[int(state_list[n]), n, action_list[n]]
                     qg_values[a_idx, :] = self.q_network(torch.tensor(nn_input).float())
-                    q_values_sorted = torch.sort(qg_values[a_idx, :])
+                    q_values_sorted = torch.sort(torch.tensor(reward_list) + self.discount * qg_values[a_idx, :])
                     for w in range(len(self.weights)):
                         q_ggfvalues[a_idx] += torch.tensor(self.weights)[w] * q_values_sorted[0][w]
-                    return torch.argmax(q_ggfvalues).item()
                 else:
                     # The exploitation action is selected according to argmax_{a} q(s, a)
                     q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
-                    return torch.argmax(q_values).item()
+            if self.ggi_flag:
+                return torch.argmax(q_ggfvalues).item()
+            else:
+                return torch.argmax(q_values).item()
 
     def update(self, observation, action, reward, next_observation):
         # Required variables for GGI case
@@ -227,7 +239,7 @@ class DQNAgent:
                 q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
                 next_q_values[a_idx] = self.q_network(torch.tensor(next_nn_input).float())
         if self.ggi_flag:
-            # Compute the target: r(s, a) + discount * q(s', a_max) where
+            # Compute the target: Loss between q(s, a) and r(s, a) + discount * q(s', a_max) where
             # a_max = argmax_{a} GGF(r(s, a) + discount * q(s', a)) is the greedy action for the next_state.
             next_greedy_action = torch.argmax(next_rq_ggfvalues).item()
             target_ggf = torch.tensor(reward) + self.discount * next_qg_values[next_greedy_action]
