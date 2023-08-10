@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # The discount factor
     discount = 0.95
     # Whether to consider GGI case or the average model:
-    ggi_flag = True
+    ggi_flag = False
     # The fair weight coefficient
     if ggi_flag:
         weight_coefficient = 2
@@ -65,10 +65,10 @@ if __name__ == '__main__':
         # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
         # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
         # args = parser.parse_args()
-        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights)
+        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-1, h_size=256)
         dqn1_rewards = []
-        agent2 = RDQNAgent(data_mrp, discount, ggi_flag, weights)
-        dqn2_rewards = []
+        # agent2 = RDQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-3, h_size=512)
+        # dqn2_rewards = []
 
     # ----------------------------------- Monte-Carlo Simulations -----------------------------------
 
@@ -107,19 +107,19 @@ if __name__ == '__main__':
             rewards_sorted = np.sort(dqn1_reward)
             dqn1_rewards.append(np.dot(rewards_sorted, weights))
 
-            observation = env_dqn.reset()
-            dqn2_reward = 0
-            for t in range(num_steps):
-                action = agent2.act(observation)
-                next_observation, reward_list, done, _ = env_dqn.step(action)
-                dqn2_reward += discount ** t * reward_list
-                if done:
-                    break
-                else:
-                    agent2.update(observation, action, reward_list, next_observation)
-                    observation = next_observation
-            rewards_sorted = np.sort(dqn2_reward)
-            dqn2_rewards.append(np.dot(rewards_sorted, weights))
+            # observation = env_dqn.reset()
+            # dqn2_reward = 0
+            # for t in range(num_steps):
+            #     action = agent2.act(observation)
+            #     next_observation, reward_list, done, _ = env_dqn.step(action)
+            #     dqn2_reward += discount ** t * reward_list
+            #     if done:
+            #         break
+            #     else:
+            #         agent2.update(observation, action, reward_list, next_observation)
+            #         observation = next_observation
+            # rewards_sorted = np.sort(dqn2_reward)
+            # dqn2_rewards.append(np.dot(rewards_sorted, weights))
 
     if policy_flags[0] == 1:
         dlp_rewards = np.array(dlp_rewards)
@@ -131,10 +131,10 @@ if __name__ == '__main__':
         rewards_dqn1 = dqn1_rewards.copy()
         for i in range(num_episodes):
             rewards_dqn1[i] = np.mean(dqn1_rewards[0:i])
-        dqn2_rewards = np.array(dqn2_rewards)
-        rewards_dqn2 = dqn2_rewards.copy()
-        for i in range(num_episodes):
-            rewards_dqn2[i] = np.mean(dqn2_rewards[0:i])
+        # dqn2_rewards = np.array(dqn2_rewards)
+        # rewards_dqn2 = dqn2_rewards.copy()
+        # for i in range(num_episodes):
+        #     rewards_dqn2[i] = np.mean(dqn2_rewards[0:i])
 
     # ----------------------------------------- Results -----------------------------------------
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     if policy_flags[1] == 1:
         ax.plot(range(len(rewards_dqn1)), rewards_dqn1, label="DQN1")
-        ax.plot(range(len(rewards_dqn2)), rewards_dqn2, label="DQN2")
+        # ax.plot(range(len(rewards_dqn2)), rewards_dqn2, label="DQN2")
     if policy_flags[0] == 1:
         ax.plot(range(len(rewards_dlp)), rewards_dlp, label="DLP")
     ax.set(xlabel='Episodes', ylabel='Discounted Reward',

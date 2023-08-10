@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # The discount factor
     discount = 0.95
     # Whether to consider GGI case or the average model:
-    ggi_flag = True
+    ggi_flag = False
     # The fair weight coefficient
     if ggi_flag:
         weight_coefficient = 1
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # The number of time steps (for higher discount factor should be set higher)
     num_steps = 100
     # The number of learning episodes
-    num_episodes = 500
+    num_episodes = 200
     # The data for multi-objective MDP and the dual form of it
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
 
@@ -65,18 +65,18 @@ if __name__ == '__main__':
         # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
         # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
         # args = parser.parse_args()
-        agent1 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 64)
-        agent2 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 128)
-        agent3 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 256)
-        agent4 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 512)
-        agent5 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 64)
-        agent6 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 128)
-        agent7 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 256)
-        agent8 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 512)
-        agent9 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 64)
-        agent10 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 128)
-        agent11 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 256)
-        agent12 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 512)
+        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 64)
+        agent2 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 128)
+        agent3 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 256)
+        agent4 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 512)
+        agent5 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 64)
+        agent6 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 128)
+        agent7 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 256)
+        agent8 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 512)
+        agent9 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 64)
+        agent10 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 128)
+        agent11 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 256)
+        agent12 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 512)
         dqn1_rewards = []
         dqn2_rewards = []
         dqn3_rewards = []
