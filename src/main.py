@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # The number of time steps (for higher discount factor should be set higher)
     num_steps = 100
     # The number of learning episodes
-    num_episodes = 200
+    num_episodes = 500
     # The data for multi-objective MDP and the dual form of it
     data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
         # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
         # args = parser.parse_args()
-        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-1, h_size=256)
+        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-3, h_size=256)
         dqn1_rewards = []
         # agent2 = RDQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-3, h_size=512)
         # dqn2_rewards = []
@@ -125,12 +125,12 @@ if __name__ == '__main__':
         dlp_rewards = np.array(dlp_rewards)
         rewards_dlp = dlp_rewards.copy()
         for i in range(num_episodes):
-            rewards_dlp[i] = np.mean(dlp_rewards[0:i])
+            rewards_dlp[i] = np.mean(dlp_rewards[i-10:i])
     if policy_flags[1] == 1:
         dqn1_rewards = np.array(dqn1_rewards)
         rewards_dqn1 = dqn1_rewards.copy()
         for i in range(num_episodes):
-            rewards_dqn1[i] = np.mean(dqn1_rewards[0:i])
+            rewards_dqn1[i] = np.mean(dqn1_rewards[i-10:i])
         # dqn2_rewards = np.array(dqn2_rewards)
         # rewards_dqn2 = dqn2_rewards.copy()
         # for i in range(num_episodes):
