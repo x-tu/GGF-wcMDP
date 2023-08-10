@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class QAgent:
@@ -19,8 +20,9 @@ class QAgent:
         self.num_groups = num_groups
         self.ggi = env.ggi
         self.q_table = np.random.uniform(
-            low=2000, high=2100, size=(num_states, num_actions)
+            low=5000, high=5100, size=(num_states, num_actions)
         )
+        self.q_table_visit_freq = np.zeros(shape=(num_states, num_actions))
         self.epsilon = epsilon
         self.min_epsilon = 0.01
         self.decaying_factor = decaying_factor
@@ -43,6 +45,7 @@ class QAgent:
         self.q_table[state, action] = self.q_table[state, action] + self.alpha * (
             reward + self.gamma * q_next - self.q_table[state, action]
         )
+        self.q_table_visit_freq[state, action] += 1
 
     def get_policy(self):
         # We use greedy to decide an optimal policy
@@ -94,7 +97,14 @@ def run_tabular_q(
         agent.alpha = agent.lr_decay_schedule[episode]
         # Display running rewards
         if episode % 20 == 0:
-            print(f"Episode: {episode}; " f"Running reward: {total_reward:.1f}")
+            print(
+                f"Episode: {episode}; Running reward: {total_reward:.1f}; "
+                f"Epsilon: {agent.epsilon:.1f}; Alpha: {agent.alpha:.1f}"
+            )
         episode_rewards.append(total_reward)
     state_action_pair = agent.get_policy()
+    print("===== Q table =====")
+    print(pd.DataFrame(agent.q_table))
+    print("===== Q table visitation count =====")
+    print(pd.DataFrame(agent.q_table_visit_freq))
     return state_action_pair, episode_rewards
