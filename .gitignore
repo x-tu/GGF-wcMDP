@@ -4,6 +4,7 @@
 .pre-commit-config.yaml
 src/.DS_Store
 **/__pycache__/
+**/__pycache__/*
 __pycache__
 **/*.pyc
 src/experiments/results/

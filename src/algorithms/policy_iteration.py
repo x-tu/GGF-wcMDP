@@ -8,7 +8,7 @@ from solver.fix_policy import (
     extract_results as extract_results_fix,
     solve_ggf_fix,
 )
-from utils.mrp_lp import MRPData
+from utils.mrp import MRPData
 
 
 class PIAgent:

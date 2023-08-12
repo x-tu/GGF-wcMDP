@@ -3,7 +3,7 @@
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
-from utils.mrp_lp import MRPData
+from utils.mrp import MRPData
 
 
 def build_ggf(data: MRPData) -> pyo.ConcreteModel:

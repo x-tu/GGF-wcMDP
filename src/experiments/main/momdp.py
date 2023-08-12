@@ -1,5 +1,5 @@
 from solver.momdp import build_mrp, extract_results, solve_mrp
-from utils.mrp_lp import MRPData
+from utils.mrp import MRPData
 
 # Get the MRP data
 input_data = MRPData(n_group=3, n_state=3, n_action=2, weight=[1, 0.5, 0.25])

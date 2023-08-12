@@ -1,5 +1,5 @@
 from src.solver.ggf_dual import build_ggf, extract_results, solve_ggf
-from src.utils.mrp_lp import MRPData
+from src.utils.mrp import MRPData
 
 # Get MRP data
 input_data = MRPData(n_group=2, n_state=3, n_action=2, weight=[0.75, 0.25])

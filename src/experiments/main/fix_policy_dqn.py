@@ -111,7 +111,7 @@ policy_rl = policy_convertor_from_q_values(trained_DQN)
 import numpy as np
 
 # Build data
-from src.utils.mrp_lp import MRPData
+from src.utils.mrp import MRPData
 
 weight_coef = np.array([1 / (2 ** i) for i in range(reward_space)])
 data_mrp = MRPData(
