@@ -22,8 +22,11 @@ def build_ggf(data: MRPData) -> pyo.ConcreteModel:
     big_mu_list = [1 / len(data.tuple_list_s)] * len(data.tuple_list_s)
 
     # Variables
+    # decision variable lambda
     model.varL = pyo.Var(data.idx_list_d, within=pyo.NonNegativeReals)
+    # decision variable nu
     model.varN = pyo.Var(data.idx_list_d, within=pyo.NonNegativeReals)
+    # decision variable x
     model.varD = pyo.Var(
         data.tuple_list_s, data.idx_list_a, within=pyo.NonNegativeReals
     )
@@ -120,21 +123,25 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData):
     return reward  # , policy
 
 
-def solve_ggf(model):
+def solve_ggf(input_data: MRPData):
     """ Selects the solver and set the optimization settings.
 
     Args:
-        model: the MRP model to be optimized
+        input_data: the MRP parameter setting
 
     Returns:
         results: the default optimization report
         model: the optimized model
 
     """
-
+    # Build the GGF model
+    model = build_ggf(data=input_data)
     # Set the solver to be used
     optimizer = SolverFactory("gurobi", solver_io="python")
     # optimizer.options["sec"] = MAX_SOLVING_TIME
     results = optimizer.solve(model, tee=True)
-
+    # Extract the results
+    reward = extract_results(model=model, data=input_data)
+    # Extract the results
+    extract_results(model=model, data=input_data)
     return results, model

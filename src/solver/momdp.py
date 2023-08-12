@@ -3,7 +3,7 @@
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
-from utils.mrp_lp import MRPData
+from utils.mrp import MRPData
 
 
 def build_mrp(data: MRPData) -> pyo.ConcreteModel:
@@ -98,21 +98,23 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData) -> list:
     return reward
 
 
-def solve_mrp(model):
+def solve_mrp(input_data):
     """ Selects the solver and set the optimization settings.
 
     Args:
-        model: the MRP model to be optimized
+        input_data: the MRP parameter setting
 
     Returns:
         results: the default optimization report
         model: the optimized model
 
     """
-
+    # Build the MRP model
+    model = build_mrp(data=input_data)
     # Set the solver to be used
     optimizer = SolverFactory("gurobi", solver_io="python")
     # optimizer.options["sec"] = MAX_SOLVING_TIME
     results = optimizer.solve(model, tee=True)
-
+    # Extract the results
+    reward = extract_results(model=model, data=input_data)
     return results, model

@@ -1,11 +1,8 @@
-from src.solver.ggf_dual import build_ggf, extract_results, solve_ggf
+"""Example instances for solving GGF dual model."""
+from src.solver.ggf_dual import solve_ggf
 from src.utils.mrp import MRPData
 
 # Get MRP data
-input_data = MRPData(n_group=2, n_state=3, n_action=2, weight=[0.75, 0.25])
-# Build the GGF model
-ggf_model = build_ggf(data=input_data)
+mrp_data = MRPData(n_group=2, n_state=3, n_action=2, weight=[0.75, 0.25])
 # Solve the GGF model
-results, ggf_model = solve_ggf(model=ggf_model)
-# Extract the results
-extract_results(model=ggf_model, data=input_data)
+results, ggf_model = solve_ggf(input_data=mrp_data)
