@@ -58,25 +58,15 @@ if __name__ == '__main__':
         env_dqn = MachineReplacement(
             num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dqn_csv_name
         )
-        # parser = ap.ArgumentParser('Hyper-parameters for DQNetwork')
-        # parser.add_argument('l-rate', type=float, default=0.001, help='learning rate')
-        # parser.add_argument('h-size', type=float, default=64, help='hidden layer size')
-        # parser.add_argument('ep-max', type=float, default=1.0, help='initial epsilon')
-        # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
-        # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
-        # args = parser.parse_args()
-        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 64)
-        agent2 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 128)
-        agent3 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 256)
-        agent4 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 512)
-        agent5 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 64)
-        agent6 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 128)
-        agent7 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 256)
-        agent8 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 512)
-        agent9 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 64)
-        agent10 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 128)
-        agent11 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 256)
-        agent12 = ODQNAgent(data_mrp, discount, ggi_flag, weights, 0.1, 512)
+        agent1 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.0001, 64)
+        agent2 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.0001, 128)
+        agent3 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.0001, 256)
+        agent4 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 64)
+        agent5 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 128)
+        agent6 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.001, 256)
+        agent7 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 64)
+        agent8 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 128)
+        agent9 = RDQNAgent(data_mrp, discount, ggi_flag, weights, 0.01, 256)
         dqn1_rewards = []
         dqn2_rewards = []
         dqn3_rewards = []
@@ -86,9 +76,6 @@ if __name__ == '__main__':
         dqn7_rewards = []
         dqn8_rewards = []
         dqn9_rewards = []
-        dqn10_rewards = []
-        dqn11_rewards = []
-        dqn12_rewards = []
 
     # ----------------------------------- Monte-Carlo Simulations -----------------------------------
 
@@ -239,48 +226,6 @@ if __name__ == '__main__':
             rewards_sorted = np.sort(dqn9_reward)
             dqn9_rewards.append(np.dot(rewards_sorted, weights))
 
-            observation = env_dqn.reset()
-            dqn10_reward = 0
-            for t in range(num_steps):
-                action = agent10.act(observation)
-                next_observation, reward_list, done, _ = env_dqn.step(action)
-                dqn10_reward += discount ** t * reward_list
-                if done:
-                    break
-                else:
-                    agent10.update(observation, action, reward_list, next_observation)
-                    observation = next_observation
-            rewards_sorted = np.sort(dqn10_reward)
-            dqn10_rewards.append(np.dot(rewards_sorted, weights))
-
-            observation = env_dqn.reset()
-            dqn11_reward = 0
-            for t in range(num_steps):
-                action = agent11.act(observation)
-                next_observation, reward_list, done, _ = env_dqn.step(action)
-                dqn11_reward += discount ** t * reward_list
-                if done:
-                    break
-                else:
-                    agent11.update(observation, action, reward_list, next_observation)
-                    observation = next_observation
-            rewards_sorted = np.sort(dqn11_reward)
-            dqn11_rewards.append(np.dot(rewards_sorted, weights))
-
-            observation = env_dqn.reset()
-            dqn12_reward = 0
-            for t in range(num_steps):
-                action = agent12.act(observation)
-                next_observation, reward_list, done, _ = env_dqn.step(action)
-                dqn12_reward += discount ** t * reward_list
-                if done:
-                    break
-                else:
-                    agent12.update(observation, action, reward_list, next_observation)
-                    observation = next_observation
-            rewards_sorted = np.sort(dqn12_reward)
-            dqn12_rewards.append(np.dot(rewards_sorted, weights))
-
     if policy_flags[0] == 1:
         dlp_rewards = np.array(dlp_rewards)
         rewards_dlp = dlp_rewards.copy()
@@ -323,18 +268,6 @@ if __name__ == '__main__':
         rewards_dqn9 = dqn9_rewards.copy()
         for i in range(num_episodes):
             rewards_dqn9[i] = np.mean(dqn9_rewards[0:i])
-        dqn10_rewards = np.array(dqn10_rewards)
-        rewards_dqn10 = dqn10_rewards.copy()
-        for i in range(num_episodes):
-            rewards_dqn10[i] = np.mean(dqn10_rewards[0:i])
-        dqn11_rewards = np.array(dqn11_rewards)
-        rewards_dqn11 = dqn11_rewards.copy()
-        for i in range(num_episodes):
-            rewards_dqn11[i] = np.mean(dqn11_rewards[0:i])
-        dqn12_rewards = np.array(dqn12_rewards)
-        rewards_dqn12 = dqn12_rewards.copy()
-        for i in range(num_episodes):
-            rewards_dqn12[i] = np.mean(dqn12_rewards[0:i])
 
     # ----------------------------------------- Results -----------------------------------------
 
@@ -359,9 +292,6 @@ if __name__ == '__main__':
         ax.plot(range(len(rewards_dqn7)), rewards_dqn7, label="DQN7")
         ax.plot(range(len(rewards_dqn8)), rewards_dqn8, label="DQN8")
         ax.plot(range(len(rewards_dqn9)), rewards_dqn9, label="DQN9")
-        ax.plot(range(len(rewards_dqn10)), rewards_dqn10, label="DQN10")
-        ax.plot(range(len(rewards_dqn11)), rewards_dqn11, label="DQN11")
-        ax.plot(range(len(rewards_dqn12)), rewards_dqn12, label="DQN12")
     if policy_flags[0] == 1:
         ax.plot(range(len(rewards_dlp)), rewards_dlp, label="DLP")
     ax.set(xlabel='Episodes', ylabel='Discounted Reward',

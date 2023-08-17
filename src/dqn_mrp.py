@@ -159,10 +159,10 @@ class RDQNAgent:
                  min_epsilon=0.01):
         self.data_mrp = data_mrp
         self.ggi_flag = ggi_flag
-        input_dim = 2 * data_mrp.num_arms
-        output_dim = 1
+        input_dim = data_mrp.num_arms
+        output_dim = data_mrp.num_actions
         if ggi_flag:
-            output_dim = data_mrp.num_arms
+            output_dim = data_mrp.num_arms * data_mrp.num_actions
         self.q_network = DQNetwork(input_dim, h_size, output_dim)
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=l_rate)
         self.weights = weights
@@ -178,66 +178,40 @@ class RDQNAgent:
             return np.random.choice(self.data_mrp.num_actions)
         # Exploitation
         else:
-            # The Q-values for GGF case
-            qg_values = torch.zeros(self.data_mrp.num_actions, self.data_mrp.num_arms)
-            q_ggfvalues = torch.zeros(self.data_mrp.num_actions)
-            # The Q-values for non-GGF case
-            q_values = torch.zeros(self.data_mrp.num_actions)
-            # Loop over all actions
-            for a_idx in range(self.data_mrp.num_actions):
-                # The one-hot-encoded action
-                temp_action = self.data_mrp.action_tuples[a_idx]
-                # The input to the DQN
-                nn_input = np.hstack((observation, np.array(temp_action)))
-                if self.ggi_flag:
-                    # The exploitation action is selected according to argmax_{a} GGF(q(s, a))
-                    qg_values[a_idx, :] = self.q_network(torch.tensor(nn_input).float())
-                    q_values_sorted = torch.sort(qg_values[a_idx, :])
+            # The Q-values
+            q_values = self.q_network(torch.tensor(observation).float())
+            if self.ggi_flag:
+                # The Q-values for GGF case
+                q_ggfvalues = torch.zeros(self.data_mrp.num_actions)
+                # Loop over all actions
+                for a_idx in range(self.data_mrp.num_actions):
+                    # The exploitation action is selected according to argmax_{a} GGF(r(s, a) + discount * q(s, a))
+                    temp_var = q_values[a_idx * self.data_mrp.num_arms:(a_idx+1) * self.data_mrp.num_arms]
+                    q_values_sorted = torch.sort(temp_var)
                     for w in range(len(self.weights)):
                         q_ggfvalues[a_idx] += torch.tensor(self.weights)[w] * q_values_sorted[0][w]
-                else:
-                    # The exploitation action is selected according to argmax_{a} q(s, a)
-                    q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
-            if self.ggi_flag:
                 return torch.argmax(q_ggfvalues).item()
             else:
                 return torch.argmax(q_values).item()
 
     def update(self, observation, action, reward, next_observation):
-        # Required variables for GGI case
-        qg_values = torch.zeros(self.data_mrp.num_actions, self.data_mrp.num_arms)
-        next_qg_values = torch.zeros(self.data_mrp.num_actions, self.data_mrp.num_arms)
-        q_ggfvalues = torch.zeros(self.data_mrp.num_actions)
-        next_q_ggfvalues = torch.zeros(self.data_mrp.num_actions)
-        # Required variables for non-GGI case
-        q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-        next_q_values = torch.tensor(np.zeros(self.data_mrp.num_actions))
-        # Loop over all actions
-        for a_idx in range(self.data_mrp.num_actions):
-            # The one-hot-encoded action
-            temp_action = self.data_mrp.action_tuples[a_idx]
-            # The current_state input to the DQN
-            nn_input = np.hstack((observation, np.array(temp_action)))
-            # The next_state input to the DQN
-            next_nn_input = np.hstack((next_observation, np.array(temp_action)))
-            # For GGF case
-            if self.ggi_flag:
-                # Get the q_values for the current and next input
-                qg_values[a_idx, :] = self.q_network(torch.tensor(nn_input).float())
-                next_qg_values[a_idx, :] = self.q_network(torch.tensor(next_nn_input).float())
-                # Get the GGF(q(s, a)) and GGF(q(s', a))
-                q_ggfvalues_sorted = torch.sort(qg_values[a_idx, :])
-                nextq_ggfvalues_sorted = torch.sort(next_qg_values[a_idx, :])
+        # The Q-values
+        q_values = self.q_network(torch.tensor(observation).float())
+        next_q_values = self.q_network(torch.tensor(next_observation).float())
+        # For GGF case
+        if self.ggi_flag:
+            # Required variables for GGI case
+            q_ggfvalues = torch.zeros(self.data_mrp.num_actions)
+            next_q_ggfvalues = torch.zeros(self.data_mrp.num_actions)
+            # Loop over all actions
+            for a_idx in range(self.data_mrp.num_actions):
+                temp_var = q_values[a_idx * self.data_mrp.num_arms:(a_idx+1) * self.data_mrp.num_arms]
+                next_temp_var = next_q_values[a_idx * self.data_mrp.num_arms:(a_idx+1) * self.data_mrp.num_arms]
+                q_ggfvalues_sorted = torch.sort(temp_var)
+                nextq_ggfvalues_sorted = torch.sort(next_temp_var)
                 for w in range(len(self.weights)):
                     q_ggfvalues[a_idx] += torch.tensor(self.weights)[w] * q_ggfvalues_sorted[0][w]
                     next_q_ggfvalues[a_idx] += torch.tensor(self.weights)[w] * nextq_ggfvalues_sorted[0][w]
-            # For non-GGF case
-            else:
-                q_values[a_idx] = self.q_network(torch.tensor(nn_input).float())
-                next_q_values[a_idx] = self.q_network(torch.tensor(next_nn_input).float())
-        if self.ggi_flag:
-            # Compute the target: GGF(r(s, a) + discount * q(s', a_max)) where
-            # a_max = argmax_{a} GGF(q(s', a)) is the greedy action for the next_state.
             next_greedy_action = torch.argmax(next_q_ggfvalues).item()
             target_ggfsorted = torch.sort(torch.tensor(reward) + self.discount * next_q_ggfvalues[next_greedy_action])
             target_ggf = 0
