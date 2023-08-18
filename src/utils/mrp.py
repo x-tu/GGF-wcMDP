@@ -22,8 +22,8 @@ class MRPData:
             weight = [1 / n_group] * n_group
         self.weight = weight
         # TODO: generalization
-        self.operation_cost = [10, 20, 50]
-        self.replace_cost = 100
+        self.operation_cost = [1, 2, 5]
+        self.replace_cost = 10
         self.discount = 0.99
         self.transition_matrix = np.array(
             [

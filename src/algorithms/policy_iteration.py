@@ -1,4 +1,4 @@
-"""This script is used to run policy iteration algorithm."""
+"""This script is used to run policy iteration algorithm (GGF and non-GGF)."""
 
 import numpy as np
 
