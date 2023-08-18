@@ -24,7 +24,7 @@ class QAgent:
         self.num_groups = num_groups
         self.ggi = env.ggi
         self.q_table = np.random.uniform(
-            low=3000, high=3100, size=(num_states, num_actions)
+            low=30, high=35, size=(num_states, num_actions)
         )
         self.q_table_visit_freq = np.zeros(shape=(num_states, num_actions))
         self.epsilon = epsilon

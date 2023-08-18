@@ -8,10 +8,10 @@ from solver.momdp import get_policy, solve_mrp
 
 def run_mc_simulation(
     args,
-    num_episodes=200,
-    len_episode=1500,
-    alpha=0.1,
-    epsilon=0.2,
+    num_episodes=500,
+    len_episode=1000,
+    alpha=0.15,
+    epsilon=0.3,
     decaying_factor=0.95,
     gamma=0.99,
 ):

@@ -24,7 +24,7 @@ class MRPData:
         # TODO: generalization
         self.operation_cost = [10, 20, 50]
         self.replace_cost = 100
-        self.discount = 0.9
+        self.discount = 0.99
         self.transition_matrix = np.array(
             [
                 [[0.5, 0.5], [0.5, 0.5], [0, 0]],
