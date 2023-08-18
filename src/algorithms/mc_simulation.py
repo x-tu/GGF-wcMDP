@@ -1,9 +1,13 @@
+import numpy as np
+
 from algorithms.policy_iteration import PIAgent
 from algorithms.tabular_q import QAgent
+from env.mrp_env import MachineReplace
 from solver.momdp import get_policy, solve_mrp
 
 
 def run_mc_simulation(
+    args,
     num_episodes=200,
     len_episode=1500,
     alpha=0.1,
@@ -109,7 +113,6 @@ if __name__ == "__main__":
     import numpy as np
     import seaborn as sns
 
-    from env.mrp_env import MachineReplace
     from experiments.configs.config_shared import prs_parser_setup
 
     # configuration parameters
@@ -120,7 +123,9 @@ if __name__ == "__main__":
     prs = prs_parser_setup(prs)
     args, _ = prs.parse_known_args()
 
-    episode_rewards_mlp, episode_rewards_ql, episode_rewards_pi = run_mc_simulation()
+    episode_rewards_mlp, episode_rewards_ql, episode_rewards_pi = run_mc_simulation(
+        args=args
+    )
     sns.lineplot(episode_rewards_mlp, label="MLP")
     sns.lineplot(episode_rewards_ql, label="Q Learning")
     sns.lineplot(episode_rewards_pi, label="Policy Iteration")
