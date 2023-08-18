@@ -1,5 +1,6 @@
 """This script executes the Q Learning algorithm."""
 
+import numpy as np
 import pandas as pd
 
 

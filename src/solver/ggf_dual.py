@@ -145,3 +145,21 @@ def solve_ggf(input_data: MRPData):
     # Extract the results
     extract_results(model=model, data=input_data)
     return results, model
+
+
+def get_policy(state, model, data):
+    """ This function is used to get the policy from the model given a state.
+
+    Args:
+        state: the current state
+        model: the optimized model
+        data: the MRP parameter setting
+
+    Returns:
+        a: the action to take
+
+    """
+    for a in data.idx_list_a:
+        x_value = model.varD[data.tuple_list_s[state], a].value
+        if x_value > 1e-6:
+            return a
