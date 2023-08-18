@@ -1,8 +1,12 @@
+"""This script executes the Q Learning algorithm."""
+
 import numpy as np
 import pandas as pd
 
 
 class QAgent:
+    """Q-Learning agent with q tables."""
+
     def __init__(
         self,
         env,
@@ -31,7 +35,7 @@ class QAgent:
         self.lr_decay_schedule = []
 
     def get_action(self, state):
-        # We use epsilon-greedy to get an action
+        """Get an action from the Q table with epsilon-greedy strategy."""
         if np.random.random() < self.epsilon:
             action = np.random.choice(self.num_actions)
         else:
@@ -39,8 +43,7 @@ class QAgent:
         return action
 
     def update_q_function(self, state, action, reward, state_next):
-        # Update the Q function with linear function approximation
-        # In this case, equivalent to the tabular Q-Learning
+        """Update the Q table with the given transition."""
         q_next = max(self.q_table[state_next][:])
         self.q_table[state, action] = self.q_table[state, action] + self.alpha * (
             reward + self.gamma * q_next - self.q_table[state, action]
@@ -63,7 +66,10 @@ def run_tabular_q(
     epsilon=0.2,
     decaying_factor=0.95,
     gamma=0.99,
+    check_q_table=False,
 ):
+    """Run tabular Q-learning algorithm."""
+
     episode_rewards = []
     agent = QAgent(
         env=env,
@@ -105,10 +111,11 @@ def run_tabular_q(
             )
         episode_rewards.append(total_reward)
     state_action_pair = agent.get_policy()
-    print("===== Q table =====")
-    print(pd.DataFrame(agent.q_table))
-    print("===== Q table visitation count =====")
-    print(pd.DataFrame(agent.q_table_visit_freq))
+    if check_q_table:
+        print("===== Q table =====")
+        print(pd.DataFrame(agent.q_table))
+        print("===== Q table visitation count =====")
+        print(pd.DataFrame(agent.q_table_visit_freq))
     return state_action_pair, episode_rewards
 
 
@@ -117,7 +124,6 @@ if __name__ == "__main__":
     import argparse
 
     import numpy as np
-    import seaborn as sns
 
     from env.mrp_env import MachineReplace
     from experiments.configs.config_shared import prs_parser_setup
