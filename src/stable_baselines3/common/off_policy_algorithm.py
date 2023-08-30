@@ -318,7 +318,6 @@ class OffPolicyAlgorithm(BaseAlgorithm):
         )
 
         callback.on_training_start(locals(), globals())
-
         while self.num_timesteps < total_timesteps:
             rollout = self.collect_rollouts(
                 self.env,
@@ -348,7 +347,22 @@ class OffPolicyAlgorithm(BaseAlgorithm):
                     )
 
             # implement a policy network convertor here
-            policy_lp = policy_convertor(self.policy)
+            # policy_rl = policy_convertor(self.policy)
+            # model = build_ggf_fix(data_mrp, policy_rl)
+            # # Solve the GGF model
+            # results, ggf_model = solve_ggf_fix(model=model)
+            # # Extract the results
+            # self.lp_cost = extract_results(model=ggf_model, data=data_mrp, policy_rl=policy_rl)
+            # cost_dict_lp[self.num_timesteps] = self.lp_cost
+            #
+            # # Extract the current q values
+            # replay_data = self.replay_buffer.sample(batch_size=1, env=self._vec_normalize_env)  # type: ignore[union-attr]
+            # with th.no_grad():
+            #     # Compute the next Q-values using the target network
+            #     next_q_values = self.q_net_target.predict_get_q_values(replay_data.next_observations)
+            #     # 1-step TD target
+            #     target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
+            # cost_dict_rl[self.num_timesteps] = target_q_values
 
         callback.on_training_end()
 

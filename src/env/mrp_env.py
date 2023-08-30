@@ -13,7 +13,14 @@ from utils.mrp import MRPData
 
 class MachineReplace(gym.Env):
     def __init__(
-        self, n_group, n_state, n_action, out_csv_name, ggi, save_mode="append"
+        self,
+        n_group: int,
+        n_state: int,
+        n_action: int,
+        out_csv_name: str = None,
+        ggi: bool = False,
+        init_state: int = 0,
+        save_mode="append",
     ):
         self.ggi = ggi
         self.mrp_data = MRPData(n_group=n_group, n_state=n_state, n_action=n_action)
@@ -33,6 +40,7 @@ class MachineReplace(gym.Env):
         self.run = 0
         self.step_counter = 0
         self.episode_length = 2000
+        self.init_state = init_state
         self.reset()
 
     def seed(self, seed=None):
@@ -50,7 +58,7 @@ class MachineReplace(gym.Env):
         self.run += 1
         self.metrics = []
 
-        self.state = 0
+        self.state = self.init_state
         return self.state
 
     def step(self, action):
@@ -79,7 +87,6 @@ class MachineReplace(gym.Env):
         # register the information
         info = {f"reward_{n}": reward[n] for n in range(len(reward))}
         self.metrics.append(info)
-        print(info)
         if not self.ggi:
             reward = sum(reward)
         self.step_counter += 1

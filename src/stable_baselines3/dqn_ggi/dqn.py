@@ -15,6 +15,7 @@ from stable_baselines3.dqn_ggi.policies import GGICnnPolicy, GGIDQNPolicy, GGIMl
 
 SelfDQN = TypeVar("SelfDQN", bound="DQN_GGI")
 
+
 class DQN_GGI(DQN):
     """
     Deep Q-Network (DQN) GGF version
