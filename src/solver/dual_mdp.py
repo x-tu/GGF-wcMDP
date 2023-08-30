@@ -1,12 +1,22 @@
-import pyomo.environ as pyo
-from pyomo.opt import SolverFactory
 import itertools
+
 import numpy as np
-from params_mrp import CostReward, MarkovChain, FairWeight
+import pyomo.environ as pyo
+from params_mrp import CostReward, FairWeight, MarkovChain
+from pyomo.opt import SolverFactory
 
 
 class LPData:
-    def __init__(self, num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount):
+    def __init__(
+        self,
+        num_arms,
+        num_states,
+        rccc_wrt_max,
+        prob_remain,
+        mat_type,
+        weights,
+        discount,
+    ):
         self.num_arms = num_arms
         self.num_states = num_states
         self.num_actions = num_arms + 1
@@ -27,7 +37,9 @@ class LPData:
         self.rewards = rew_class.rewards
         self.costs = rew_class.costs
         self.global_costs = self.get_global_costs()
-        dyn_class = MarkovChain(self.num_states, self.num_arms, self.prob_remain, self.mat_type)
+        dyn_class = MarkovChain(
+            self.num_states, self.num_arms, self.prob_remain, self.mat_type
+        )
         self.transitions = dyn_class.transitions
         self.global_transitions = self.get_global_transitions()
 
@@ -57,26 +69,34 @@ class LPData:
 
     def get_global_costs(self):
         """Generate the cost matrix R(s, a, d) at state s taking action a for group d."""
-        global_costs = np.zeros([len(self.state_tuples), len(self.action_tuples), self.num_arms])
+        global_costs = np.zeros(
+            [len(self.state_tuples), len(self.action_tuples), self.num_arms]
+        )
         for s in self.state_indices:
             for a in self.action_indices:
                 for d in self.arm_indices:
-                    global_costs[s, a, d] = self.costs[self.state_tuples[s][d], d, self.action_tuples[a][d]]
+                    global_costs[s, a, d] = self.costs[
+                        self.state_tuples[s][d], d, self.action_tuples[a][d]
+                    ]
         return global_costs
 
     def get_global_transitions(self):
         """Generate the transition matrix Pr(s, s', a) from state s to state s' taking action a."""
-        global_transitions = np.zeros([len(self.state_tuples), len(self.state_tuples), len(self.action_tuples)])
+        global_transitions = np.zeros(
+            [len(self.state_tuples), len(self.state_tuples), len(self.action_tuples)]
+        )
 
         for s in self.state_indices:
             for a in self.action_indices:
                 for next_s in self.state_indices:
                     temp_trans = 1
                     for d in self.arm_indices:
-                        temp_trans *= self.transitions[self.state_tuples[s][d],
-                                                  self.state_tuples[next_s][d],
-                                                  d,
-                                                  self.action_tuples[a][d]]
+                        temp_trans *= self.transitions[
+                            self.state_tuples[s][d],
+                            self.state_tuples[next_s][d],
+                            d,
+                            self.action_tuples[a][d],
+                        ]
                     global_transitions[s, next_s, a] = temp_trans
         return global_transitions
 
@@ -110,7 +130,8 @@ def build_dlp(lp_data) -> pyo.ConcreteModel:
                 model.varL[d1] + model.varN[d2]
                 >= lp_data.weights[d1]
                 * sum(
-                    lp_data.global_costs[s, a, d2] * model.varD[lp_data.state_tuples[s], a]
+                    lp_data.global_costs[s, a, d2]
+                    * model.varD[lp_data.state_tuples[s], a]
                     for s in lp_data.state_indices
                     for a in lp_data.action_indices
                 )
@@ -123,7 +144,8 @@ def build_dlp(lp_data) -> pyo.ConcreteModel:
             - lp_data.discount
             * (
                 sum(
-                    model.varD[lp_data.state_tuples[next_s], a] * lp_data.global_transitions[s, next_s, a]
+                    model.varD[lp_data.state_tuples[next_s], a]
+                    * lp_data.global_transitions[s, next_s, a]
                     for next_s in lp_data.state_indices
                     for a in lp_data.action_indices
                 )
@@ -176,13 +198,16 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
     # policy = np.zeros((9, 3))
     for s in lp_data.state_indices:
         x_sum = sum(
-            [model.varD[lp_data.state_tuples[s], a].value for a in lp_data.action_indices]
+            [
+                model.varD[lp_data.state_tuples[s], a].value
+                for a in lp_data.action_indices
+            ]
         )
         for a in lp_data.action_indices:
             x_value = model.varD[lp_data.state_tuples[s], a].value
             # if x_value > 1e-6:
             #     print(f"policy{lp_data.state_tuples[s], a}: {x_value / x_sum}")
-                # policy[s, a] += x_value / x_sum
+            # policy[s, a] += x_value / x_sum
 
     # Dual variable lambda
     for d in lp_data.arm_indices:

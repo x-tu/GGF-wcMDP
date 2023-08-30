@@ -1,23 +1,26 @@
+# temporarily disable the warnings
+import warnings
+
 import gym
 import numpy as np
 import pandas as pd
-from params_mrp import CostReward, MarkovChain, FairWeight
-# temporarily disable the warnings
-import warnings
+
+from utils.params_mrp import CostReward, FairWeight, MarkovChain
+
 warnings.filterwarnings("ignore")
 
 
 class MachineReplacement(gym.Env):
     def __init__(
-            self,
-            num_arms: int,
-            num_states: int,
-            rccc_wrt_max: float,
-            prob_remain,
-            mat_type: int,
-            weight_coefficient: int,
-            num_steps: int,
-            out_csv_name: str
+        self,
+        num_arms: int,
+        num_states: int,
+        rccc_wrt_max: float,
+        prob_remain,
+        mat_type: int,
+        weight_coefficient: int,
+        num_steps: int,
+        out_csv_name: str,
     ):
         super(gym.Env, self).__init__()
         # Parameters
@@ -76,7 +79,9 @@ class MachineReplacement(gym.Env):
         for n in range(self.num_arms):
             next_state_prob = self.transitions[int(state_list[n]), :, n, action_list[n]]
             # get the state
-            next_state_list[n] = np.random.choice(np.arange(len(next_state_prob)), p=next_state_prob)
+            next_state_list[n] = np.random.choice(
+                np.arange(len(next_state_prob)), p=next_state_prob
+            )
             # get the reward
             reward_list[n] = self.rewards[int(state_list[n]), n, action_list[n]]
         self.observations = next_state_list / self.num_states
@@ -103,4 +108,6 @@ class MachineReplacement(gym.Env):
                 df.to_csv(self.out_csv_name + ".csv", header=True, index=False)
             else:
                 df = pd.DataFrame(self.reward_info)
-                df.to_csv(self.out_csv_name + ".csv", mode="a", header=False, index=False)
+                df.to_csv(
+                    self.out_csv_name + ".csv", mode="a", header=False, index=False
+                )

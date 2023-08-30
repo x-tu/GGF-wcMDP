@@ -1,15 +1,17 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import argparse as ap
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 from params_mrp import FairWeight
-from env_mrp import MachineReplacement
-from dqn_mrp import RDQNAgent, ODQNAgent
-from dual_mdp import LPData, build_dlp, solve_dlp, extract_dlp, policy_dlp
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+from algorithms.dqn_mrp import ODQNAgent, RDQNAgent
+from env.mrp_env_rccc import MachineReplacement
+from solver.dual_mdp import LPData, build_dlp, extract_dlp, policy_dlp, solve_dlp
 
-if __name__ == '__main__':
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
+if __name__ == "__main__":
 
     # Number of arms
     num_arms = 3
@@ -37,7 +39,9 @@ if __name__ == '__main__':
     # The number of learning episodes
     num_episodes = 1000
     # The data for multi-objective MDP and the dual form of it
-    data_mrp = LPData(num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount)
+    data_mrp = LPData(
+        num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weights, discount
+    )
 
     policy_flags = [1, 1]
 
@@ -48,7 +52,14 @@ if __name__ == '__main__':
         extract_dlp(model=dlp_model, lp_data=data_mrp)
         dlp_csv_name = "results_dlp_ggi"
         env_dlp = MachineReplacement(
-            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dlp_csv_name
+            num_arms,
+            num_states,
+            rccc_wrt_max,
+            prob_remain,
+            mat_type,
+            weight_coefficient,
+            num_steps,
+            dlp_csv_name,
         )
         dlp_rewards = []
 
@@ -56,7 +67,14 @@ if __name__ == '__main__':
     if policy_flags[1] == 1:
         dqn_csv_name = "results_dqn_ggi"
         env_dqn = MachineReplacement(
-            num_arms, num_states, rccc_wrt_max, prob_remain, mat_type, weight_coefficient, num_steps, dqn_csv_name
+            num_arms,
+            num_states,
+            rccc_wrt_max,
+            prob_remain,
+            mat_type,
+            weight_coefficient,
+            num_steps,
+            dqn_csv_name,
         )
         # parser = ap.ArgumentParser('Hyper-parameters for DQNetwork')
         # parser.add_argument('l-rate', type=float, default=0.001, help='learning rate')
@@ -65,7 +83,9 @@ if __name__ == '__main__':
         # parser.add_argument('ep-dec', type=float, default=0.99, help='decaying rate')
         # parser.add_argument('ep-min', type=float, default=0.01, help='ending epsilon')
         # args = parser.parse_args()
-        agent1 = ODQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-3, h_size=128)
+        agent1 = ODQNAgent(
+            data_mrp, discount, ggi_flag, weights, l_rate=1e-3, h_size=128
+        )
         dqn1_rewards = []
         # agent2 = RDQNAgent(data_mrp, discount, ggi_flag, weights, l_rate=1e-3, h_size=512)
         # dqn2_rewards = []
@@ -154,8 +174,7 @@ if __name__ == '__main__':
         # ax.plot(range(len(rewards_dqn2)), rewards_dqn2, label="DQN2")
     if policy_flags[0] == 1:
         ax.plot(range(len(rewards_dlp)), rewards_dlp, label="DLP")
-    ax.set(xlabel='Episodes', ylabel='Discounted Reward',
-           title='Learning Curve')
+    ax.set(xlabel="Episodes", ylabel="Discounted Reward", title="Learning Curve")
     ax.grid()
     plt.legend()
     plt.show()

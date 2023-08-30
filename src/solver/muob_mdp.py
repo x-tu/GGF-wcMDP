@@ -25,7 +25,9 @@ def build_mlp(data) -> pyo.ConcreteModel:
     # Objective
     model.cost = pyo.Objective(
         expr=sum(
-            data.weights[d] * data.global_costs[s, a, d] * model.varD[data.state_tuples[s], a]
+            data.weights[d]
+            * data.global_costs[s, a, d]
+            * model.varD[data.state_tuples[s], a]
             for s in data.state_indices
             for a in data.action_indices
             for d in data.arm_indices
@@ -42,7 +44,8 @@ def build_mlp(data) -> pyo.ConcreteModel:
             - data.discount
             * (
                 sum(
-                    model.varD[data.state_tuples[next_s], a] * data.global_transitions[s, next_s, a]
+                    model.varD[data.state_tuples[next_s], a]
+                    * data.global_transitions[s, next_s, a]
                     for next_s in data.state_indices
                     for a in data.action_indices
                 )

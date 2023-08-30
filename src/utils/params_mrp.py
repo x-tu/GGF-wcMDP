@@ -1,26 +1,25 @@
-import numpy as np
 from typing import List
+
+import numpy as np
 
 
 # Define the cost function for each arm
 class CostReward:
-
-    def __init__(self,
-                 num_states: int,
-                 num_arms: int,
-                 rccc_wrt_max=1.5):
+    def __init__(self, num_states: int, num_arms: int, rccc_wrt_max=1.5):
         self.num_s = num_states
         self.num_a = num_arms
         self.costs = np.zeros([self.num_s, self.num_a, 2])
         self.costs[:, :, 0] = self.quadratic()
-        self.costs[:, :, 1] = rccc_wrt_max * (self.num_s-1)**2 * np.ones([self.num_s, self.num_a])
+        self.costs[:, :, 1] = (
+            rccc_wrt_max * (self.num_s - 1) ** 2 * np.ones([self.num_s, self.num_a])
+        )
         self.costs = self.costs / np.max(self.costs)
         self.rewards = 1 - self.costs
 
     def linear(self):
         costs = np.zeros([self.num_s, self.num_a])
         for n in range(self.num_a):
-            costs[:, n] = np.linspace(0, self.num_s-1, num=self.num_s)
+            costs[:, n] = np.linspace(0, self.num_s - 1, num=self.num_s)
         return costs
 
     def constant(self, k):
@@ -30,18 +29,13 @@ class CostReward:
         costs = np.zeros([self.num_s, self.num_a])
         for a in range(self.num_a):
             for s in range(self.num_s):
-                costs[s, a] = s**2
+                costs[s, a] = s ** 2
         return costs
 
 
 # Define the Markov dynamics for each arm
 class MarkovChain:
-
-    def __init__(self,
-                 num_states: int,
-                 num_arms: int,
-                 prob_remain,
-                 mat_type=1):
+    def __init__(self, num_states: int, num_arms: int, prob_remain, mat_type=1):
         self.num_s = num_states
         self.num_a = num_arms
         self.transitions = np.zeros([self.num_s, self.num_s, self.num_a, 2])
@@ -63,31 +57,33 @@ class MarkovChain:
         transitions = np.zeros([self.num_s, self.num_s, self.num_a])
         for n in range(self.num_a):
             if mat_type == 1:
-                for s in range(self.num_s-1):
+                for s in range(self.num_s - 1):
                     transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s+1, n] = 1-prob_remain[n]
-                transitions[self.num_s-1, self.num_s-1, n] = 1
+                    transitions[s, s + 1, n] = 1 - prob_remain[n]
+                transitions[self.num_s - 1, self.num_s - 1, n] = 1
             elif mat_type == 2:
-                for s in range(self.num_s-2):
+                for s in range(self.num_s - 2):
                     transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s+1, n] = (1-prob_remain[n])/2
-                    transitions[s, s+2, n] = (1-prob_remain[n])/2
-                transitions[self.num_s-2, self.num_s-2, n] = prob_remain[n]
-                transitions[self.num_s-2, self.num_s-1, n] = 1-prob_remain[n]
-                transitions[self.num_s-1, self.num_s-1, n] = 1
+                    transitions[s, s + 1, n] = (1 - prob_remain[n]) / 2
+                    transitions[s, s + 2, n] = (1 - prob_remain[n]) / 2
+                transitions[self.num_s - 2, self.num_s - 2, n] = prob_remain[n]
+                transitions[self.num_s - 2, self.num_s - 1, n] = 1 - prob_remain[n]
+                transitions[self.num_s - 1, self.num_s - 1, n] = 1
             elif mat_type == 3:
-                for s in range(self.num_s-2):
+                for s in range(self.num_s - 2):
                     transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s+1, n] = 2*(1-prob_remain[n])/3
-                    transitions[s, s+2, n] = (1-prob_remain[n])/3
-                transitions[self.num_s-2, self.num_s-2, n] = prob_remain[n]
-                transitions[self.num_s-2, self.num_s-1, n] = 1-prob_remain[n]
-                transitions[self.num_s-1, self.num_s-1, n] = 1
+                    transitions[s, s + 1, n] = 2 * (1 - prob_remain[n]) / 3
+                    transitions[s, s + 2, n] = (1 - prob_remain[n]) / 3
+                transitions[self.num_s - 2, self.num_s - 2, n] = prob_remain[n]
+                transitions[self.num_s - 2, self.num_s - 1, n] = 1 - prob_remain[n]
+                transitions[self.num_s - 1, self.num_s - 1, n] = 1
             elif mat_type == 4:
-                for s in range(self.num_s-1):
+                for s in range(self.num_s - 1):
                     transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s+1:self.num_s, n] = ((1-prob_remain[n])/(self.num_s-s))*np.ones([self.num_s-s])
-                transitions[self.num_s-1, self.num_s-1, n] = 1
+                    transitions[s, s + 1 : self.num_s, n] = (
+                        (1 - prob_remain[n]) / (self.num_s - s)
+                    ) * np.ones([self.num_s - s])
+                transitions[self.num_s - 1, self.num_s - 1, n] = 1
         return transitions
 
 
@@ -95,13 +91,17 @@ class MarkovChain:
 class FairWeight:
     def __init__(self, num_arms: int, weight_coefficient):
         if np.isscalar(weight_coefficient):
-            self.weights = np.array([1 / (weight_coefficient ** i) for i in range(num_arms)])
+            self.weights = np.array(
+                [1 / (weight_coefficient ** i) for i in range(num_arms)]
+            )
             self.weights = self.weights / np.sum(self.weights)
         elif len(weight_coefficient) == num_arms:
             self.weights = weight_coefficient
             self.weights = self.weights / np.sum(self.weights)
         else:
-            raise TypeError("`weight_coef` should be either scalar or array with length reward_space")
+            raise TypeError(
+                "`weight_coef` should be either scalar or array with length reward_space"
+            )
 
 
 def get_state_list(num_states, num_arms):
@@ -117,14 +117,10 @@ def get_state_list(num_states, num_arms):
     # generate state indices
     state_indices = np.arange(num_states)
     # get cartesian product
-    state_indices_cartesian = np.meshgrid(
-        *([state_indices] * num_arms), indexing="ij"
-    )
+    state_indices_cartesian = np.meshgrid(*([state_indices] * num_arms), indexing="ij")
     # reshape and convert to list
     state_list = (
-        np.stack(state_indices_cartesian, axis=-1)
-        .reshape(-1, num_arms)
-        .tolist()
+        np.stack(state_indices_cartesian, axis=-1).reshape(-1, num_arms).tolist()
     )
     return state_list
 
