@@ -34,15 +34,20 @@ def run_mc_simulation(
         init_state=0,
         ggi=args.ggi,
     )
+    solve_deterministic = False
     if args.ggi:
         # solve the dual GGF model
-        _, mlp_model = solve_ggf(env_mlp.mrp_data)
+        _, mlp_model = solve_ggf(
+            env_mlp.mrp_data, solve_deterministic=solve_deterministic
+        )
         env_mlp.mrp_data.weights = np.array(
             [1 / (args.weight ** i) for i in range(args.n_group)]
         )
     else:
         # solve the MOMDP model (summed reward)
-        _, mlp_model = solve_mrp(env_mlp.mrp_data)
+        _, mlp_model = solve_mrp(
+            env_mlp.mrp_data, solve_deterministic=solve_deterministic
+        )
 
     # initialize the environment for Q Learning
     env_ql = copy.deepcopy(env_mlp)

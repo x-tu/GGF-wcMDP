@@ -6,11 +6,12 @@ from pyomo.opt import SolverFactory
 from utils.mrp import MRPData
 
 
-def build_mrp(data: MRPData) -> pyo.ConcreteModel:
+def build_mrp(data: MRPData, solve_deterministic: bool = False) -> pyo.ConcreteModel:
     """The main function used to build the MRP model.
 
     Args:
         data (`dict`): parameters used to solve the model
+        solve_deterministic (`bool`): whether to solve the model deterministically
 
     Returns:
         model (`ConcreteModel`): the pyomo model to solve
@@ -25,6 +26,8 @@ def build_mrp(data: MRPData) -> pyo.ConcreteModel:
     model.varD = pyo.Var(
         data.tuple_list_s, data.idx_list_a, within=pyo.NonNegativeReals
     )
+    if solve_deterministic:
+        model.varP = pyo.Var(data.tuple_list_s, data.idx_list_a, within=pyo.Binary)
 
     # Objective
     model.cost = pyo.Objective(
@@ -53,6 +56,9 @@ def build_mrp(data: MRPData) -> pyo.ConcreteModel:
             )
             == big_mu_list[s]
         )
+
+    # (skip for now) TODO: Group 2 (s ^D * D Constraints) whether to solve deterministically
+
     return model
 
 
@@ -98,11 +104,12 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData) -> list:
     return reward
 
 
-def solve_mrp(input_data):
+def solve_mrp(input_data, solve_deterministic=False):
     """ Selects the solver and set the optimization settings.
 
     Args:
         input_data: the MRP parameter setting
+        solve_deterministic: whether to solve the model deterministically
 
     Returns:
         results: the default optimization report
@@ -110,7 +117,7 @@ def solve_mrp(input_data):
 
     """
     # Build the MRP model
-    model = build_mrp(data=input_data)
+    model = build_mrp(data=input_data, solve_deterministic=solve_deterministic)
     # Set the solver to be used
     optimizer = SolverFactory("gurobi", solver_io="python")
     # optimizer.options["sec"] = MAX_SOLVING_TIME
