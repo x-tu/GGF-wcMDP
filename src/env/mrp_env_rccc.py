@@ -5,6 +5,7 @@ import gym
 import numpy as np
 import pandas as pd
 
+from utils.encoding import state_int_index_to_vector, state_vector_to_int_index
 from utils.params_mrp import CostReward, FairWeight, MarkovChain
 
 warnings.filterwarnings("ignore")
@@ -21,14 +22,23 @@ class MachineReplacement(gym.Env):
         weight_coefficient: int,
         num_steps: int,
         out_csv_name: str,
+        ggi: bool = False,
+        encoding_int: bool = False,
     ):
         super(gym.Env, self).__init__()
         # Parameters
         self.num_arms = num_arms
-        self.num_states = num_states
+        if encoding_int:
+            self.base_states = num_states
+            self.num_states = num_states ** num_arms
+        else:
+            self.num_states = num_states
         self.num_steps = num_steps
         self.num_actions = self.num_arms + 1
         self.out_csv_name = out_csv_name
+        # used when the state is encoded as an integer index
+        self.ggi = ggi
+        self.encoding_int = encoding_int
 
         # Basic Functions
         rew_class = CostReward(num_states, num_arms, rccc_wrt_max)
@@ -51,6 +61,11 @@ class MachineReplacement(gym.Env):
         self.n_runs += 1
         self.step_counter = 0
         self.reward_info = []
+        # set initial state to 0 (all machines are new)
+        if self.encoding_int:
+            return state_vector_to_int_index(
+                np.zeros(self.num_arms, dtype=int), self.num_states
+            )
         return np.zeros(self.num_arms, dtype=int)
 
     def step(self, action):
@@ -67,8 +82,15 @@ class MachineReplacement(gym.Env):
             info (`dict`): additional information about the environment.
 
         """
-        # convert the observation vector into the state vector
-        state_list = self.observations * self.num_states
+        if self.encoding_int & isinstance(self.observations, int):
+            # convert the observation integer into the state vector
+            self.observations = state_int_index_to_vector(
+                self.observations, self.num_arms, self.base_states
+            )
+            state_list = self.observations
+        else:
+            # convert the observation vector into the state vector
+            state_list = self.observations * self.num_states
         next_state_list = np.copy(state_list)
         # convert the action integer into the action list
         action_list = np.zeros(self.num_arms, dtype=int)
@@ -84,7 +106,6 @@ class MachineReplacement(gym.Env):
             )
             # get the reward
             reward_list[n] = self.rewards[int(state_list[n]), n, action_list[n]]
-        self.observations = next_state_list / self.num_states
         # get the done
         done = self.step_counter >= self.num_steps
         # register the information
@@ -93,6 +114,12 @@ class MachineReplacement(gym.Env):
         self.step_counter += 1
         if done:
             self.save_csv()
+        if self.encoding_int:
+            self.observations = state_vector_to_int_index(
+                next_state_list, self.base_states
+            )
+            return self.observations, reward_list, done, info
+        self.observations = next_state_list / self.num_states
         return self.observations, reward_list, done, info
 
     def render(self, mode="human"):

@@ -26,6 +26,10 @@ class MachineReplace(gym.Env):
         self.mrp_data = MRPData(n_group=n_group, n_state=n_state, n_action=n_action)
         self.actions = self.mrp_data.tuple_list_a
         self.states = self.mrp_data.tuple_list_s
+        self.num_actions = len(self.actions)
+        self.num_states = len(self.states)
+        self.num_arms = n_group
+        self.weights = self.mrp_data.weights
 
         # Define the observation and action space
         self.action_space = spaces.Discrete(len(self.actions))
