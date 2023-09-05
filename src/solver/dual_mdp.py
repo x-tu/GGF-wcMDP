@@ -16,6 +16,7 @@ class LPData:
         mat_type,
         weights,
         discount,
+        encoding_int=False,
     ):
         self.num_arms = num_arms
         self.num_states = num_states
@@ -42,6 +43,22 @@ class LPData:
         )
         self.transitions = dyn_class.transitions
         self.global_transitions = self.get_global_transitions()
+        self.encoding_int = encoding_int
+        if self.encoding_int:
+            self.weight = self.weights
+            # Get state tuple
+            self.tuple_list_s = self.state_tuples
+            # Get action tuple
+            self.tuple_list_a = self.action_tuples
+
+            # Create group list
+            self.idx_list_d = self.arm_indices
+            # Create state list
+            self.idx_list_s = self.state_indices
+            # Create action list
+            self.idx_list_a = self.action_indices
+            self.bigC = self.costs
+            self.bigT = self.global_transitions
 
     def get_state_tuples(self):
         """A helper function used to get state tuple: cartesian S ** D.

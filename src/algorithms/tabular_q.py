@@ -59,7 +59,7 @@ class QAgent:
                 rewards = sorted(
                     self.acc_rewards + self.gamma ** t * self.q_table[state][a, :]
                 )
-                ggi_value = np.dot(self.env.mrp_data.weight, rewards)
+                ggi_value = np.dot(self.env.weights, rewards)
                 if ggi_value > max_ggi:
                     action, max_ggi = a, ggi_value
         else:
@@ -73,7 +73,7 @@ class QAgent:
             # choose the best next action with the highest GGI value
             for a in range(self.num_actions):
                 rewards = sorted(self.gamma * self.q_table[state_next][a, :])
-                ggi_value = np.dot(self.env.mrp_data.weight, rewards)
+                ggi_value = np.dot(self.env.weights, rewards)
                 if ggi_value > max_ggi:
                     next_a, max_ggi = a, ggi_value
             q_next = max(self.q_table[state_next][next_a, :])
