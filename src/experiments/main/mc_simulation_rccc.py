@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-from algorithms.dqn_mrp import ODQNAgent
+from algorithms.dqn_mrp import ODQNAgent, RDQNAgent
 from algorithms.policy_iteration import PIAgent
 from algorithms.tabular_q import QAgent
 from env.mrp_env_rccc import MachineReplacement
@@ -122,7 +122,7 @@ def run_mc_simulation(
     # initialize the environment for DQN
     env_dqn = copy.deepcopy(env_mlp)
     # env_dqn.encoding_int = False
-    agent_dqn = ODQNAgent(
+    agent_dqn = RDQNAgent(
         mrp_data, discount, args.ggi, mrp_data.weights, l_rate=1e-3, h_size=128
     )
 
@@ -194,9 +194,10 @@ def run_mc_simulation(
 
         # run DQN
         observation = env_dqn.reset()
+        reward = [0] * num_arms
         reward_dqn = 0
         for t in range(len_episode):
-            action = agent_dqn.act(observation)
+            action = agent_dqn.act(observation, reward)
             next_observation, reward, done, _ = env_dqn.step(action)
             reward_dqn += (gamma ** t) * reward
             if done:
