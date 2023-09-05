@@ -172,7 +172,7 @@ class RDQNAgent:
         self.min_epsilon = min_epsilon
         self.loss_fn = nn.MSELoss()
 
-    def act(self, observation):
+    def act(self, observation, prev_reward_list):
         # Exploration
         if np.random.rand() < self.epsilon:
             return np.random.choice(self.data_mrp.num_actions)
@@ -186,7 +186,7 @@ class RDQNAgent:
                 # Loop over all actions
                 for a_idx in range(self.data_mrp.num_actions):
                     # The exploitation action is selected according to argmax_{a} GGF(r(s, a) + discount * q(s, a))
-                    temp_var = q_values[a_idx * self.data_mrp.num_arms:(a_idx+1) * self.data_mrp.num_arms]
+                    temp_var = torch.tensor(prev_reward_list, dtype=torch.float32) + self.discount * q_values[a_idx * self.data_mrp.num_arms:(a_idx+1) * self.data_mrp.num_arms]
                     q_values_sorted = torch.sort(temp_var)
                     for w in range(len(self.weights)):
                         q_ggfvalues[a_idx] += torch.tensor(self.weights)[w] * q_values_sorted[0][w]
