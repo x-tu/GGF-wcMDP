@@ -25,8 +25,8 @@ def calculate_ggi_reward(weights, n_rewards):
 
 def run_mc_simulation(
     args,
-    num_episodes=1000,
-    len_episode=100,
+    num_episodes=100,
+    len_episode=10,
     alpha=0.15,
     epsilon=0.3,
     decaying_factor=0.95,
@@ -193,25 +193,25 @@ def run_mc_simulation(
             episode_rewards_pi.append(reward_pi)
 
         # run DQN
-        observation = env_dqn.reset()
-        reward = [0] * num_arms
-        reward_dqn = 0
-        for t in range(len_episode):
-            action = agent_dqn.act(observation, reward)
-            next_observation, reward, done, _ = env_dqn.step(action)
-            reward_dqn += (gamma ** t) * reward
-            if done:
-                break
-            else:
-                agent_dqn.update(observation, action, reward, next_observation)
-                observation = next_observation
-        if args.ggi:
-            # calculate the GGI reward
-            episode_rewards_dqn.append(
-                calculate_ggi_reward(env_dqn.weights, reward_dqn)
-            )
-        else:
-            episode_rewards_dqn.append(reward_dqn)
+        dqn_epoch_rewards = []
+        for epo in range(5):
+            observation = env_dqn.reset()
+            reward = [0] * num_arms
+            reward_dqn = 0
+            for t in range(len_episode):
+                action = agent_dqn.act(observation, reward)
+                next_observation, reward, done, _ = env_dqn.step(action)
+                reward_dqn += (gamma ** t) * reward
+                if done:
+                    break
+                else:
+                    agent_dqn.update(observation, action, reward, next_observation)
+                    observation = next_observation
+            dqn_epoch_rewards.append(reward_dqn)
+        rewards_sorted = np.sort(
+            [sum(col) / len(col) for col in zip(*dqn_epoch_rewards)]
+        )
+        episode_rewards_dqn.append(np.dot(rewards_sorted, env_dqn.weights))
     return (
         episode_rewards_mlp,
         episode_rewards_ql,
