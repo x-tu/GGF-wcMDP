@@ -3,14 +3,15 @@
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
-from utils.mrp_lp import MRPData
+from utils.mrp import MRPData
 
 
-def build_ggf(data: MRPData) -> pyo.ConcreteModel:
+def build_ggf(data: MRPData, solve_deterministic: bool = False) -> pyo.ConcreteModel:
     """The main function used to build the dual MRP concrete model.
 
     Args:
         data (`dict`): parameters used to solve the model
+        solve_deterministic (`bool`): whether to solve the model deterministically
 
     Returns:
         model (`ConcreteModel`): the pyomo model to solve
@@ -22,11 +23,16 @@ def build_ggf(data: MRPData) -> pyo.ConcreteModel:
     big_mu_list = [1 / len(data.tuple_list_s)] * len(data.tuple_list_s)
 
     # Variables
+    # decision variable lambda
     model.varL = pyo.Var(data.idx_list_d, within=pyo.NonNegativeReals)
+    # decision variable nu
     model.varN = pyo.Var(data.idx_list_d, within=pyo.NonNegativeReals)
+    # decision variable x
     model.varD = pyo.Var(
         data.tuple_list_s, data.idx_list_a, within=pyo.NonNegativeReals
     )
+    if solve_deterministic:
+        model.varP = pyo.Var(data.tuple_list_s, data.idx_list_a, within=pyo.Binary)
 
     # Objective
     model.cost = pyo.Objective(
@@ -64,6 +70,8 @@ def build_ggf(data: MRPData) -> pyo.ConcreteModel:
             )
             == big_mu_list[s]
         )
+    # (skip for now) TODO: Group 3 (s ^D * D Constraints) whether to solve deterministically
+
     return model
 
 
@@ -120,21 +128,44 @@ def extract_results(model: pyo.ConcreteModel, data: MRPData):
     return reward  # , policy
 
 
-def solve_ggf(model):
+def solve_ggf(input_data: MRPData, solve_deterministic: bool = False):
     """ Selects the solver and set the optimization settings.
 
     Args:
-        model: the MRP model to be optimized
+        input_data: the MRP parameter setting
+        solve_deterministic: whether to solve deterministically
 
     Returns:
         results: the default optimization report
         model: the optimized model
 
     """
-
+    # Build the GGF model
+    model = build_ggf(data=input_data, solve_deterministic=solve_deterministic)
     # Set the solver to be used
     optimizer = SolverFactory("gurobi", solver_io="python")
     # optimizer.options["sec"] = MAX_SOLVING_TIME
     results = optimizer.solve(model, tee=True)
-
+    # Extract the results
+    reward = extract_results(model=model, data=input_data)
+    # Extract the results
+    extract_results(model=model, data=input_data)
     return results, model
+
+
+def get_policy(state, model, data):
+    """ This function is used to get the policy from the model given a state.
+
+    Args:
+        state: the current state
+        model: the optimized model
+        data: the MRP parameter setting
+
+    Returns:
+        a: the action to take
+
+    """
+    for a in data.idx_list_a:
+        x_value = model.varD[data.tuple_list_s[state], a].value
+        if x_value > 1e-6:
+            return a

@@ -17,7 +17,7 @@ def prs_parser_setup(prs: argparse.ArgumentParser):
         help="Weight coefficient",
     )
     prs.add_argument(
-        "-ggi", action="store_true", default=False, help="Run GGI algorithm or not"
+        "-ggi", action="store_true", default=True, help="Run GGI algorithm or not"
     )
     prs.add_argument(
         "--n_action",

@@ -21,11 +21,16 @@ class MachineReplace(gym.Env):
         ggi: bool = False,
         init_state: int = 0,
         save_mode="append",
+        encoding_int: bool = True,
     ):
         self.ggi = ggi
         self.mrp_data = MRPData(n_group=n_group, n_state=n_state, n_action=n_action)
-        self.actions = self.mrp_data.action_list
-        self.states = self.mrp_data.state_list
+        self.actions = self.mrp_data.tuple_list_a
+        self.states = self.mrp_data.tuple_list_s
+        self.num_actions = len(self.actions)
+        self.num_arms = n_group
+        self.weights = self.mrp_data.weight
+        self.encoding_int = encoding_int
 
         # Define the observation and action space
         self.action_space = spaces.Discrete(len(self.actions))
@@ -59,7 +64,10 @@ class MachineReplace(gym.Env):
         self.metrics = []
 
         self.state = self.init_state
-        return self.state
+        if self.encoding_int:
+            return self.state
+        else:
+            return np.array(self.states[self.state])
 
     def step(self, action):
         """ Take a step in the environment.
@@ -92,7 +100,10 @@ class MachineReplace(gym.Env):
         self.step_counter += 1
         if done:
             self.save_csv()
-        return self.state, reward, done, info
+        if self.encoding_int:
+            return self.state, reward, done, info
+        else:
+            return np.array(self.states[self.state]), reward, done, info
 
     def render(self, mode="human"):
         pass
