@@ -1,4 +1,5 @@
 import itertools
+import random
 
 import numpy as np
 import pyomo.environ as pyo
@@ -248,10 +249,15 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
     return reward  # , policy
 
 
-def policy_dlp(state, model: pyo.ConcreteModel, lp_data):
-    for a in lp_data.action_indices:
-        x_value = model.varD[tuple(state), a].value
-        if x_value > 1e-6:
-            action = int(a)
-
-    return action
+def policy_dlp(state, model: pyo.ConcreteModel, lp_data, deterministic=False):
+    if deterministic:
+        for a in lp_data.action_indices:
+            x_value = model.varD[tuple(state), a].value
+            if x_value > 1e-6:
+                return int(a)
+    else:
+        x_values = [
+            model.varD[tuple(state), int(a)].value for a in list(lp_data.action_indices)
+        ]
+        x_probs = [x / sum(x_values) for x in x_values]
+        return random.choices(lp_data.action_indices, weights=x_probs, k=1)[0]
