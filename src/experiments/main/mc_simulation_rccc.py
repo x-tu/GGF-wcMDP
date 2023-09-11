@@ -1,9 +1,12 @@
 import argparse
 import copy
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
+from tqdm import tqdm
 
 from algorithms.dqn_mrp import ODQNAgent, RDQNAgent
 from algorithms.policy_iteration import PIAgent
@@ -13,25 +16,20 @@ from experiments.configs.config_shared import prs_parser_setup
 from solver.dual_mdp import LPData, build_dlp, extract_dlp, policy_dlp, solve_dlp
 from solver.ggf_dual import get_policy as get_policy_ggf, solve_ggf
 from solver.momdp import get_policy, solve_mrp
-
-
-def calculate_ggi_reward(weights, n_rewards):
-    # assign the largest value to the smallest weight
-    weights = sorted(weights, reverse=True)
-    n_rewards = sorted(n_rewards, reverse=False)
-    ggi_reward = np.dot(weights, n_rewards)
-    return ggi_reward
+from utils.ggf import calculate_ggi_reward
 
 
 def run_mc_simulation(
     args,
-    num_episodes=100,
-    len_episode=10,
+    num_episodes=1000,
+    len_episode=100,
+    num_samples=10,
     alpha=0.15,
     epsilon=0.3,
     decaying_factor=0.95,
     gamma=0.95,
-):
+    run_dqn=False,
+) -> pd.DataFrame:
     # Replacement Cost Constant Coefficient (RCCC) w.r.t the maximum cost in passive mode
     rccc_wrt_max = 0.5
     # Number of arms
@@ -109,8 +107,8 @@ def run_mc_simulation(
     # initialize the environment for Policy Iteration
     env_pi = copy.deepcopy(env_ql)
     params = {
-        "n_group": args.n_group,
-        "n_state": args.n_state,
+        "n_group": num_arms,
+        "n_state": num_states,
         "n_action": args.n_action,
         "ggi": False,  # TODO: fix the GGF-PI not converging issue (multiple optimal policies)
     }
@@ -120,16 +118,18 @@ def run_mc_simulation(
     policy_pi = {s: pi(s) for s in range(policy_agent.n_state)}
 
     # initialize the environment for DQN
-    env_dqn = copy.deepcopy(env_mlp)
-    # env_dqn.encoding_int = False
-    agent_dqn = RDQNAgent(
-        mrp_data, discount, args.ggi, mrp_data.weights, l_rate=1e-3, h_size=128
-    )
+    if run_dqn:
+        env_dqn = copy.deepcopy(env_mlp)
+        # env_dqn.encoding_int = False
+        agent_dqn = RDQNAgent(
+            mrp_data, discount, args.ggi, mrp_data.weights, l_rate=1e-3, h_size=128
+        )
 
     # record the rewards
     episode_rewards_mlp, episode_rewards_ql, episode_rewards_pi = [], [], []
-    episode_rewards_dqn = []
-    for ep in range(1, num_episodes + 1):
+    if run_dqn:
+        episode_rewards_dqn = []
+    for ep in tqdm(range(1, num_episodes + 1)):
         # run LP
         state = env_mlp.reset()
         reward_mlp = 0
@@ -144,20 +144,6 @@ def run_mc_simulation(
                 for n in range(num_arms):
                     state[n] = int(next_observation[n] * num_states)
         episode_rewards_mlp.append(calculate_ggi_reward(env_mlp.weights, reward_mlp))
-        #     if args.ggi:
-        #         action = get_policy_ggf(state, mlp_model, mrp_data)
-        #     else:
-        #         action = get_policy(state, mlp_model, mrp_data)
-        #     next_state, reward, done, _ = env_mlp.step(action)
-        #     reward_mlp += gamma ** t * reward
-        #     state = next_state
-        # if args.ggi:
-        #     # calculate the GGI reward
-        #     episode_rewards_mlp.append(
-        #         calculate_ggi_reward(env_mlp.weights, reward_mlp)
-        #     )
-        # else:
-        #     episode_rewards_mlp.append(reward_mlp)
 
         # run Q Learning
         state = env_ql.reset()
@@ -193,31 +179,49 @@ def run_mc_simulation(
             episode_rewards_pi.append(reward_pi)
 
         # run DQN
-        dqn_epoch_rewards = []
-        for epo in range(5):
-            observation = env_dqn.reset()
-            reward = [0] * num_arms
-            reward_dqn = 0
-            for t in range(len_episode):
-                action = agent_dqn.act(observation, reward)
-                next_observation, reward, done, _ = env_dqn.step(action)
-                reward_dqn += (gamma ** t) * reward
-                if done:
-                    break
-                else:
-                    agent_dqn.update(observation, action, reward, next_observation)
-                    observation = next_observation
-            dqn_epoch_rewards.append(reward_dqn)
-        rewards_sorted = np.sort(
-            [sum(col) / len(col) for col in zip(*dqn_epoch_rewards)]
+        if run_dqn:
+            dqn_epoch_rewards = []
+            for _ in range(num_samples):
+                observation = env_dqn.reset()
+                reward = [0] * num_arms
+                reward_dqn = 0
+                for t in range(len_episode):
+                    action = agent_dqn.act(observation, reward)
+                    next_observation, reward, done, _ = env_dqn.step(action)
+                    reward_dqn += (gamma ** t) * reward
+                    if done:
+                        break
+                    else:
+                        agent_dqn.update(observation, action, reward, next_observation)
+                        observation = next_observation
+                dqn_epoch_rewards.append(reward_dqn)
+            rewards_sorted = np.sort(
+                [sum(col) / len(col) for col in zip(*dqn_epoch_rewards)]
+            )
+            episode_rewards_dqn.append(np.dot(rewards_sorted, env_dqn.weights))
+    if run_dqn:
+        # convert results to a dataframe
+        ep_rewards = pd.DataFrame(
+            {
+                "dlp": episode_rewards_mlp,
+                "ql": episode_rewards_ql,
+                "pi": episode_rewards_pi,
+                "dqn": episode_rewards_dqn,
+            }
         )
-        episode_rewards_dqn.append(np.dot(rewards_sorted, env_dqn.weights))
-    return (
-        episode_rewards_mlp,
-        episode_rewards_ql,
-        episode_rewards_pi,
-        episode_rewards_dqn,
-    )
+        ep_rewards.columns = ["dlp", "ql", "pi", "dqn"]
+        return ep_rewards
+    else:
+        # convert results to a dataframe
+        ep_rewards = pd.DataFrame(
+            {
+                "dlp": episode_rewards_mlp,
+                "ql": episode_rewards_ql,
+                "pi": episode_rewards_pi,
+            }
+        )
+        ep_rewards.columns = ["dlp", "ql", "pi"]
+        return ep_rewards
 
 
 if __name__ == "__main__":
@@ -228,15 +232,26 @@ if __name__ == "__main__":
     )
     prs = prs_parser_setup(prs)
     args_rccc, _ = prs.parse_known_args()
+    run_dqn = True
 
     # run the simulation
-    ep_rewards_mlp, ep_rewards_ql, ep_rewards_pi, ep_rewards_dqn = run_mc_simulation(
-        args=args_rccc
+    ep_rewards_df = run_mc_simulation(args=args_rccc, run_dqn=run_dqn)
+    # save the results
+    file_name = (
+        "results/ep_rewards_" + str(datetime.now().strftime("%m_%d_%H_%M_%S")) + ".csv"
     )
+    ep_rewards_df.to_csv(file_name, index=False)
 
     # plot the results
-    sns.lineplot(ep_rewards_mlp, label="MLP")
-    sns.lineplot(ep_rewards_pi, label="Policy Iteration")
-    sns.lineplot(ep_rewards_ql, label="Q Learning")
-    sns.lineplot(ep_rewards_dqn, label="DQN")
+    sns.lineplot(ep_rewards_df["dlp"], label="Dual LP")
+    sns.lineplot(ep_rewards_df["pi"], label="Policy Iteration")
+    sns.lineplot(ep_rewards_df["ql"], label="Q Learning")
+    if run_dqn:
+        sns.lineplot(ep_rewards_df["dqn"], label="DQN")
+    plt.xlabel("Episodes")
+    plt.ylabel("Discounted Reward")
+    plt.title("Learning Curve")
     plt.show()
+    plt.savefig(
+        "results/ep_rewards_" + str(datetime.now().strftime("%m_%d_%H_%M_%S")) + ".png"
+    )
