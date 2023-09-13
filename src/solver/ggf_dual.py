@@ -1,4 +1,5 @@
 """This script includes all the functions used for solving GGF-MDP dual model."""
+import random
 
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
@@ -153,19 +154,27 @@ def solve_ggf(input_data: MRPData, solve_deterministic: bool = False):
     return results, model
 
 
-def get_policy(state, model, data):
+def get_policy(state, model, data, deterministic=False) -> int:
     """ This function is used to get the policy from the model given a state.
 
     Args:
         state: the current state
         model: the optimized model
         data: the MRP parameter setting
+        deterministic: whether to get deterministic or stochatic action
 
     Returns:
         a: the action to take
 
     """
-    for a in data.idx_list_a:
-        x_value = model.varD[data.tuple_list_s[state], a].value
-        if x_value > 1e-6:
-            return a
+    if deterministic:
+        for a in data.idx_list_a:
+            x_value = model.varD[data.tuple_list_s[state], a].value
+            if x_value > 1e-6:
+                return int(a)
+    else:
+        x_values = [
+            model.varD[data.tuple_list_s[state], a].value for a in data.idx_list_a
+        ]
+        x_probs = [x / sum(x_values) for x in x_values]
+        return random.choices(data.idx_list_a, weights=x_probs, k=1)[0]
