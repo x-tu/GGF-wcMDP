@@ -4,6 +4,7 @@ import warnings
 import gym
 import numpy as np
 import pandas as pd
+from gym import spaces
 
 from utils.encoding import state_int_index_to_vector, state_vector_to_int_index
 from utils.params_mrp import CostReward, FairWeight, MarkovChain
@@ -47,6 +48,10 @@ class MachineReplacement(gym.Env):
         self.transitions = dyn_class.transitions
         wgh_class = FairWeight(num_arms, weight_coefficient)
         self.weights = wgh_class.weights
+
+        self.observation_space = spaces.Discrete(self.num_states)
+        self.action_space = spaces.Discrete(self.num_actions)
+        self.reward_space = spaces.Discrete(self.num_arms)
 
         # Initialization
         self.n_runs = 0
