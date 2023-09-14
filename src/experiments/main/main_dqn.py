@@ -3,11 +3,11 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-from params_mrp import FairWeight
 
 from algorithms.dqn_mrp import ODQNAgent
 from env.mrp_env_rccc import MachineReplacement
 from solver.dual_mdp import LPData, build_dlp, extract_dlp, policy_dlp, solve_dlp
+from utils.params_mrp import FairWeight
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 

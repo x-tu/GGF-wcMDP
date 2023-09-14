@@ -3,8 +3,9 @@ import random
 
 import numpy as np
 import pyomo.environ as pyo
-from params_mrp import CostReward, FairWeight, MarkovChain
 from pyomo.opt import SolverFactory
+
+from utils.params_mrp import CostReward, MarkovChain
 
 
 class LPData:
