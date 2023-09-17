@@ -22,9 +22,9 @@ class MachineReplacement(gym.Env):
         mat_type: int,
         weight_coefficient: int,
         num_steps: int,
-        out_csv_name: str,
         ggi: bool = False,
         encoding_int: bool = False,
+        out_csv_name: str = "test",
     ):
         super(gym.Env, self).__init__()
         # Parameters
@@ -46,7 +46,8 @@ class MachineReplacement(gym.Env):
         self.rewards = rew_class.rewards
         dyn_class = MarkovChain(num_states, num_arms, prob_remain, mat_type)
         self.transitions = dyn_class.transitions
-        wgh_class = FairWeight(num_arms, weight_coefficient)
+        weight_coefficient = weight_coefficient if ggi else 1
+        wgh_class = FairWeight(num_arms, weight_coefficient=weight_coefficient)
         self.weights = wgh_class.weights
 
         self.observation_space = spaces.Discrete(self.num_states)
