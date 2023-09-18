@@ -10,7 +10,7 @@ from algorithms.dqn_mrp import DQNetwork
 from solver.dual_q import get_policy_from_q_values
 
 
-class StochasticDQNAgent:
+class DQNAgent:
     """Network Architecture: (state, action) -> Q-value."""
 
     def __init__(
@@ -85,17 +85,15 @@ class StochasticDQNAgent:
             if np.random.rand() < self.epsilon:
                 return np.random.choice(self.env.num_actions)
             # Exploitation
-            else:
-                return self.predict(observation, prev_reward_list)
-        else:
-            # row: machine, column: action
-            q_values = self.q_network(torch.tensor(observation).float()).reshape(
-                (self.env.num_arms, self.env.num_actions)
-            )
-            policy = get_policy_from_q_values(
-                q_values=q_values.tolist(), weights=self.env.weights
-            )
-            return random.choices(range(self.env.num_actions), weights=policy)[0]
+            return self.predict(observation, prev_reward_list)
+        # row: machine, column: action
+        q_values = self.q_network(torch.tensor(observation).float()).reshape(
+            (self.env.num_arms, self.env.num_actions)
+        )
+        policy = get_policy_from_q_values(
+            q_values=q_values.tolist(), weights=self.env.weights
+        )
+        return random.choices(range(self.env.num_actions), weights=policy)[0]
 
     def update(self, observation, action, reward, next_observation):
         # The Q-values

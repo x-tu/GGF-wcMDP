@@ -28,7 +28,9 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
     # decision variable nu
     model.varN = pyo.Var(idx_list_d, within=pyo.NonNegativeReals)
     # decision variable pi(a|s)
-    model.varP = pyo.Var(idx_list_a, within=pyo.NonNegativeReals)
+    model.varP = pyo.Var(
+        idx_list_a, within=pyo.NonNegativeReals, initialize=1 / len(idx_list_a)
+    )
 
     # Objective
     model.cost = pyo.Objective(
@@ -55,7 +57,7 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
             model.dual_constraints.add(
                 model.varL[d1] + model.varN[d2]
                 <= weights[d1]
-                * sum(q_values[d1][a] * model.varP[a] for a in idx_list_a)
+                * sum(q_values[d2][a] * model.varP[a] for a in idx_list_a)
             )
 
     # Group 3 (1 constraint): the probabilities sum to 1
@@ -78,7 +80,7 @@ def get_policy_from_q_values(q_values: list, weights: list) -> list:
     model = build_dual_q_model(q_values=q_values, weights=weights)
     # solve the model
     optimizer = SolverFactory("gurobi", solver_io="python")
-    optimizer.solve(model, tee=True)
+    optimizer.solve(model, tee=False)
     # extract and return the policy distribution
     policy = [model.varP[a].value for a in model.varP]
     return policy
