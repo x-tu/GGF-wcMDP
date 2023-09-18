@@ -1,4 +1,4 @@
-"""This script executes the Q Learning algorithm."""
+"""This script executes the Q Learning algorithm with accumulative rewards."""
 
 import numpy as np
 import pandas as pd
