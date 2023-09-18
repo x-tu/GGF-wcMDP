@@ -25,5 +25,14 @@ params = DotDict(
                 "decaying_factor": 0.95,  # decaying factor for epsilon
             }
         ),
+        # parameters for the DQN
+        "dqn": DotDict(
+            {
+                "h_size": 64,  # hidden layer size
+                "alpha": 1e-3,  # learning rate
+                "epsilon": 1.0,  # exploration rate
+                "decaying_factor": 0.99,  # decaying factor for epsilon
+            }
+        ),
     }
 )

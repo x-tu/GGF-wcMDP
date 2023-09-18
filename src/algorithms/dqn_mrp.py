@@ -3,20 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-
-class DQNetwork(nn.Module):
-    """Deep Q Network with 3 fully connected layers with ReLu activation function."""
-
-    def __init__(self, input_dim, hidden_dim, output_dim):
-        super(DQNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, x):
-        x = torch.nn.functional.relu(self.fc1(x))
-        x = torch.nn.functional.relu(self.fc2(x))
-        return self.fc3(x)
+from algorithms.dqn import DQNetwork
 
 
 class ODQNAgent:
