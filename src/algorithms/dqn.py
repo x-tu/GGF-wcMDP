@@ -42,6 +42,9 @@ class DQNAgent:
         self.decaying_factor = decaying_factor
         self.weights = env.weights
         self.deterministic = deterministic
+        if not self.deterministic:
+            # initialize the stochastic policy as uniform distribution
+            self.policy = [1 / env.action_space.n] * env.action_space.n
 
         # input: states tuples that are encoded as integers
         input_dim = env.reward_space.n
@@ -80,10 +83,10 @@ class DQNAgent:
             ggf_q_values = np.dot(np.sort(temp_q_values, axis=1), self.env.weights)
             return np.argmax(ggf_q_values).item()
         # stochastic policy is given by solving LP
-        action_prob = get_policy_from_q_values(
+        self.policy = get_policy_from_q_values(
             q_values=q_values_tensor.tolist(), weights=self.env.weights
         )
-        return np.random.choice(range(self.env.action_space.n), p=action_prob)
+        return np.random.choice(range(self.env.action_space.n), p=self.policy)
 
     def update(
         self,
@@ -101,26 +104,26 @@ class DQNAgent:
             observation_next (`np.array`): the next observable state.
         """
 
+        # Convert the weights and rewards to PyTorch tensors
+        weight_tensor = torch.tensor(self.env.weights, dtype=torch.float32)
+        reward_tensor = torch.tensor(reward, dtype=torch.float32)
+
+        # reshape the next Q-values to a matrix of shape (action, group)
+        next_q_values = self.q_network(
+            torch.tensor(observation_next, dtype=torch.float32)
+        ).reshape((self.env.action_space.n, self.env.reward_space.n))
+        q_values = self.q_network(
+            torch.tensor(observation, dtype=torch.float32)
+        ).reshape((self.env.action_space.n, self.env.reward_space.n))
+
         # update the weights of the Q network when the policy is deterministic
         if self.deterministic:
-            # Convert the weights and rewards to PyTorch tensors
-            weight_tensor = torch.tensor(self.env.weights, dtype=torch.float32)
-            reward_tensor = torch.tensor(reward, dtype=torch.float32)
-
-            # reshape the next Q-values to a matrix of shape (action, group)
-            next_q_values = self.q_network(
-                torch.tensor(observation_next, dtype=torch.float32)
-            ).reshape((self.env.action_space.n, self.env.reward_space.n))
+            # get the next best action with the highest GGI value (greedy)
             next_ggf_values = torch.matmul(
                 torch.sort(next_q_values, dim=1).values, weight_tensor
             )
-            # get the next best action with the highest GGI value (greedy)
             action_best = torch.argmax(next_ggf_values).item()
-
-            # reshape the Q-values to a matrix of shape (action, group)
-            q_values = self.q_network(
-                torch.tensor(observation, dtype=torch.float32)
-            ).reshape((self.env.action_space.n, self.env.reward_space.n))
+            # get the current GGF values
             ggf_values = torch.matmul(torch.sort(q_values, dim=1).values, weight_tensor)
             target_ggf_values = ggf_values.clone()
             # update the target GGF values
