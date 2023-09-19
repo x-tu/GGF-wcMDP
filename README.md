@@ -6,13 +6,15 @@
 ├── src                         # source code for the project
 │   ├── env                     # RL environments
 │   │   ├── predator_prey       # [To be Maintained] Predator-Prey environment (was rewritten based on ICML 2020 paper)
-│   │   └── mrp_env.py          # Machine Replacement Problem environment
+│   │   ├── mrp_env.py          # Machine Replacement Problem environment
+│   │   └── mrp_env_rccc.py     # Machine Replacement Problem environment with Replacement Cost Constant Coefficient
 │   ├── experiments             # main scripts for running experiments
 │   │   ├── analysis            # functions used for analyzing/visualizing the results
-│   │   ├── configs             # [In Progress] configurations for creating the RL agents
-│   │   ├── main                # main scripts for running experiments
-│   │   └── results             # saved intermediate results of the experiments
-│   ├── solver                  # solver for solving the LP model
+│   │   ├── configs             # configurations for creating the RL agents
+│   │   ├── results             # saved intermediate results of the experiments
+│   │   ├── tests               # unit tests for the project
+│   │   └── .py/.ipynb          # main scripts for running experiments
+│   ├── solver                  # [In Progress] solver for solving the LP model
 │   │   ├── fix_policy          # [To be added] solve the GGF-MDP(D) model with a fixed policy from RL
 │   │   ├── ggf_dual            # solve the GGF-MDP(D) model
 │   │   └── momdp               # solve the MOMDP model (no fairness)
