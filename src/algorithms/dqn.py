@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from solver.dual_q import get_policy_from_q_values
+from solver.dual_q import get_policy_from_q_values, test_deterministic_optimal
 
 
 class DQNetwork(nn.Module):
@@ -143,12 +143,19 @@ class DQNAgent:
         # update the weights of the Q network when the policy is stochastic
         else:
             # check first if we need to solve the LP
-            policy_next = torch.tensor(
-                get_policy_from_q_values(
-                    q_values=next_q_values.tolist(), weights=self.env.weights
-                ),
-                dtype=torch.float32,
+            is_deterministic_optimal, a_idx = test_deterministic_optimal(
+                q_values=next_q_values.detach().numpy(), weights=self.env.weights
             )
+            if is_deterministic_optimal:
+                policy_next = torch.zeros(self.env.action_space.n)
+                policy_next[a_idx] = 1
+            else:
+                policy_next = torch.tensor(
+                    get_policy_from_q_values(
+                        q_values=next_q_values.tolist(), weights=self.env.weights
+                    ),
+                    dtype=torch.float32,
+                )
             # update the target GGF values
             target_ggf_values[action] = torch.matmul(
                 weight_tensor,

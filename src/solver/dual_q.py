@@ -1,5 +1,7 @@
 """This script includes all the functions used to solve the dual Q model."""
+from typing import Tuple
 
+import numpy as np
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
@@ -74,3 +76,25 @@ def get_policy_from_q_values(q_values: list, weights: list) -> list:
     # extract and return the policy distribution
     policy = [model.varP[a].value for a in model.varP]
     return policy
+
+
+def test_deterministic_optimal(q_values: np.array, weights: list) -> Tuple[bool, int]:
+    """Check whether the optimal policy is deterministic.
+
+    Args:
+        q_values (np.array): q_values[group][action], the q values for each group and action.
+        weights (list): weights[group], the weights for each group.
+
+    Returns:
+        is_deterministic_optimal (bool): whether the optimal policy is deterministic.
+        a_idx (int): the index of the action with the highest GGF Q value.
+    """
+
+    # calculate the GGF Q values
+    ggf_q_values = np.dot(weights, np.sort(q_values, axis=0))
+    # get the action with the highest GGF Q value
+    a_idx = np.argmax(ggf_q_values).item()
+    is_deterministic_optimal = ggf_q_values[a_idx] >= np.dot(
+        weights, q_values[:, a_idx]
+    )
+    return is_deterministic_optimal, a_idx
