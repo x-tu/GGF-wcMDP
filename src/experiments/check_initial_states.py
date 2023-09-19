@@ -23,5 +23,6 @@ for state in selected_states:
 for key, ep_rewards in all_rewards.items():
     avg = np.cumsum(ep_rewards) / np.arange(1, len(ep_rewards) + 1)
     sns.lineplot(avg, label=key)
+plt.ylim([16, 17])
 plt.show()
-pd.DataFrame(all_rewards).to_csv(f"dlp_mc_{timestamp}.csv")
+pd.DataFrame(all_rewards).to_csv(f"results/dlp_mc_{timestamp}.csv")
