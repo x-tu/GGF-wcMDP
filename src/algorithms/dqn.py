@@ -1,3 +1,5 @@
+"""Implementation of the Multi-Objective Deep Q Network (DQN) Algorithm."""
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -66,25 +68,27 @@ class DQNAgent:
         Returns:
             (`int`): the selected action.
         """
+        # convert the reward vector to a column vector
+        reward_prev_col = reward_prev.reshape((-1, 1))
 
-        # exploration
+        # 1) exploration
         if np.random.rand() < self.exploration_rate:
             return self.env.action_space.sample()
-        # exploitation
-        # reshape the Q-values to a matrix of shape (action, group)
-        q_values_tensor = self.q_network(torch.tensor(observation).float()).reshape(
-            (self.env.action_space.n, self.env.reward_space.n)
+        # 2) exploitation
+        # reshape the Q-values to a matrix of shape (group |N|, action |A|)
+        q_values = self.q_network(torch.tensor(observation).float()).reshape(
+            (self.env.reward_space.n, self.env.action_space.n)
         )
         # deterministic policy is given by argmax GGF(r_prev + discount * q(s, a))
         if self.deterministic:
-            # use vectorized computation to speed up
-            q_values = q_values_tensor.detach().numpy()
-            temp_q_values = reward_prev + self.discount_factor * q_values
-            ggf_q_values = np.dot(np.sort(temp_q_values, axis=1), self.env.weights)
+            # use vectorized computation to speed up the process
+            q_values = q_values.detach().numpy()
+            temp_q_values = reward_prev_col + self.discount_factor * q_values
+            ggf_q_values = np.dot(self.env.weights, np.sort(temp_q_values, axis=0))
             return np.argmax(ggf_q_values).item()
         # stochastic policy is given by solving LP
         self.policy = get_policy_from_q_values(
-            q_values=q_values_tensor.tolist(), weights=self.env.weights
+            q_values=q_values.tolist(), weights=self.env.weights
         )
         return np.random.choice(range(self.env.action_space.n), p=self.policy)
 
@@ -104,40 +108,57 @@ class DQNAgent:
             observation_next (`np.array`): the next observable state.
         """
 
-        # Convert the weights and rewards to PyTorch tensors
+        # Convert the weights and rewards to column PyTorch tensors
         weight_tensor = torch.tensor(self.env.weights, dtype=torch.float32)
         reward_tensor = torch.tensor(reward, dtype=torch.float32)
 
         # reshape the next Q-values to a matrix of shape (action, group)
         next_q_values = self.q_network(
             torch.tensor(observation_next, dtype=torch.float32)
-        ).reshape((self.env.action_space.n, self.env.reward_space.n))
+        ).reshape((self.env.reward_space.n, self.env.action_space.n))
         q_values = self.q_network(
             torch.tensor(observation, dtype=torch.float32)
-        ).reshape((self.env.action_space.n, self.env.reward_space.n))
+        ).reshape((self.env.reward_space.n, self.env.action_space.n))
+
+        # get the current GGF values
+        ggf_values = torch.matmul(weight_tensor, torch.sort(q_values, dim=0).values)
+        target_ggf_values = ggf_values.clone()
 
         # update the weights of the Q network when the policy is deterministic
         if self.deterministic:
             # get the next best action with the highest GGI value (greedy)
             next_ggf_values = torch.matmul(
-                torch.sort(next_q_values, dim=1).values, weight_tensor
+                weight_tensor, torch.sort(next_q_values, dim=0).values
             )
             action_best = torch.argmax(next_ggf_values).item()
-            # get the current GGF values
-            ggf_values = torch.matmul(torch.sort(q_values, dim=1).values, weight_tensor)
-            target_ggf_values = ggf_values.clone()
             # update the target GGF values
             target_ggf_values[action] = torch.matmul(
-                torch.sort(
-                    reward_tensor + self.discount_factor * next_ggf_values[action_best]
-                ).values,
                 weight_tensor,
+                torch.sort(
+                    reward_tensor
+                    + (self.discount_factor * next_q_values[:, action_best]).squeeze()
+                ).values,
             )
-            # compute the loss
-            loss = self.loss_fn(ggf_values, target_ggf_values)
+
         # update the weights of the Q network when the policy is stochastic
         else:
-            loss = 0
+            # check first if we need to solve the LP
+            policy_next = torch.tensor(
+                get_policy_from_q_values(
+                    q_values=next_q_values.tolist(), weights=self.env.weights
+                ),
+                dtype=torch.float32,
+            )
+            # update the target GGF values
+            target_ggf_values[action] = torch.matmul(
+                weight_tensor,
+                torch.sort(
+                    reward_tensor
+                    + self.discount_factor * torch.matmul(next_q_values, policy_next)
+                ).values,
+            )
+        # compute the loss
+        loss = self.loss_fn(ggf_values, target_ggf_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

@@ -32,6 +32,8 @@ params = DotDict(
                 "alpha": 1e-3,  # learning rate
                 "epsilon": 1.0,  # exploration rate
                 "decaying_factor": 0.99,  # decaying factor for epsilon
+                "deterministic": False,  # whether to use deterministic policy
+                "encoding_int": False,  # whether to encode the state as integer
             }
         ),
     }

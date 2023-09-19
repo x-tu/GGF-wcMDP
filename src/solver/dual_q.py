@@ -8,19 +8,19 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
     """The main function to build the dual Q model.
 
     Args:
-        q_values (list): q_values[action][group], the q values for each group and action
-        weights (list): weights[group], the weights for each group
+        q_values (list): q_values[group][action], the q values for each group and action.
+        weights (list): weights[group], the weights for each group.
 
     Returns:
-        model (ConcreteModel): the pyomo model to solve
-
+        model (ConcreteModel): the pyomo model to solve.
     """
+
     model = pyo.ConcreteModel()
 
-    # action index list
-    idx_list_a = list(range(len(q_values)))
     # group index list
-    idx_list_d = list(range(len(q_values[0])))
+    idx_list_d = list(range(len(q_values)))
+    # action index list
+    idx_list_a = list(range(len(q_values[0])))
 
     # Variables
     # decision variable lambda
@@ -47,7 +47,7 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
             model.dual_constraints.add(
                 model.varL[d1] + model.varN[d2]
                 <= weights[d1]
-                * sum(q_values[a][d2] * model.varP[a] for a in idx_list_a)
+                * sum(q_values[d2][a] * model.varP[a] for a in idx_list_a)
             )
 
     # Group 2 (1 constraint): the probabilities sum to 1
@@ -59,7 +59,7 @@ def get_policy_from_q_values(q_values: list, weights: list) -> list:
     """Solve the model and get the policy based on the q values.
 
     Args:
-        q_values (list): q_values[action][group], the q values for each action and group.
+        q_values (list): q_values[group][action], the q values for each group and action.
         weights (list): weights[group], the weights for each group.
 
     Returns:
