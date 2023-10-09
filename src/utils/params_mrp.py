@@ -87,20 +87,25 @@ class MarkovChain:
         return transitions
 
 
-# Define the fairness weight for each arm
 class FairWeight:
-    def __init__(self, num_arms: int, weight_coefficient):
-        if np.isscalar(weight_coefficient):
+    """Define the fairness weight for each arm."""
+
+    def __init__(
+        self, num_arms: int, weight_coefficient: int, weights: np.array = None
+    ):
+        # set the default weights if provided
+        if weights and len(weights) == num_arms:
+            self.weights = weights / np.sum(weights)
+        # if the weights are not provided or the size is unmatched, generate them
+        elif np.isscalar(weight_coefficient):
             self.weights = np.array(
                 [1 / (weight_coefficient ** i) for i in range(num_arms)]
             )
             self.weights = self.weights / np.sum(self.weights)
-        elif len(weight_coefficient) == num_arms:
-            self.weights = weight_coefficient
-            self.weights = self.weights / np.sum(self.weights)
         else:
             raise TypeError(
-                "`weight_coef` should be either scalar or array with length reward_space"
+                "Please provide a scalar `weight_coefficient` "
+                "or an array `weights` matching the size of the reward space."
             )
 
 
