@@ -47,5 +47,6 @@ class DLPAgent:
                 next_observation, reward, done, _ = self.env.step(action)
                 total_reward += (1 - done) * self.mrp_data.discount ** t * reward
                 state = (next_observation * self.env.num_states).astype(int)
-            episode_rewards.append(np.dot(self.env.weights, total_reward))
+            rewards_sorted = np.sort(total_reward)
+            episode_rewards.append(np.dot(self.env.weights, rewards_sorted))
         return episode_rewards
