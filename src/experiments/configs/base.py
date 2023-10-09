@@ -17,21 +17,21 @@ params = DotDict(
         "rccc_wrt_max": 0.5,
         "prob_remain": np.linspace(start=0.5, stop=0.9, num=3),
         "mat_type": 1,
-        # parameters for the Q-learning
+        # hyperparameters for the Q-learning
         "ql": DotDict(
             {
-                "alpha": 0.15,  # learning rate
-                "epsilon": 0.3,  # exploration rate
+                "alpha": 0.3,  # learning rate
+                "epsilon": 0.7,  # exploration rate
                 "decaying_factor": 0.95,  # decaying factor for epsilon
             }
         ),
-        # parameters for the DQN
+        # hyperparameters for the DQN
         "dqn": DotDict(
             {
                 "h_size": 64,  # hidden layer size
-                "alpha": 1e-3,  # learning rate
-                "epsilon": 1.0,  # exploration rate
-                "decaying_factor": 0.99,  # decaying factor for epsilon
+                "alpha": 1e-4,  # learning rate
+                "epsilon": 0.6,  # exploration rate
+                "decaying_factor": 0.95,  # decaying factor for epsilon
                 "deterministic": False,  # whether to use deterministic policy
                 "encoding_int": False,  # whether to encode the state as integer
             }
