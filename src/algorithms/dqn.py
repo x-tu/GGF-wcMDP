@@ -1,5 +1,7 @@
 """Implementation of the Multi-Objective Deep Q Network (DQN) Algorithm."""
 
+from datetime import datetime
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,6 +9,7 @@ import torch.optim as optim
 from tqdm import tqdm
 
 from solver.dual_q import get_policy_from_q_values, test_deterministic_optimal
+from utils.common import DotDict
 
 
 class DQNetwork(nn.Module):
@@ -57,6 +60,14 @@ class DQNAgent:
         )
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
         self.loss_fn = nn.MSELoss()
+        # statistics for counting
+        self.count_stat = DotDict(
+            {"is_deterministic_act": 0, "is_deterministic_improve": 0}
+        )
+        # statistics for timing
+        self.time_stat = DotDict(
+            {"total": 0, "check_deterministic": [], "solve_LP": []}
+        )
 
     def act(self, observation: np.array, reward_prev: np.array) -> int:
         """Select an action according to the observation.
@@ -68,6 +79,7 @@ class DQNAgent:
         Returns:
             (`int`): the selected action.
         """
+
         # convert the reward vector to a column vector
         reward_prev_col = reward_prev.reshape((-1, 1))
 
@@ -86,10 +98,22 @@ class DQNAgent:
             temp_q_values = reward_prev_col + self.discount_factor * q_values
             ggf_q_values = np.dot(self.env.weights, np.sort(temp_q_values, axis=0))
             return np.argmax(ggf_q_values).item()
-        # stochastic policy is given by solving LP
+        start_time = datetime.now()
+        # stochastic policy is given by solving LP, check first if we need to solve the LP
+        is_deterministic_optimal, a_idx = test_deterministic_optimal(
+            q_values=q_values.detach().numpy(), weights=self.env.weights
+        )
+        self.time_stat.check_deterministic.append(
+            (datetime.now() - start_time).total_seconds()
+        )
+        if is_deterministic_optimal:
+            self.count_stat.is_deterministic_act += 1
+            return a_idx
+        start_time = datetime.now()
         self.policy = get_policy_from_q_values(
             q_values=q_values.tolist(), weights=self.env.weights
         )
+        self.time_stat.solve_LP.append((datetime.now() - start_time).total_seconds())
         return np.random.choice(range(self.env.action_space.n), p=self.policy)
 
     def update(
@@ -120,10 +144,6 @@ class DQNAgent:
             torch.tensor(observation, dtype=torch.float32)
         ).reshape((self.env.reward_space.n, self.env.action_space.n))
 
-        # get the current GGF values
-        ggf_values = torch.matmul(weight_tensor, torch.sort(q_values, dim=0).values)
-        target_ggf_values = ggf_values.clone()
-
         # update the weights of the Q network when the policy is deterministic
         if self.deterministic:
             # get the next best action with the highest GGI value (greedy)
@@ -131,41 +151,41 @@ class DQNAgent:
                 weight_tensor, torch.sort(next_q_values, dim=0).values
             )
             action_best = torch.argmax(next_ggf_values).item()
-            # update the target GGF values
-            target_ggf_values[action] = torch.matmul(
-                weight_tensor,
-                torch.sort(
-                    reward_tensor
-                    + (self.discount_factor * next_q_values[:, action_best]).squeeze()
-                ).values,
+            target_q_values = (
+                reward_tensor
+                + (self.discount_factor * next_q_values[:, action_best]).squeeze()
             )
-
         # update the weights of the Q network when the policy is stochastic
         else:
+            start_time = datetime.now()
             # check first if we need to solve the LP
             is_deterministic_optimal, a_idx = test_deterministic_optimal(
                 q_values=next_q_values.detach().numpy(), weights=self.env.weights
             )
+            self.time_stat.check_deterministic.append(
+                (datetime.now() - start_time).total_seconds()
+            )
             if is_deterministic_optimal:
+                self.count_stat.is_deterministic_improve += 1
                 policy_next = torch.zeros(self.env.action_space.n)
                 policy_next[a_idx] = 1
             else:
+                start_time = datetime.now()
                 policy_next = torch.tensor(
                     get_policy_from_q_values(
                         q_values=next_q_values.tolist(), weights=self.env.weights
                     ),
                     dtype=torch.float32,
                 )
+                self.time_stat.solve_LP.append(
+                    (datetime.now() - start_time).total_seconds()
+                )
             # update the target GGF values
-            target_ggf_values[action] = torch.matmul(
-                weight_tensor,
-                torch.sort(
-                    reward_tensor
-                    + self.discount_factor * torch.matmul(next_q_values, policy_next)
-                ).values,
+            target_q_values = reward_tensor + self.discount_factor * torch.matmul(
+                next_q_values, policy_next
             )
         # compute the loss
-        loss = self.loss_fn(ggf_values, target_ggf_values)
+        loss = self.loss_fn(q_values[:, action], target_q_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -180,6 +200,7 @@ class DQNAgent:
         """
 
         # record statistics
+        start_time = datetime.now()
         episode_rewards = []
         for _ in tqdm(range(num_episodes)):
             ep_rewards = []
@@ -200,4 +221,5 @@ class DQNAgent:
             # update the exploration rate
             if self.exploration_rate > 0.001:
                 self.exploration_rate = self.exploration_rate * self.decaying_factor
+        self.time_stat.total = (datetime.now() - start_time).total_seconds()
         return episode_rewards
