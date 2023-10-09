@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from algorithms.dqn_mrp import ODQNAgent, RDQNAgent
 from algorithms.policy_iteration import PIAgent
-from algorithms.tabular_q import QAgent
+from algorithms.q_learning import QAgent
 from env.mrp_env_rccc import MachineReplacement
 from experiments.configs.config_shared import prs_parser_setup
 from solver.dual_mdp import LPData, build_dlp, extract_dlp, policy_dlp, solve_dlp

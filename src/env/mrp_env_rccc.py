@@ -63,16 +63,14 @@ class MachineReplacement(gym.Env):
     def seed(self, seed=None):
         return
 
-    def reset(self):
+    def reset(self, initial_state: int = 0):
         self.n_runs += 1
         self.step_counter = 0
         self.reward_info = []
-        # set initial state to 0 (all machines are new)
+        # set initial state as given
         if self.encoding_int:
-            return state_vector_to_int_index(
-                np.zeros(self.num_arms, dtype=int), self.num_states
-            )
-        return np.zeros(self.num_arms, dtype=int)
+            return initial_state
+        return state_int_index_to_vector(initial_state, self.num_arms, self.num_states)
 
     def step(self, action):
         """
