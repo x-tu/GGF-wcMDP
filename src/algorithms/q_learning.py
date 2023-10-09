@@ -94,7 +94,7 @@ class QAgent:
                 for t_idx in range(len_episode):
                     action = self.act(observation=observation, reward_prev=reward)
                     observation_next, reward, done, _ = self.env.step(action)
-                    total_reward += (self.discount_factor ** t_idx) * reward
+                    total_reward += (1 - done) * self.discount_factor ** t_idx * reward
                     self.update(observation, action, reward, observation_next)
                     observation = observation_next
                 ep_rewards.append(total_reward)
