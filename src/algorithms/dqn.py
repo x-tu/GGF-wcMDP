@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from solver.dual_q import get_policy_from_q_values, test_deterministic_optimal
 from utils.common import DotDict
+from utils.encoding import state_vector_to_int_index
 
 
 class DQNetwork(nn.Module):
@@ -51,6 +52,7 @@ class DQNAgent:
         if not self.deterministic:
             # initialize the stochastic policy as uniform distribution
             self.policy = [1 / env.action_space.n] * env.action_space.n
+            self.policy_stochastic = {}
 
         # input: states tuples that are encoded as integers
         input_dim = env.reward_space.n
@@ -59,7 +61,6 @@ class DQNAgent:
         self.q_network = DQNetwork(
             input_dim=input_dim, hidden_dim=h_size, output_dim=output_dim
         )
-        self.policy = {}
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
         self.loss_fn = nn.MSELoss()
         # statistics for counting
@@ -197,10 +198,13 @@ class DQNAgent:
                     (datetime.now() - start_time).total_seconds()
                 )
             # update the target GGF values
-            self.policy = policy_next
             target_q_values = reward_tensor + self.discount_factor * torch.matmul(
                 next_q_values, policy_next
             )
+            state = state_vector_to_int_index(
+                state_vector=observation, num_states=self.env.num_states
+            )
+            self.policy_stochastic[state] = policy_next.tolist()
         # compute the loss
         loss = self.loss_fn(q_values[:, action], target_q_values)
         self.optimizer.zero_grad()
