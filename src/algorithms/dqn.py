@@ -66,7 +66,17 @@ class DQNAgent:
         )
         # statistics for timing
         self.time_stat = DotDict(
-            {"total": 0, "check_deterministic": [], "solve_LP": []}
+            {
+                "total": 0,
+                "episode": [],
+                "sample": [],
+                "step": [],
+                "act": [],
+                "env": [],
+                "improve": [],
+                "check_deterministic": [],
+                "solve_LP": [],
+            }
         )
 
     def act(self, observation: np.array, reward_prev: np.array) -> int:
@@ -203,23 +213,47 @@ class DQNAgent:
         start_time = datetime.now()
         episode_rewards = []
         for _ in tqdm(range(num_episodes)):
+            inner_start_time = datetime.now()
             ep_rewards = []
             for n in range(num_samples):
+                sample_start_time = datetime.now()
                 observation = self.env.reset()
                 reward = np.zeros(self.env.reward_space.n)
                 total_reward = np.zeros(self.env.reward_space.n)
                 for t in range(len_episode):
+                    step_start_time = datetime.now()
                     action = self.act(observation=observation, reward_prev=reward)
+                    env_start_time = datetime.now()
                     observation_next, reward, done, _ = self.env.step(action)
                     total_reward += (1 - done) * (self.discount_factor ** t) * reward
+                    update_start_time = datetime.now()
                     self.update(observation, action, reward, observation_next)
                     observation = observation_next
+                    end_time = datetime.now()
+                    self.time_stat.act.append(
+                        (env_start_time - step_start_time).total_seconds()
+                    )
+                    self.time_stat.env.append(
+                        (update_start_time - env_start_time).total_seconds()
+                    )
+                    self.time_stat.improve.append(
+                        (end_time - update_start_time).total_seconds()
+                    )
+                    self.time_stat.step.append(
+                        (end_time - step_start_time).total_seconds()
+                    )
                 ep_rewards.append(total_reward)
+                self.time_stat.sample.append(
+                    (datetime.now() - sample_start_time).total_seconds()
+                )
             # get the expected rewards by averaging over samples, and then sort
             rewards_sorted = np.sort(np.mean(ep_rewards, axis=0))
             episode_rewards.append(np.dot(self.env.weights, rewards_sorted))
             # update the exploration rate
             if self.exploration_rate > 0.001:
                 self.exploration_rate = self.exploration_rate * self.decaying_factor
+            self.time_stat.episode.append(
+                (datetime.now() - inner_start_time).total_seconds()
+            )
         self.time_stat.total = (datetime.now() - start_time).total_seconds()
         return episode_rewards
