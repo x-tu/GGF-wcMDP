@@ -1,5 +1,6 @@
 """Implementation of the Multi-objective Q-learning Algorithm."""
 
+import random
 from datetime import datetime
 
 import numpy as np
@@ -131,18 +132,38 @@ class QAgent:
                 - self.q_table[observation, :, action]
             )
 
-    def run(self, num_episodes: int, len_episode: int, num_samples: int):
+    def run(
+        self,
+        num_episodes: int,
+        len_episode: int,
+        num_samples: int,
+        initial_state: int = None,
+        random_seed: int = 10,
+    ):
+        """Run the Q learning algorithm.
+
+        Args:
+            num_episodes (`int`): the number of episodes to run.
+            len_episode (`int`): the maximum length of each episode.
+            num_samples (`int`): the number of samples to take from each episode.
+            initial_state (`int`): the initial state of the environment.
+            random_seed (`int`): the random seed for test consistency.
+        """
+
         # set the linear decaying schedule for learning rate
         self.lr_decay_schedule = np.linspace(
             start=self.learning_rate, stop=0, num=num_episodes
         )
-
+        # set the random seed
+        random.seed(random_seed)
+        if initial_state is None:
+            initial_state = random.randint(0, self.env.num_states - 1)
         # record statistics
         episode_rewards = []
         for ep in tqdm(range(num_episodes)):
             ep_rewards = []
             for n_idx in range(num_samples):
-                observation = self.env.reset()
+                observation = self.env.reset(initial_state=initial_state)
                 reward = np.zeros(self.env.reward_space.n)
                 total_reward = np.zeros(self.env.reward_space.n)
                 for t_idx in range(len_episode):

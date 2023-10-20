@@ -38,10 +38,15 @@ class DLPAgent:
         extract_dlp(mlp_model, self.mrp_data)
 
     def run_mc_dlp(self, initial_state: int = None, random_seed: int = 10):
-        """Run the MC simulation."""
+        """Run the MC simulation.
+
+        Args:
+            initial_state: initial state of the environment
+            random_seed: random seed for test consistency
+        """
 
         episode_rewards = []
-        # set the seed for reproducibility
+        # set the seed for test consistency
         random.seed(random_seed)
         # uniformly sample initial state if not given
         if initial_state is None:

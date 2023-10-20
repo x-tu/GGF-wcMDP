@@ -1,5 +1,6 @@
 """Implementation of the Multi-Objective Deep Q Network (DQN) Algorithm."""
 
+import random
 from datetime import datetime
 
 import numpy as np
@@ -200,24 +201,36 @@ class DQNAgent:
         loss.backward()
         self.optimizer.step()
 
-    def run(self, num_episodes: int, len_episode: int, num_samples: int):
+    def run(
+        self,
+        num_episodes: int,
+        len_episode: int,
+        num_samples: int,
+        initial_state: int = None,
+        random_seed: int = 10,
+    ):
         """Train the agent for a number of episodes.
 
         Args:
             num_episodes (`int`): the number of episodes to train the agent.
             len_episode (`int`): the maximum length of an episode.
             num_samples (`int`): the number of samples to use for the GGI case.
+            initial_state (`int`): the initial state to start the episode from.
+            random_seed (`int`): the random seed to use for test consistency.
         """
 
         # record statistics
         start_time = datetime.now()
         episode_rewards = []
+        random.seed(random_seed)
+        if initial_state is None:
+            initial_state = random.randint(0, self.env.observation_space.n - 1)
         for _ in tqdm(range(num_episodes)):
             inner_start_time = datetime.now()
             ep_rewards = []
             for n in range(num_samples):
                 sample_start_time = datetime.now()
-                observation = self.env.reset()
+                observation = self.env.reset(initial_state=initial_state)
                 reward = np.zeros(self.env.reward_space.n)
                 total_reward = np.zeros(self.env.reward_space.n)
                 for t in range(len_episode):
