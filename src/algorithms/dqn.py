@@ -59,6 +59,7 @@ class DQNAgent:
         self.q_network = DQNetwork(
             input_dim=input_dim, hidden_dim=h_size, output_dim=output_dim
         )
+        self.policy = {}
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
         self.loss_fn = nn.MSELoss()
         # statistics for counting
@@ -73,10 +74,12 @@ class DQNAgent:
                 "sample": [],
                 "step": [],
                 "act": [],
+                "check_dtm_act": [],
+                "solve_lp_act": [],
                 "env": [],
                 "improve": [],
-                "check_deterministic": [],
-                "solve_LP": [],
+                "check_dtm_improve": [],
+                "solve_lp_improve": [],
             }
         )
 
@@ -114,7 +117,7 @@ class DQNAgent:
         is_deterministic_optimal, a_idx = test_deterministic_optimal(
             q_values=q_values.detach().numpy(), weights=self.env.weights
         )
-        self.time_stat.check_deterministic.append(
+        self.time_stat.check_dtm_act.append(
             (datetime.now() - start_time).total_seconds()
         )
         if is_deterministic_optimal:
@@ -124,7 +127,9 @@ class DQNAgent:
         self.policy = get_policy_from_q_values(
             q_values=q_values.tolist(), weights=self.env.weights
         )
-        self.time_stat.solve_LP.append((datetime.now() - start_time).total_seconds())
+        self.time_stat.solve_lp_act.append(
+            (datetime.now() - start_time).total_seconds()
+        )
         return np.random.choice(range(self.env.action_space.n), p=self.policy)
 
     def update(
@@ -173,7 +178,7 @@ class DQNAgent:
             is_deterministic_optimal, a_idx = test_deterministic_optimal(
                 q_values=next_q_values.detach().numpy(), weights=self.env.weights
             )
-            self.time_stat.check_deterministic.append(
+            self.time_stat.check_dtm_improve.append(
                 (datetime.now() - start_time).total_seconds()
             )
             if is_deterministic_optimal:
@@ -188,10 +193,11 @@ class DQNAgent:
                     ),
                     dtype=torch.float32,
                 )
-                self.time_stat.solve_LP.append(
+                self.time_stat.solve_lp_improve.append(
                     (datetime.now() - start_time).total_seconds()
                 )
             # update the target GGF values
+            self.policy = policy_next
             target_q_values = reward_tensor + self.discount_factor * torch.matmul(
                 next_q_values, policy_next
             )
