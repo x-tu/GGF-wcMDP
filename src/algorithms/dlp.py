@@ -1,8 +1,10 @@
+import random
+
 import numpy as np
 from tqdm import tqdm
 
 from env.mrp_env_rccc import MachineReplacement
-from solver.dual_mdp import LPData, build_dlp, policy_dlp, solve_dlp
+from solver.dual_mdp import LPData, build_dlp, extract_dlp, policy_dlp, solve_dlp
 from utils.common import DotDict
 
 
@@ -33,11 +35,17 @@ class DLPAgent:
         )
         mlp_model = build_dlp(self.mrp_data)
         _, self.mlp_model = solve_dlp(model=mlp_model)
+        extract_dlp(mlp_model, self.mrp_data)
 
-    def run_mc_dlp(self, initial_state: int = 0):
+    def run_mc_dlp(self, initial_state: int = None, random_seed: int = 10):
         """Run the MC simulation."""
 
         episode_rewards = []
+        # set the seed for reproducibility
+        random.seed(random_seed)
+        # uniformly sample initial state if not given
+        if initial_state is None:
+            initial_state = random.randint(0, self.env.num_states - 1)
         for _ in tqdm(range(self.params.num_episodes)):
             # run LP
             state = self.env.reset(initial_state=initial_state)
