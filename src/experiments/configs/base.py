@@ -15,7 +15,6 @@ params = DotDict(
         "num_samples": 10,
         "gamma": 0.95,
         "rccc_wrt_max": 0.5,
-        "prob_remain": np.linspace(start=0.5, stop=0.9, num=3),
         "mat_type": 1,
         # hyperparameters for the Q-learning
         "ql": DotDict(
@@ -23,6 +22,7 @@ params = DotDict(
                 "alpha": 0.3,  # learning rate
                 "epsilon": 0.7,  # exploration rate
                 "decaying_factor": 0.95,  # decaying factor for epsilon
+                "deterministic": False,  # whether to use deterministic policy
             }
         ),
         # hyperparameters for the DQN
@@ -38,3 +38,4 @@ params = DotDict(
         ),
     }
 )
+params.update({"prob_remain": np.linspace(start=0.5, stop=0.9, num=params.num_groups)})
