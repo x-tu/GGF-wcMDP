@@ -23,6 +23,7 @@ agent = QAgent(
     discount_factor=params.gamma,
     exploration_rate=params.ql.epsilon,
     decaying_factor=params.ql.decaying_factor,
+    deterministic=params.ql.deterministic,
 )
 episode_rewards = agent.run(
     num_episodes=params.num_episodes,
