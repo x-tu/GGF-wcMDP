@@ -247,7 +247,9 @@ class DQNAgent:
             ep_rewards = []
             for n in range(num_samples):
                 sample_start_time = datetime.now()
-                observation = self.env.reset(initial_state=initial_state)
+                observation = self.env.reset(
+                    initial_state=initial_state, normalize=True
+                )
                 reward = np.zeros(self.env.reward_space.n)
                 total_reward = np.zeros(self.env.reward_space.n)
                 for t in range(len_episode):

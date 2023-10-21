@@ -29,8 +29,8 @@ class MachineReplacement(gym.Env):
         super(gym.Env, self).__init__()
         # Parameters
         self.num_arms = num_arms
+        self.base_states = num_states
         if encoding_int:
-            self.base_states = num_states
             self.num_states = num_states ** num_arms
         else:
             self.num_states = num_states
@@ -50,7 +50,7 @@ class MachineReplacement(gym.Env):
         wgh_class = FairWeight(num_arms, weight_coefficient=weight_coefficient)
         self.weights = wgh_class.weights
 
-        self.observation_space = spaces.Discrete(self.num_states)
+        self.observation_space = spaces.Discrete(self.base_states ** self.num_arms)
         self.action_space = spaces.Discrete(self.num_actions)
         self.reward_space = spaces.Discrete(self.num_arms)
 
@@ -63,14 +63,19 @@ class MachineReplacement(gym.Env):
     def seed(self, seed=None):
         return
 
-    def reset(self, initial_state: int = 0):
+    def reset(self, initial_state: int = 0, normalize: bool = False):
         self.n_runs += 1
         self.step_counter = 0
         self.reward_info = []
         # set initial state as given
         if self.encoding_int:
             return initial_state
-        return state_int_index_to_vector(initial_state, self.num_arms, self.num_states)
+        state_vector = state_int_index_to_vector(
+            initial_state, self.num_arms, self.base_states
+        )
+        if normalize:
+            return state_vector / self.base_states
+        return state_vector
 
     def step(self, action):
         """
