@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from solver.dual_q import get_policy_from_q_values, test_deterministic_optimal
 from utils.common import DotDict
+from utils.encoding import state_vector_to_int_index
 
 
 class DQNetwork(nn.Module):
@@ -50,7 +51,11 @@ class DQNAgent:
         self.deterministic = deterministic
         if not self.deterministic:
             # initialize the stochastic policy as uniform distribution
-            self.policy = [1 / env.action_space.n] * env.action_space.n
+            state_policy = [1 / env.action_space.n] * env.action_space.n
+        else:
+            # do nothing by default
+            state_policy = [1] + [0] * (env.action_space.n - 1)
+        self.policy = {s: state_policy for s in range(env.observation_space.n)}
 
         # input: states tuples that are encoded as integers
         input_dim = env.reward_space.n
@@ -73,10 +78,12 @@ class DQNAgent:
                 "sample": [],
                 "step": [],
                 "act": [],
+                "check_dtm_act": [],
+                "solve_lp_act": [],
                 "env": [],
                 "improve": [],
-                "check_deterministic": [],
-                "solve_LP": [],
+                "check_dtm_improve": [],
+                "solve_lp_improve": [],
             }
         )
 
@@ -114,18 +121,20 @@ class DQNAgent:
         is_deterministic_optimal, a_idx = test_deterministic_optimal(
             q_values=q_values.detach().numpy(), weights=self.env.weights
         )
-        self.time_stat.check_deterministic.append(
+        self.time_stat.check_dtm_act.append(
             (datetime.now() - start_time).total_seconds()
         )
         if is_deterministic_optimal:
             self.count_stat.is_deterministic_act += 1
             return a_idx
         start_time = datetime.now()
-        self.policy = get_policy_from_q_values(
+        policy_next = get_policy_from_q_values(
             q_values=q_values.tolist(), weights=self.env.weights
         )
-        self.time_stat.solve_LP.append((datetime.now() - start_time).total_seconds())
-        return np.random.choice(range(self.env.action_space.n), p=self.policy)
+        self.time_stat.solve_lp_act.append(
+            (datetime.now() - start_time).total_seconds()
+        )
+        return np.random.choice(range(self.env.action_space.n), p=policy_next)
 
     def update(
         self,
@@ -166,6 +175,8 @@ class DQNAgent:
                 reward_tensor
                 + (self.discount_factor * next_q_values[:, action_best]).squeeze()
             )
+            policy_next = np.zeros(self.env.action_space.n)
+            policy_next[action_best] = 1
         # update the weights of the Q network when the policy is stochastic
         else:
             start_time = datetime.now()
@@ -173,7 +184,7 @@ class DQNAgent:
             is_deterministic_optimal, a_idx = test_deterministic_optimal(
                 q_values=next_q_values.detach().numpy(), weights=self.env.weights
             )
-            self.time_stat.check_deterministic.append(
+            self.time_stat.check_dtm_improve.append(
                 (datetime.now() - start_time).total_seconds()
             )
             if is_deterministic_optimal:
@@ -188,13 +199,19 @@ class DQNAgent:
                     ),
                     dtype=torch.float32,
                 )
-                self.time_stat.solve_LP.append(
+                self.time_stat.solve_lp_improve.append(
                     (datetime.now() - start_time).total_seconds()
                 )
             # update the target GGF values
             target_q_values = reward_tensor + self.discount_factor * torch.matmul(
                 next_q_values, policy_next
             )
+        # convert the observation vector encoding to state index
+        state = state_vector_to_int_index(
+            state_vector=observation * self.env.num_states,
+            num_states=self.env.num_states,
+        )
+        self.policy[state] = policy_next.tolist()
         # compute the loss
         loss = self.loss_fn(q_values[:, action], target_q_values)
         self.optimizer.zero_grad()
