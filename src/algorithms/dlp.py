@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 from tqdm import tqdm
 
@@ -37,22 +35,20 @@ class DLPAgent:
         _, self.mlp_model = solve_dlp(model=mlp_model)
         extract_dlp(mlp_model, self.mrp_data)
 
-    def run_mc_dlp(self, initial_state: int = None, random_seed: int = 10):
+    def run_mc_dlp(self, initial_states: list = None):
         """Run the MC simulation.
 
+        Notice: Random seeds may vary across different python versions or devices.
+            We can force use a given initial state list if needed.
+
         Args:
-            initial_state: initial state of the environment
-            random_seed: random seed for test consistency
+            initial_states: list of initial states to run the simulation
         """
 
         episode_rewards = []
-        # set the seed for test consistency
-        random.seed(random_seed)
-        # uniformly sample initial state if not given
-        if initial_state is None:
-            initial_state = random.randint(0, self.env.num_states - 1)
-        for _ in tqdm(range(self.params.num_episodes)):
+        for ep in tqdm(range(self.params.num_episodes)):
             # run LP
+            initial_state = initial_states[ep] if initial_states else 0
             state = self.env.reset(initial_state=initial_state)
             total_reward = 0
             for t in range(self.params.len_episode):
