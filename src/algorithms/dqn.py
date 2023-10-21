@@ -223,7 +223,7 @@ class DQNAgent:
         num_episodes: int,
         len_episode: int,
         num_samples: int,
-        initial_state: int = None,
+        initial_state_idx: int = None,
         random_seed: int = 10,
     ):
         """Train the agent for a number of episodes.
@@ -232,7 +232,7 @@ class DQNAgent:
             num_episodes (`int`): the number of episodes to train the agent.
             len_episode (`int`): the maximum length of an episode.
             num_samples (`int`): the number of samples to use for the GGI case.
-            initial_state (`int`): the initial state to start the episode from.
+            initial_state_idx (`int`): the initial state index to use.
             random_seed (`int`): the random seed to use for test consistency.
         """
 
@@ -240,11 +240,14 @@ class DQNAgent:
         start_time = datetime.now()
         episode_rewards = []
         random.seed(random_seed)
-        if initial_state is None:
-            initial_state = random.randint(0, self.env.observation_space.n - 1)
         for _ in tqdm(range(num_episodes)):
             inner_start_time = datetime.now()
             ep_rewards = []
+            initial_state = (
+                random.randint(0, self.env.observation_space.n - 1)
+                if not initial_state_idx
+                else initial_state_idx
+            )
             for n in range(num_samples):
                 sample_start_time = datetime.now()
                 observation = self.env.reset(
