@@ -134,7 +134,18 @@ class DQNAgent:
         self.time_stat.solve_lp_act.append(
             (datetime.now() - start_time).total_seconds()
         )
-        return np.random.choice(range(self.env.action_space.n), p=policy_next)
+        try:
+            action = np.random.choice(range(self.env.action_space.n), p=policy_next)
+        except ValueError:
+            # for manual checking
+            print("Negative probabilities in policy_next: ", policy_next)
+            print("q_values: ", q_values)
+            # temp solution to remove negative probabilities (caused by floating point errors in Pyomo)
+            policy_next = [p if p > 0 else 0 for p in policy_next]
+            # normalize the policy probabilities
+            policy_next = [p / sum(policy_next) for p in policy_next]
+            action = np.random.choice(range(self.env.action_space.n), p=policy_next)
+        return action
 
     def update(
         self,
@@ -239,6 +250,7 @@ class DQNAgent:
         # record statistics
         start_time = datetime.now()
         episode_rewards = []
+        states = []
         random.seed(random_seed)
         for _ in tqdm(range(num_episodes)):
             inner_start_time = datetime.now()
@@ -248,6 +260,7 @@ class DQNAgent:
                 if not initial_state_idx
                 else initial_state_idx
             )
+            states.append(initial_state)
             for n in range(num_samples):
                 sample_start_time = datetime.now()
                 observation = self.env.reset(
@@ -291,4 +304,5 @@ class DQNAgent:
                 (datetime.now() - inner_start_time).total_seconds()
             )
         self.time_stat.total = (datetime.now() - start_time).total_seconds()
+        print("\n", states)
         return episode_rewards
