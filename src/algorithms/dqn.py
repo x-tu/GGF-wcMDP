@@ -87,19 +87,15 @@ class DQNAgent:
             }
         )
 
-    def act(self, observation: np.array, reward_prev: np.array) -> int:
+    def act(self, observation: np.array) -> int:
         """Select an action according to the observation.
 
         Args:
             observation (`np.array`): the current observable state.
-            reward_prev (`np.array`): the previous reward.
 
         Returns:
             (`int`): the selected action.
         """
-
-        # convert the reward vector to a column vector
-        reward_prev_col = reward_prev.reshape((-1, 1))
 
         # 1) exploration
         if np.random.rand() < self.exploration_rate:
@@ -113,8 +109,7 @@ class DQNAgent:
         if self.deterministic:
             # use vectorized computation to speed up the process
             q_values = q_values.detach().numpy()
-            temp_q_values = reward_prev_col + self.discount_factor * q_values
-            ggf_q_values = np.dot(self.env.weights, np.sort(temp_q_values, axis=0))
+            ggf_q_values = np.dot(self.env.weights, np.sort(q_values, axis=0))
             return np.argmax(ggf_q_values).item()
         start_time = datetime.now()
         # stochastic policy is given by solving LP, check first if we need to solve the LP
@@ -266,11 +261,10 @@ class DQNAgent:
                 observation = self.env.reset(
                     initial_state=initial_state, normalize=True
                 )
-                reward = np.zeros(self.env.reward_space.n)
                 total_reward = np.zeros(self.env.reward_space.n)
                 for t in range(len_episode):
                     step_start_time = datetime.now()
-                    action = self.act(observation=observation, reward_prev=reward)
+                    action = self.act(observation=observation)
                     env_start_time = datetime.now()
                     observation_next, reward, done, _ = self.env.step(action)
                     total_reward += (1 - done) * (self.discount_factor ** t) * reward
