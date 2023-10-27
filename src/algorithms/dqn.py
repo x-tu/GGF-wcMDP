@@ -250,13 +250,14 @@ class DQNAgent:
         for _ in tqdm(range(num_episodes)):
             inner_start_time = datetime.now()
             ep_rewards = []
-            initial_state = (
-                random.randint(0, self.env.observation_space.n - 1)
-                if not initial_state_idx
-                else initial_state_idx
-            )
-            states.append(initial_state)
             for n in range(num_samples):
+                initial_state = (
+                    random.randint(0, self.env.observation_space.n - 1)
+                    if not initial_state_idx
+                    else initial_state_idx
+                )
+                # record for sanity check
+                states.append(initial_state)
                 sample_start_time = datetime.now()
                 observation = self.env.reset(
                     initial_state=initial_state, normalize=True
