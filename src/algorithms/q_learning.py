@@ -156,7 +156,7 @@ class QAgent:
             )
             if is_deterministic_optimal:
                 self.count_stat.is_deterministic_improve += 1
-                policy_next = np.zeros(self.env.action_space.n)
+                policy_next = np.zeros(self.env.action_space.n).tolist()
                 policy_next[a_idx] = 1
             else:
                 start_time = datetime.now()
@@ -174,7 +174,7 @@ class QAgent:
                 * np.dot(self.q_table[observation_next, :, :], policy_next)
                 - self.q_table[observation, :, action]
             )
-            self.policy[observation] = policy_next.tolist()
+            self.policy[observation] = policy_next
 
     def run(
         self,
