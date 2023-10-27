@@ -1,5 +1,6 @@
 import itertools
 import random
+from datetime import datetime
 
 import numpy as np
 import pyomo.environ as pyo
@@ -187,10 +188,13 @@ def solve_dlp(model):
     """
 
     # Set the solver to be used
+    start_time = datetime.now()
     optimizer = SolverFactory("gurobi", solver_io="python")
+    print(f"Solver selection time: {(datetime.now() - start_time).total_seconds()}")
     # optimizer.options["sec"] = MAX_SOLVING_TIME
-    results = optimizer.solve(model, tee=True)
-
+    start_time = datetime.now()
+    results = optimizer.solve(model, tee=False, report_timing=True)
+    print(f"Solver solving time: {(datetime.now() - start_time).total_seconds()}")
     return results, model
 
 
