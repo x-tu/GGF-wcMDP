@@ -36,13 +36,33 @@ class QAgent:
         self.decaying_factor = decaying_factor
         self.lr_decay_schedule = []
         self.deterministic = deterministic
+        if not self.deterministic:
+            # initialize the stochastic policy as uniform distribution
+            state_policy = [1 / env.action_space.n] * env.action_space.n
+        else:
+            # do nothing by default
+            state_policy = [1] + [0] * (env.action_space.n - 1)
+        self.policy = {s: state_policy for s in range(env.observation_space.n)}
+
         # statistics for counting
         self.count_stat = DotDict(
             {"is_deterministic_act": 0, "is_deterministic_improve": 0}
         )
         # statistics for timing
         self.time_stat = DotDict(
-            {"total": 0, "check_deterministic": [], "solve_LP": []}
+            {
+                "total": 0,
+                "episode": [],
+                "sample": [],
+                "step": [],
+                "act": [],
+                "check_dtm_act": [],
+                "solve_lp_act": [],
+                "env": [],
+                "improve": [],
+                "check_dtm_improve": [],
+                "solve_lp_improve": [],
+            }
         )
 
     def act(self, observation: int, reward_prev: np.array) -> int:
@@ -67,18 +87,37 @@ class QAgent:
             )
             ggf_q_values = np.dot(self.env.weights, np.sort(temp_q_values, axis=0))
             return np.argmax(ggf_q_values).item()
+        start_time = datetime.now()
         # stochastic policy is given by solving LP, check first if we need to solve the LP
         is_deterministic_optimal, a_idx = test_deterministic_optimal(
             q_values=self.q_table[observation, :, :], weights=self.env.weights
         )
+        self.time_stat.check_dtm_act.append(
+            (datetime.now() - start_time).total_seconds()
+        )
         if is_deterministic_optimal:
             self.count_stat.is_deterministic_act += 1
             return a_idx
+        start_time = datetime.now()
         # solve LP
-        policy = get_policy_from_q_values(
+        policy_next = get_policy_from_q_values(
             q_values=self.q_table[observation, :, :], weights=self.env.weights
         )
-        return np.random.choice(range(self.env.action_space.n), p=policy)
+        self.time_stat.solve_lp_act.append(
+            (datetime.now() - start_time).total_seconds()
+        )
+        try:
+            action = np.random.choice(range(self.env.action_space.n), p=policy_next)
+        except ValueError:
+            # for manual checking
+            print("Negative probabilities in policy_next: ", policy_next)
+            print("q_values: ", self.q_table)
+            # temp solution to remove negative probabilities (caused by floating point errors in Pyomo)
+            policy_next = [p if p > 0 else 0 for p in policy_next]
+            # normalize the policy probabilities
+            policy_next = [p / sum(policy_next) for p in policy_next]
+            action = np.random.choice(range(self.env.action_space.n), p=policy_next)
+        return action
 
     def update(
         self, observation: int, action: int, reward: np.array, observation_next: int
@@ -107,9 +146,13 @@ class QAgent:
             )
         # update the values of the Q table when the policy is stochastic
         else:
+            start_time = datetime.now()
             # check first if we need to solve the LP
             is_deterministic_optimal, a_idx = test_deterministic_optimal(
                 q_values=self.q_table[observation, :, :], weights=self.env.weights
+            )
+            self.time_stat.check_dtm_improve.append(
+                (datetime.now() - start_time).total_seconds()
             )
             if is_deterministic_optimal:
                 self.count_stat.is_deterministic_improve += 1
@@ -121,7 +164,7 @@ class QAgent:
                     q_values=self.q_table[observation_next, :, :],
                     weights=self.env.weights,
                 )
-                self.time_stat.solve_LP.append(
+                self.time_stat.solve_lp_improve.append(
                     (datetime.now() - start_time).total_seconds()
                 )
             # update the Q table
@@ -131,13 +174,14 @@ class QAgent:
                 * np.dot(self.q_table[observation_next, :, :], policy_next)
                 - self.q_table[observation, :, action]
             )
+            self.policy[observation] = policy_next.tolist()
 
     def run(
         self,
         num_episodes: int,
         len_episode: int,
         num_samples: int,
-        initial_state: int = None,
+        initial_state_idx: int = None,
         random_seed: int = 10,
     ):
         """Run the Q learning algorithm.
@@ -146,33 +190,61 @@ class QAgent:
             num_episodes (`int`): the number of episodes to run.
             len_episode (`int`): the maximum length of each episode.
             num_samples (`int`): the number of samples to take from each episode.
-            initial_state (`int`): the initial state of the environment.
+            initial_state_idx (`int`): the initial state index to use.
             random_seed (`int`): the random seed for test consistency.
         """
 
+        # record statistics
+        start_time = datetime.now()
         # set the linear decaying schedule for learning rate
         self.lr_decay_schedule = np.linspace(
             start=self.learning_rate, stop=0, num=num_episodes
         )
-        # set the random seed
-        random.seed(random_seed)
-        if initial_state is None:
-            initial_state = random.randint(0, self.env.num_states - 1)
         # record statistics
         episode_rewards = []
+        states = []
+        # set the random seed
+        random.seed(random_seed)
         for ep in tqdm(range(num_episodes)):
+            inner_start_time = datetime.now()
             ep_rewards = []
+            initial_state = (
+                random.randint(0, self.env.observation_space.n - 1)
+                if not initial_state_idx
+                else initial_state_idx
+            )
+            states.append(initial_state)
             for n_idx in range(num_samples):
+                sample_start_time = datetime.now()
                 observation = self.env.reset(initial_state=initial_state)
                 reward = np.zeros(self.env.reward_space.n)
                 total_reward = np.zeros(self.env.reward_space.n)
                 for t_idx in range(len_episode):
+                    step_start_time = datetime.now()
                     action = self.act(observation=observation, reward_prev=reward)
+                    env_start_time = datetime.now()
                     observation_next, reward, done, _ = self.env.step(action)
                     total_reward += (1 - done) * self.discount_factor ** t_idx * reward
+                    update_start_time = datetime.now()
                     self.update(observation, action, reward, observation_next)
                     observation = observation_next
+                    end_time = datetime.now()
+                    self.time_stat.act.append(
+                        (env_start_time - step_start_time).total_seconds()
+                    )
+                    self.time_stat.env.append(
+                        (update_start_time - env_start_time).total_seconds()
+                    )
+                    self.time_stat.improve.append(
+                        (end_time - update_start_time).total_seconds()
+                    )
+                    self.time_stat.step.append(
+                        (end_time - step_start_time).total_seconds()
+                    )
                 ep_rewards.append(total_reward)
+                self.time_stat.sample.append(
+                    (datetime.now() - sample_start_time).total_seconds()
+                )
             # get the expected rewards by averaging over samples, and then sort
             rewards_sorted = np.sort(np.mean(ep_rewards, axis=0))
             episode_rewards.append(np.dot(self.env.weights, rewards_sorted))
@@ -181,4 +253,9 @@ class QAgent:
             # update the exploration rate
             if self.exploration_rate > 0.001:
                 self.exploration_rate = self.exploration_rate * self.decaying_factor
+            self.time_stat.episode.append(
+                (datetime.now() - inner_start_time).total_seconds()
+            )
+        self.time_stat.total = (datetime.now() - start_time).total_seconds()
+        print("\n", states)
         return episode_rewards
