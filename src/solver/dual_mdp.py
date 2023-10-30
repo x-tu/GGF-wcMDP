@@ -125,12 +125,13 @@ def build_dlp(lp_data) -> pyo.ConcreteModel:
     model = pyo.ConcreteModel()
 
     # Create mu list
-    big_mu_list = [1 / len(lp_data.state_tuples)] * len(lp_data.state_tuples)
+    # big_mu_list = [1 / len(lp_data.state_tuples)] * len(lp_data.state_tuples)
+    big_mu_list = [1] + [0] * (len(lp_data.state_tuples) - 1)
 
     # Variables
     model.varL = pyo.Var(lp_data.arm_indices, within=pyo.NonNegativeReals)
     model.varN = pyo.Var(lp_data.arm_indices, within=pyo.NonNegativeReals)
-    model.varD = pyo.Var(
+    model.varX = pyo.Var(
         lp_data.state_tuples, lp_data.action_indices, within=pyo.NonNegativeReals
     )
 
@@ -151,7 +152,7 @@ def build_dlp(lp_data) -> pyo.ConcreteModel:
                 >= lp_data.weights[d1]
                 * sum(
                     lp_data.global_costs[s, a, d2]
-                    * model.varD[lp_data.state_tuples[s], a]
+                    * model.varX[lp_data.state_tuples[s], a]
                     for s in lp_data.state_indices
                     for a in lp_data.action_indices
                 )
@@ -160,11 +161,11 @@ def build_dlp(lp_data) -> pyo.ConcreteModel:
     # Group 2 (s ^ D Constraints)
     for s in lp_data.state_indices:
         model.dual_constraints.add(
-            sum(model.varD[lp_data.state_tuples[s], a] for a in lp_data.action_indices)
+            sum(model.varX[lp_data.state_tuples[s], a] for a in lp_data.action_indices)
             - lp_data.discount
             * (
                 sum(
-                    model.varD[lp_data.state_tuples[next_s], a]
+                    model.varX[lp_data.state_tuples[next_s], a]
                     * lp_data.global_transitions[s, next_s, a]
                     for next_s in lp_data.state_indices
                     for a in lp_data.action_indices
@@ -213,23 +214,24 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
     # Dual variable x
     for s in lp_data.state_indices:
         for a in lp_data.action_indices:
-            x_value = model.varD[lp_data.state_tuples[s], a].value
-            # if x_value > 1e-6:
-            #     print(f"x{lp_data.state_tuples[s], a}: {x_value}")
+            x_value = model.varX[lp_data.state_tuples[s], a].value
+            if x_value > 1e-6:
+                print(f"x{lp_data.state_tuples[s], a}: {x_value}")
 
     # Policy interpretation
     # policy = np.zeros((9, 3))
     for s in lp_data.state_indices:
         x_sum = sum(
             [
-                model.varD[lp_data.state_tuples[s], a].value
+                model.varX[lp_data.state_tuples[s], a].value
                 for a in lp_data.action_indices
             ]
         )
         for a in lp_data.action_indices:
-            x_value = model.varD[lp_data.state_tuples[s], a].value
-            if x_value > 1e-6:
-                print(f"policy{lp_data.state_tuples[s], a}: {x_value / x_sum}")
+            x_value = model.varX[lp_data.state_tuples[s], a].value
+            # if x_value > 1e-6:
+            x_sum = 1e-6 if x_sum == 0 else x_sum  # avoid zero division
+            print(f"policy{lp_data.state_tuples[s], a}: {x_value / x_sum}")
             # policy[s, a] += x_value / x_sum
 
     # Dual variable lambda
@@ -244,7 +246,7 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
     reward = []
     for d in lp_data.arm_indices:
         all_cost = sum(
-            lp_data.global_costs[s, a, d] * model.varD[lp_data.state_tuples[s], a].value
+            lp_data.global_costs[s, a, d] * model.varX[lp_data.state_tuples[s], a].value
             for s in lp_data.state_indices
             for a in lp_data.action_indices
         )
@@ -257,12 +259,12 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
 def policy_dlp(state, model: pyo.ConcreteModel, lp_data, deterministic=False):
     if deterministic:
         for a in lp_data.action_indices:
-            x_value = model.varD[tuple(state), a].value
+            x_value = model.varX[tuple(state), a].value
             if x_value > 1e-6:
                 return int(a)
     else:
         x_values = [
-            model.varD[tuple(state), int(a)].value for a in list(lp_data.action_indices)
+            model.varX[tuple(state), int(a)].value for a in list(lp_data.action_indices)
         ]
         x_probs = [x / sum(x_values) for x in x_values]
         return random.choices(lp_data.action_indices, weights=x_probs, k=1)[0]
