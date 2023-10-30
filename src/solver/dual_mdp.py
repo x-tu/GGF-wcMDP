@@ -121,12 +121,15 @@ class LPData:
         return global_transitions
 
 
-def build_dlp(lp_data) -> pyo.ConcreteModel:
+def build_dlp(lp_data, init_state_idx: int = None) -> pyo.ConcreteModel:
     model = pyo.ConcreteModel()
 
     # Create mu list
-    # big_mu_list = [1 / len(lp_data.state_tuples)] * len(lp_data.state_tuples)
-    big_mu_list = [1] + [0] * (len(lp_data.state_tuples) - 1)
+    if not init_state_idx:
+        big_mu_list = [1 / len(lp_data.state_tuples)] * len(lp_data.state_tuples)
+    else:
+        big_mu_list = [0.001] * len(lp_data.state_tuples)
+        big_mu_list[init_state_idx] = 1 - 0.001 * (len(lp_data.state_tuples) - 1)
 
     # Variables
     model.varL = pyo.Var(lp_data.arm_indices, within=pyo.NonNegativeReals)
@@ -212,14 +215,13 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
 
     """
     # Dual variable x
-    for s in lp_data.state_indices:
-        for a in lp_data.action_indices:
-            x_value = model.varX[lp_data.state_tuples[s], a].value
-            if x_value > 1e-6:
-                print(f"x{lp_data.state_tuples[s], a}: {x_value}")
+    # for s in lp_data.state_indices:
+    #     for a in lp_data.action_indices:
+    #         x_value = model.varX[lp_data.state_tuples[s], a].value
+    #         if x_value > 1e-6:
+    #             print(f"x{lp_data.state_tuples[s], a}: {x_value}")
 
     # Policy interpretation
-    # policy = np.zeros((9, 3))
     for s in lp_data.state_indices:
         x_sum = sum(
             [
@@ -232,7 +234,6 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
             # if x_value > 1e-6:
             x_sum = 1e-6 if x_sum == 0 else x_sum  # avoid zero division
             print(f"policy{lp_data.state_tuples[s], a}: {x_value / x_sum}")
-            # policy[s, a] += x_value / x_sum
 
     # Dual variable lambda
     for d in lp_data.arm_indices:
