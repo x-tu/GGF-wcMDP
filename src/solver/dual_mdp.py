@@ -3,6 +3,7 @@ import random
 from datetime import datetime
 
 import numpy as np
+import pandas as pd
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
@@ -121,7 +122,7 @@ class LPData:
         return global_transitions
 
 
-def build_dlp(lp_data, init_state_idx: int = None) -> pyo.ConcreteModel:
+def build_dlp(lp_data: LPData, init_state_idx: int = None) -> pyo.ConcreteModel:
     model = pyo.ConcreteModel()
 
     # Create mu list
@@ -176,6 +177,29 @@ def build_dlp(lp_data, init_state_idx: int = None) -> pyo.ConcreteModel:
             )
             == big_mu_list[s]
         )
+    return model
+
+
+def build_dlp_fix(lp_data: LPData, policy: pd.DataFrame) -> pyo.ConcreteModel:
+    """Build the fixed policy MRP model.
+
+    Args:
+        lp_data: the MRP parameter setting
+        policy: the given policy to use
+    """
+
+    model = build_dlp(lp_data=lp_data)
+    # Group 3 (s ^ D * D Constraints)
+    for s in lp_data.state_indices:
+        for a in lp_data.action_indices:
+            model.dual_constraints.add(
+                model.varX[lp_data.state_tuples[s], a]
+                == policy.iloc[s, a]
+                * sum(
+                    model.varX[lp_data.state_tuples[s], a]
+                    for a in lp_data.action_indices
+                )
+            )
     return model
 
 
@@ -234,7 +258,7 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
             1e-6,
         )  # avoid zero division
         action_prob = [
-            model.varD[lp_data.state_tuples[s], a].value / x_sum
+            model.varX[lp_data.state_tuples[s], a].value / x_sum
             for a in lp_data.action_indices
         ]
         policy[s] = action_prob
@@ -263,7 +287,8 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
         )
         reward.append(all_cost)
         print(f"group {d}: {all_cost}")
-
+    reward = np.sort(np.array(reward))
+    print("GGF Value: ", np.dot(reward, lp_data.weights))
     return reward, policy
 
 
