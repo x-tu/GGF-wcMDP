@@ -46,13 +46,15 @@ class DLPAgent:
         models, self.mlp_model = solve_dlp(model=mlp_model)
         self.time["LP_solve"] = (datetime.now() - start_slv_time).total_seconds()
         start_ext_time = datetime.now()
-        extract_dlp(mlp_model, self.mrp_data)
+        _, policy = extract_dlp(mlp_model, self.mrp_data)
         self.time["LP_extract"] = (datetime.now() - start_ext_time).total_seconds()
         self.time["total"] = (datetime.now() - start_time).total_seconds()
         from pandas import DataFrame as df
 
         time_df = df.from_dict(self.time, orient="index")
         time_df.to_csv(f"results/time_{params.num_groups}.csv")
+        policy_df = df.from_dict(policy, orient="index")
+        policy_df.to_csv(f"results/policy_dlp_{params.num_groups}.csv")
         print("Models: ", models)
 
     def run_mc_dlp(self, initial_states: list = None):

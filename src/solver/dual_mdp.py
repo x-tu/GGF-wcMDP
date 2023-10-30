@@ -222,13 +222,23 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
     #             print(f"x{lp_data.state_tuples[s], a}: {x_value}")
 
     # Policy interpretation
+    policy = {}
     for s in lp_data.state_indices:
-        x_sum = sum(
-            [
-                model.varX[lp_data.state_tuples[s], a].value
-                for a in lp_data.action_indices
-            ]
-        )
+        x_sum = max(
+            sum(
+                [
+                    model.varX[lp_data.state_tuples[s], a].value
+                    for a in lp_data.action_indices
+                ]
+            ),
+            1e-6,
+        )  # avoid zero division
+        action_prob = [
+            model.varD[lp_data.state_tuples[s], a].value / x_sum
+            for a in lp_data.action_indices
+        ]
+        policy[s] = action_prob
+
         for a in lp_data.action_indices:
             x_value = model.varX[lp_data.state_tuples[s], a].value
             # if x_value > 1e-6:
@@ -254,7 +264,7 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
         reward.append(all_cost)
         print(f"group {d}: {all_cost}")
 
-    return reward  # , policy
+    return reward, policy
 
 
 def policy_dlp(state, model: pyo.ConcreteModel, lp_data, deterministic=False):
