@@ -247,16 +247,17 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
 
     # Policy interpretation
     policy = {}
+    x_total = 0
     for s in lp_data.state_indices:
-        x_sum = max(
-            sum(
-                [
-                    model.varX[lp_data.state_tuples[s], a].value
-                    for a in lp_data.action_indices
-                ]
-            ),
-            1e-6,
-        )  # avoid zero division
+        x_sum = sum(
+            [
+                model.varX[lp_data.state_tuples[s], a].value
+                for a in lp_data.action_indices
+            ]
+        )
+        x_total += x_sum
+        x_sum = max(x_sum, 1e-6)  # avoid zero division
+
         action_prob = [
             model.varX[lp_data.state_tuples[s], a].value / x_sum
             for a in lp_data.action_indices
@@ -289,6 +290,7 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
         print(f"group {d}: {all_cost}")
     reward = np.sort(np.array(reward))
     print("GGF Value: ", np.dot(reward, lp_data.weights))
+    print("x_total: ", x_total)
     return reward, policy
 
 
