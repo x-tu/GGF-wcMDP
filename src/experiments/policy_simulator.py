@@ -1,3 +1,5 @@
+"""This module contains the experiments to calculate and simulate the state value function."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -9,11 +11,10 @@ from solver.dual_mdp import LPData, build_dlp_fix, extract_dlp, solve_dlp
 from utils.policy import calculate_state_value, simulation_state_value
 
 # Notice: modify the file path to the one containing policy
-policy = pd.read_csv("results/policy/policy_dlp_2.csv", index_col=0)
+policy = pd.read_csv("results/policy/policy_dqnS_3.csv", index_col=0)
 
 # size of the problem
-state_size = policy.shape[0]
-action_size = policy.shape[1]
+state_size, action_size = policy.shape[0], policy.shape[1]
 
 # truncate and normalize the policy
 for state in range(state_size):
@@ -24,7 +25,7 @@ for state in range(state_size):
 params.num_groups = action_size - 1
 params.num_states = int(pow(state_size, 1 / params.num_groups))
 params.prob_remain = np.linspace(start=0.5, stop=0.9, num=params.num_groups)
-params.num_samples = 20
+params.num_samples = 5
 
 # set up the environment
 env = MachineReplacement(
@@ -58,13 +59,14 @@ results, ggf_model = solve_dlp(model=model)
 _, _, ggf_value = extract_dlp(model=ggf_model, lp_data=mrp_data)
 
 # True if the state distribution set as uniform
-uniform_state_start = True
+uniform_state_start = False
 if uniform_state_start:
     len_plot = 1
 else:
     # Define the number of rows and columns for subplots
-    rows = cols = int(np.ceil(np.sqrt(state_size)))
-    fig, axes = plt.subplots(rows, cols)
+    rows = int(np.ceil(np.sqrt(state_size)))
+    cols = int(np.ceil(state_size / rows))
+    fig, axes = plt.subplots(rows, cols, sharex=True, sharey=True)
     len_plot = state_size
 
 # simulation
@@ -79,7 +81,7 @@ for state in range(len_plot):
         initial_state_prob[state] = 1
 
     # calculate the state value
-    state_value, state_value_list = calculate_state_value(
+    state_value_list = calculate_state_value(
         discount=params.gamma,
         initial_state_prob=initial_state_prob,
         policy=policy.to_numpy(),
@@ -107,10 +109,12 @@ for state in range(len_plot):
         col = state % cols
 
         ax = axes[row, col]
-        ax.set_title(f"State {state}")  # Set subplot title
+        ax.set_title(f"State {state}", size=8)  # Set subplot title
         sns.lineplot(data=GGF_value_list, ax=ax, label="Matrix")
         sns.lineplot(data=GGF_value_list_sim, ax=ax, label="Simulation")
         sns.lineplot(data=[ggf_value] * params.len_episode, ax=ax, label="DLP")
+        ax.legend(fontsize=8)
+    # Update parameter used to set the y-axis limit
     max_y = max(max_y, GGF_value_list[-1], GGF_value_list_sim[-1])
 
 # Show the subplots
@@ -123,5 +127,9 @@ if uniform_state_start:
         f"{params.num_groups} machines, {params.num_states} states, {params.num_actions} actions"
     )
 else:
+    # Set the x- and y-axis limit for all subplots
     plt.setp(axes, xlim=[0, params.len_episode], ylim=[0, np.ceil(1.01 * max_y)])
+    plt.suptitle(
+        f"{params.num_groups} machines, {params.num_states} states, {params.num_actions} actions"
+    )
 plt.show()

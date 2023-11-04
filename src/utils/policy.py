@@ -7,15 +7,9 @@ from solver.dual_mdp import LPData
 from utils.common import DotDict
 
 
-def simulation_state_value_given_state(
-    params: DotDict, policy: np.array, mrp_data: LPData, initial_state: int
-):
-    return None
-
-
 def simulation_state_value(
     params: DotDict, policy: np.array, mrp_data: LPData, initial_state_prob: np.array
-):
+) -> np.array:
     """Main function to simulate the state value function from the policy.
 
     Args:
@@ -23,11 +17,15 @@ def simulation_state_value(
         policy (`np.array`): the policy pi
         mrp_data (`LPData`): the MRP data
         initial_state_prob (`np.array`): the initial state distribution mu
+
+    Returns:
+        sorted_expected_state_values (`np.array`):
+            the sorted expected state value vector of size (T, N) for each time step and N groups
     """
 
     # get the size of the problem
     state_size = policy.shape[0]
-    # initialize state values (T, N, K, S)
+    # initialize state values with matrix size of (T, N, K, S)
     state_values = np.zeros(
         (params.len_episode, params.num_groups, params.num_samples, state_size)
     )
@@ -51,9 +49,11 @@ def simulation_state_value(
                     total_reward += params.gamma ** t * reward_lp
                     state = next_observation
                     state_values[t, :, n, init_state] = total_reward.copy()
+    # calculate the expected state values based on the initial state distribution
     weighted_state_values = np.matmul(state_values, initial_state_prob)
-    average_state_values = np.sort(np.mean(weighted_state_values, axis=2))
-    return average_state_values
+    # take averages over samples and sort the expected state values
+    sorted_expected_state_values = np.sort(np.mean(weighted_state_values, axis=2))
+    return sorted_expected_state_values
 
 
 def calculate_state_value(
@@ -84,6 +84,7 @@ def calculate_state_value(
 
     # transform the policy matrix to block diagonal matrix of size S * SA
     policy_trans = transform_policy_matrix(policy)
+    # reshape the transition and reward matrix
     transition_prob_trans = reshape_transition_matrix(transition_prob)
     rewards_trans = reshape_reward_matrix(rewards)
 
@@ -102,7 +103,7 @@ def calculate_state_value(
             rewards_trans,
         )
         state_value_list.append(state_value.copy())
-    return state_value, state_value_list
+    return state_value_list
 
 
 def transform_policy_matrix(policy_matrix: np.array) -> np.array:
