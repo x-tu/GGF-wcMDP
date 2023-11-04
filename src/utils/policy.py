@@ -1,7 +1,5 @@
 """ This module contains the functions to calculate and simulate the state value function."""
 
-import random
-
 import numpy as np
 from tqdm import tqdm
 
@@ -9,39 +7,50 @@ from solver.dual_mdp import LPData
 from utils.common import DotDict
 
 
-def simulation_state_value(params: DotDict, policy: np.array, mrp_data: LPData):
+def simulation_state_value(
+    params: DotDict, policy: np.array, mrp_data: LPData, initial_state_prob: np.array
+):
     """Main function to simulate the state value function from the policy.
 
     Args:
         params (`DotDict`): the parameters used for the simulation
         policy (`np.array`): the policy pi
         mrp_data (`LPData`): the MRP data
+        initial_state_prob (`np.array`): the initial state distribution mu
     """
 
     # get the size of the problem
     state_size = policy.shape[0]
     # run LP simulation
     sample_rewards = []
+    # used to record rewards for each time step
+    sample_rewards_by_time, state_value_list = [], []
     for n in tqdm(range(params.num_samples)):
-        state = random.randint(0, state_size - 1)
+        state = np.random.choice(range(state_size), p=initial_state_prob)
         total_reward = [0] * params.num_groups
+        # used to record rewards for each time step
+        total_reward_by_time = []
         for t in range(params.len_episode):
             action_prob = policy.iloc[state].tolist()
-            action = random.choices(range(len(action_prob)), weights=action_prob, k=1)[
-                0
-            ]
+            action = np.random.choice(range(len(action_prob)), p=action_prob)
             reward_lp = mrp_data.global_costs[state, action]
-            next_observation = random.choices(
-                range(state_size),
-                weights=mrp_data.global_transitions[state, :, action],
-                k=1,
-            )[0]
+            next_observation = np.random.choice(
+                range(state_size), p=mrp_data.global_transitions[state, :, action]
+            )
             total_reward += params.gamma ** t * reward_lp
             state = next_observation
+            total_reward_by_time.append(total_reward.copy())
         sample_rewards.append(total_reward)
+        sample_rewards_by_time.append(total_reward_by_time)
     # get the expected rewards by averaging over samples, and then sort
-    state_value = sorted(np.mean(sample_rewards, axis=0), reverse=True)
-    return state_value
+    state_value = sorted(np.mean(sample_rewards, axis=0))
+
+    for t in range(params.len_episode):
+        state_value_list.append(
+            sorted(np.mean(np.array(sample_rewards_by_time)[:, t, :], axis=0))
+        )
+
+    return state_value, state_value_list
 
 
 def calculate_state_value(
@@ -68,6 +77,7 @@ def calculate_state_value(
     # calculate the state value function
     _, _, R = rewards.shape
     state_value = np.zeros(R)
+    state_value_list = [state_value.copy()]
 
     # transform the policy matrix to block diagonal matrix of size S * SA
     policy_trans = transform_policy_matrix(policy)
@@ -88,7 +98,8 @@ def calculate_state_value(
             ),
             rewards_trans,
         )
-    return state_value
+        state_value_list.append(state_value.copy())
+    return state_value, state_value_list
 
 
 def transform_policy_matrix(policy_matrix: np.array) -> np.array:
