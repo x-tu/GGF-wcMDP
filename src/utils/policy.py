@@ -7,6 +7,12 @@ from solver.dual_mdp import LPData
 from utils.common import DotDict
 
 
+def simulation_state_value_given_state(
+    params: DotDict, policy: np.array, mrp_data: LPData, initial_state: int
+):
+    return None
+
+
 def simulation_state_value(
     params: DotDict, policy: np.array, mrp_data: LPData, initial_state_prob: np.array
 ):
@@ -21,36 +27,33 @@ def simulation_state_value(
 
     # get the size of the problem
     state_size = policy.shape[0]
-    # run LP simulation
-    sample_rewards = []
-    # used to record rewards for each time step
-    sample_rewards_by_time, state_value_list = [], []
+    # initialize state values (T, N, K, S)
+    state_values = np.zeros(
+        (params.len_episode, params.num_groups, params.num_samples, state_size)
+    )
+
     for n in tqdm(range(params.num_samples)):
-        state = np.random.choice(range(state_size), p=initial_state_prob)
-        total_reward = [0] * params.num_groups
-        # used to record rewards for each time step
-        total_reward_by_time = []
-        for t in range(params.len_episode):
-            action_prob = policy.iloc[state].tolist()
-            action = np.random.choice(range(len(action_prob)), p=action_prob)
-            reward_lp = mrp_data.global_costs[state, action]
-            next_observation = np.random.choice(
-                range(state_size), p=mrp_data.global_transitions[state, :, action]
-            )
-            total_reward += params.gamma ** t * reward_lp
-            state = next_observation
-            total_reward_by_time.append(total_reward.copy())
-        sample_rewards.append(total_reward)
-        sample_rewards_by_time.append(total_reward_by_time)
-    # get the expected rewards by averaging over samples, and then sort
-    state_value = sorted(np.mean(sample_rewards, axis=0))
-
-    for t in range(params.len_episode):
-        state_value_list.append(
-            sorted(np.mean(np.array(sample_rewards_by_time)[:, t, :], axis=0))
-        )
-
-    return state_value, state_value_list
+        for init_state in range(state_size):
+            if initial_state_prob[init_state] == 0:
+                # no need to simulate if the initial state probability is 0
+                state_values[:, :, n, init_state] = 0
+            else:
+                state = init_state
+                total_reward = [0] * params.num_groups
+                for t in range(params.len_episode):
+                    action_prob = policy.iloc[state].tolist()
+                    action = np.random.choice(range(len(action_prob)), p=action_prob)
+                    reward_lp = mrp_data.global_costs[state, action]
+                    next_observation = np.random.choice(
+                        range(state_size),
+                        p=mrp_data.global_transitions[state, :, action],
+                    )
+                    total_reward += params.gamma ** t * reward_lp
+                    state = next_observation
+                    state_values[t, :, n, init_state] = total_reward.copy()
+    weighted_state_values = np.matmul(state_values, initial_state_prob)
+    average_state_values = np.sort(np.mean(weighted_state_values, axis=2))
+    return average_state_values
 
 
 def calculate_state_value(
