@@ -17,6 +17,7 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
         model (ConcreteModel): the pyomo model to solve.
     """
 
+    # create the model
     model = pyo.ConcreteModel()
 
     # group index list
@@ -34,6 +35,14 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
         idx_list_a, within=pyo.NonNegativeReals, initialize=1 / len(idx_list_a)
     )
 
+    # Parameters
+    model.qvalues = pyo.Param(
+        idx_list_d,
+        idx_list_a,
+        initialize=lambda model, d, a: q_values[d][a],
+        mutable=True,
+    )
+
     # Objective
     model.cost = pyo.Objective(
         expr=sum(model.varL[d] for d in idx_list_d)
@@ -49,11 +58,12 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
             model.dual_constraints.add(
                 model.varL[d1] + model.varN[d2]
                 <= weights[d1]
-                * sum(q_values[d2][a] * model.varP[a] for a in idx_list_a)
+                * sum(model.qvalues[d2, a] * model.varP[a] for a in idx_list_a)
             )
 
     # Group 2 (1 constraint): the probabilities sum to 1
-    model.dual_constraints.add(sum(model.varP[a] for a in idx_list_a) == 1)
+    model.eq_constraints = pyo.ConstraintList()
+    model.eq_constraints.add(sum(model.varP[a] for a in idx_list_a) == 1)
     return model
 
 
