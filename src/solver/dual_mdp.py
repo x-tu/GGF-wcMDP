@@ -289,9 +289,10 @@ def extract_dlp(model: pyo.ConcreteModel, lp_data):
         reward.append(all_cost)
         print(f"group {d}: {all_cost}")
     reward = np.sort(np.array(reward))
-    print("GGF Value: ", np.dot(reward, lp_data.weights))
+    ggf_value = np.dot(reward, lp_data.weights)
     print("x_total: ", x_total)
-    return reward, policy
+    print("GGF Value (DLP): ", ggf_value)
+    return reward, policy, ggf_value
 
 
 def policy_dlp(state, model: pyo.ConcreteModel, lp_data, deterministic=False):
