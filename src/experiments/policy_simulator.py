@@ -25,7 +25,7 @@ for state in range(state_size):
 params.num_groups = action_size - 1
 params.num_states = int(pow(state_size, 1 / params.num_groups))
 params.prob_remain = np.linspace(start=0.5, stop=0.9, num=params.num_groups)
-params.num_samples = 5
+params.num_samples = 100
 
 # set up the environment
 env = MachineReplacement(
@@ -59,7 +59,7 @@ results, ggf_model = solve_dlp(model=model)
 _, _, ggf_value = extract_dlp(model=ggf_model, lp_data=mrp_data)
 
 # True if the state distribution set as uniform
-uniform_state_start = False
+uniform_state_start = True
 if uniform_state_start:
     len_plot = 1
 else:
