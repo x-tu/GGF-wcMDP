@@ -165,14 +165,16 @@ def build_dlp(lp_data: LPData, init_state_idx: int = None) -> pyo.ConcreteModel:
     # Group 2 (s ^ D Constraints)
     for s in lp_data.state_indices:
         model.dual_constraints.add(
-            sum(model.varX[lp_data.state_tuples[s], a] for a in lp_data.action_indices)
+            sum(
+                model.varX[lp_data.state_tuples[s], a1] for a1 in lp_data.action_indices
+            )
             - lp_data.discount
             * (
                 sum(
-                    model.varX[lp_data.state_tuples[next_s], a]
-                    * lp_data.global_transitions[s, next_s, a]
-                    for next_s in lp_data.state_indices
-                    for a in lp_data.action_indices
+                    model.varX[lp_data.state_tuples[j], a2]
+                    * lp_data.global_transitions[j, s, a2]
+                    for j in lp_data.state_indices
+                    for a2 in lp_data.action_indices
                 )
             )
             == big_mu_list[s]
