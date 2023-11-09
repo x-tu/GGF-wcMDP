@@ -1,142 +1,124 @@
-from typing import List
+"""This module contains class used to generate parameters for a single machine in MRP."""
 
 import numpy as np
 
 
-# Define the cost function for each arm
 class CostReward:
-    def __init__(self, num_states: int, num_arms: int, rccc_wrt_max=1.5):
+    """Define the cost function for a single machine."""
+
+    def __init__(self, num_states: int, rccc_wrt_max=1.5):
+        """Initialize the cost function.
+
+        Assumption: there are only two types of actions: 0 (do nothing) and 1 (replace).
+
+        Args:
+            num_states (`int`): number of states.
+            rccc_wrt_max (`float`): ratio of the Replacement Cost Constant Coefficient
+                w.r.t the max cost in passive mode.
+        """
+
         self.num_s = num_states
-        self.num_a = num_arms
-        self.costs = np.zeros([self.num_s, self.num_a, 2])
-        self.costs[:, :, 0] = self.quadratic()
-        self.costs[:, :, 1] = (
-            rccc_wrt_max * (self.num_s - 1) ** 2 * np.ones([self.num_s, self.num_a])
-        )
-        self.costs = self.costs / np.max(self.costs)
+        self.costs = self.get_costs(rccc_wrt_max=rccc_wrt_max)
         self.rewards = 1 - self.costs
 
-    def linear(self):
-        costs = np.zeros([self.num_s, self.num_a])
-        for n in range(self.num_a):
-            costs[:, n] = np.linspace(0, self.num_s - 1, num=self.num_s)
-        return costs
+    def get_costs(self, rccc_wrt_max: float = 1.5) -> np.array:
+        """Define the cost function in size [S, A]."""
 
-    def constant(self, k):
-        return
+        costs = np.zeros([self.num_s, 2])
+        # define the cost of doing nothing
+        costs[:, 0] = self.get_cost_by_type(cost_type="quadratic")
+        # define the cost of replacement by the ratio
+        costs[:, 1] = self.get_cost_by_type(cost_type="rccc", rccc_wrt_max=rccc_wrt_max)
+        return costs / np.max(costs)
 
-    def quadratic(self):
-        costs = np.zeros([self.num_s, self.num_a])
-        for a in range(self.num_a):
-            for s in range(self.num_s):
-                costs[s, a] = s ** 2
-        return costs
+    def get_cost_by_type(self, cost_type: str, rccc_wrt_max: float = 1.5) -> np.array:
+        """Define the cost function in size [S, D] under given action.
 
+        Args:
+            cost_type (`str`): the type of cost function.
+            rccc_wrt_max (`float`): Replacement Cost Constant Coefficient.
 
-# Define the Markov dynamics for each arm
-class MarkovChain:
-    def __init__(self, num_states: int, num_arms: int, prob_remain, mat_type=1):
-        self.num_s = num_states
-        self.num_a = num_arms
-        self.transitions = np.zeros([self.num_s, self.num_s, self.num_a, 2])
-        self.transitions[:, :, :, 0] = self.deterioration(prob_remain, mat_type)
-        self.transitions[:, :, :, 1] = self.pure_reset()
+        Returns:
+            action_costs (`np.array`): conditional cost given action for each state and each group.
+        """
 
-    def pure_reset_pmf(self):
-        pmf = np.concatenate([np.ones([1, 1]), np.zeros([1, self.num_s - 1])], 1)
-        return pmf
-
-    def pure_reset(self):
-        transitions = np.zeros([self.num_s, self.num_s, self.num_a])
-        for n in range(self.num_a):
-            for s in range(self.num_s):
-                transitions[s, :, n] = self.pure_reset_pmf()
-        return transitions
-
-    def deterioration(self, prob_remain, mat_type):
-        transitions = np.zeros([self.num_s, self.num_s, self.num_a])
-        for n in range(self.num_a):
-            if mat_type == 1:
-                for s in range(self.num_s - 1):
-                    transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s + 1, n] = 1 - prob_remain[n]
-                transitions[self.num_s - 1, self.num_s - 1, n] = 1
-            elif mat_type == 2:
-                for s in range(self.num_s - 2):
-                    transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s + 1, n] = (1 - prob_remain[n]) / 2
-                    transitions[s, s + 2, n] = (1 - prob_remain[n]) / 2
-                transitions[self.num_s - 2, self.num_s - 2, n] = prob_remain[n]
-                transitions[self.num_s - 2, self.num_s - 1, n] = 1 - prob_remain[n]
-                transitions[self.num_s - 1, self.num_s - 1, n] = 1
-            elif mat_type == 3:
-                for s in range(self.num_s - 2):
-                    transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s + 1, n] = 2 * (1 - prob_remain[n]) / 3
-                    transitions[s, s + 2, n] = (1 - prob_remain[n]) / 3
-                transitions[self.num_s - 2, self.num_s - 2, n] = prob_remain[n]
-                transitions[self.num_s - 2, self.num_s - 1, n] = 1 - prob_remain[n]
-                transitions[self.num_s - 1, self.num_s - 1, n] = 1
-            elif mat_type == 4:
-                for s in range(self.num_s - 1):
-                    transitions[s, s, n] = prob_remain[n]
-                    transitions[s, s + 1 : self.num_s, n] = (
-                        (1 - prob_remain[n]) / (self.num_s - s)
-                    ) * np.ones([self.num_s - s])
-                transitions[self.num_s - 1, self.num_s - 1, n] = 1
-        return transitions
+        # type validation
+        assert cost_type in ["constant", "linear", "quadratic", "rccc", "random"]
+        # define a dictionary to map cost types to their corresponding calculations
+        cost_type_mapping = {
+            "constant": np.full(shape=self.num_s, fill_value=1),
+            "linear": np.linspace(start=0, stop=self.num_s - 1, num=self.num_s),
+            "quadratic": np.linspace(start=0, stop=self.num_s - 1, num=self.num_s) ** 2,
+            "rccc": np.full(
+                shape=self.num_s, fill_value=rccc_wrt_max * (self.num_s - 1) ** 2
+            ),
+            "random": np.random.rand(self.num_s),
+        }
+        return cost_type_mapping.get(cost_type, np.zeros(self.num_s))
 
 
-class FairWeight:
-    """Define the fairness weight for each arm."""
+class TransitionMatrix:
+    """Define the Markov chain transition matrix for multiple groups."""
 
     def __init__(
-        self, num_arms: int, weight_coefficient: int, weights: np.array = None
+        self, num_states: int, prob_remain: float = 0.5, deterioration_step: int = 1
     ):
-        # set the default weights if provided
-        if weights and len(weights) == num_arms:
-            self.weights = weights / np.sum(weights)
-        # if the weights are not provided or the size is unmatched, generate them
-        elif np.isscalar(weight_coefficient):
-            self.weights = np.array(
-                [1 / (weight_coefficient ** i) for i in range(num_arms)]
-            )
-            self.weights = self.weights / np.sum(self.weights)
-        else:
-            raise TypeError(
-                "Please provide a scalar `weight_coefficient` "
-                "or an array `weights` matching the size of the reward space."
-            )
+        """Initialize the transition matrix in size [S, S, A].
 
+        Assumption: there are only two types of actions: 0 (do nothing) and 1 (replace).
 
-def get_state_list(num_states, num_arms):
-    """ A helper function used to get state list: cartesian s^D.
+        Args:
+            num_states (`int`): number of states
+            prob_remain (`float`): probability of remaining in the same state for each machine in each state
+            deterioration_step (`int`): number of steps to deteriorate
+        """
 
-    Example (3 states, 2 groups):
-        [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]
+        self.num_s = num_states
+        self.transitions = np.zeros([self.num_s, self.num_s, 2])
+        # define the transition matrix for doing nothing (deterioration)
+        self.transitions[:, :, 0] = self.deterioration(
+            prob_remain=prob_remain, deterioration_step=deterioration_step
+        )
+        # define the transition matrix for replacement
+        self.transitions[:, :, 1] = self.pure_reset(prob_remain=prob_remain)
 
-    Returns:
-        state_list: state tuple list
+    def pure_reset(self, prob_remain: float) -> np.array:
+        """Define the transition matrix for replacement.
 
-    """
-    # generate state indices
-    state_indices = np.arange(num_states)
-    # get cartesian product
-    state_indices_cartesian = np.meshgrid(*([state_indices] * num_arms), indexing="ij")
-    # reshape and convert to list
-    state_list = (
-        np.stack(state_indices_cartesian, axis=-1).reshape(-1, num_arms).tolist()
-    )
-    return state_list
+        Args:
+            prob_remain (`float`): probability of remaining at state 0 after replacement
 
+        Returns:
+            replace_transitions (`np.array`): transition matrix for replacement
+        """
 
-# def state_decoding(num_states, num_arms, state_index):
-#     sys_states = np.zeros(num_arms, dtype=int)
-#     sys_states[num_arms-1] = np.mod(state_index+1, num_states)
-#     sys_states[0] = (state_index-sys_states[num_arms-1]) // (num_states**(num_arms-1)) + 1
-#     for ar in range(1, num_arms-1):
-#         val = sys_states[num_arms-1]
-#         for x in range(ar-1):
-#             val = val + (sys_states[x]-1)*(num_states**(num_arms-x+1))
-#         sys_states[ar] = (state_index-val) // (num_states**(num_arms-ar+1)) + 1
-#     return sys_states
+        replacement_transition = np.zeros([self.num_s, self.num_s])
+        # staying at new state
+        replacement_transition[:, 0] = prob_remain
+        # going to deterioration
+        replacement_transition[:, 1] = 1 - prob_remain
+        return replacement_transition
+
+    def deterioration(self, prob_remain: float, deterioration_step) -> np.array:
+        """Define the transition matrix for deterioration.
+
+        Args:
+            prob_remain (`float`): probability of remaining at the same state after deterioration
+            deterioration_step (`int`): number of steps to deteriorate
+        """
+
+        deterioration_transitions = np.eye(self.num_s) * prob_remain
+        # last step
+        deterioration_transitions[-1, -1] = 1
+        deterioration_prob_step = (1 - prob_remain) / deterioration_step
+        for s in range(self.num_s - 1):
+            remaining_steps = min(deterioration_step, self.num_s - s - 1)
+            deterioration_transitions[
+                s, s + 1 : s + 1 + remaining_steps
+            ] = deterioration_prob_step
+            deterioration_transitions[s, -1] += (
+                deterioration_step - remaining_steps
+            ) * deterioration_prob_step
+        # data validation
+        assert deterioration_transitions.sum(axis=1).all() == 1
+        return deterioration_transitions
