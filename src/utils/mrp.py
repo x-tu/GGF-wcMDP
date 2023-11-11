@@ -1,3 +1,5 @@
+"""This module contains classes and functions for the MRP data generation."""
+
 import itertools
 
 import numpy as np

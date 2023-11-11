@@ -1,27 +1,34 @@
-""""""
+"""This module contains classes and functions for dealing with fairness."""
+
 import numpy as np
 
 
 class FairWeight:
-    """Define the fairness weight for each arm."""
+    """Define the fairness weight for each group."""
 
     def __init__(
-        self, num_groups: int, weight_coefficient: int, weights: np.array = None
+        self, num_groups: int, weight_coefficient: int = None, weights: np.array = None
     ):
-        # set the default weights if provided
-        if weights and len(weights) == num_groups:
+        """Provide the weights for each group.
+
+        Args:
+            num_groups (int): number of groups.
+            weight_coefficient (int): the coefficient of the weights.
+            weights (np.array): the weights of the groups.
+        """
+
+        if weights:
+            # check the size of the weights
+            assert len(weights) == num_groups, "The size of the weights is unmatched."
+            # normalize the weights if provided
             self.weights = weights / np.sum(weights)
-        # if the weights are not provided or the size is unmatched, generate them
-        elif np.isscalar(weight_coefficient):
+        elif weight_coefficient:
             self.weights = np.array(
                 [1 / (weight_coefficient ** i) for i in range(num_groups)]
             )
             self.weights = self.weights / np.sum(self.weights)
         else:
-            raise TypeError(
-                "Please provide a scalar `weight_coefficient` "
-                "or an array `weights` matching the size of the reward space."
-            )
+            self.weights = np.array([1 / num_groups] * num_groups)
 
 
 def calculate_ggi_reward(weights, n_rewards) -> float:

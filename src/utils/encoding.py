@@ -1,3 +1,5 @@
+"""This module contains functions for encoding and decoding state and action vectors."""
+
 import numpy as np
 
 
