@@ -24,7 +24,6 @@ class MachineReplacement(gym.Env):
         rccc_wrt_max: float = 1.5,
         prob_remain: float = 0.8,
         deterioration_step: int = 1,
-        weight_coefficient: int = 2,
     ):
         super(gym.Env, self).__init__()
 

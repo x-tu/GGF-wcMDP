@@ -1,14 +1,13 @@
 """This script includes all base parameters."""
-import numpy as np
 
 from utils.common import DotDict
+from utils.ggf import FairWeight
 
 params = DotDict(
     {
         "num_actions": 2,
         "num_states": 3,
         "num_groups": 3,
-        "weight_coefficient": 2,
         "ggi": True,
         "num_episodes": 1000,
         "len_episode": 100,
@@ -16,6 +15,7 @@ params = DotDict(
         "gamma": 0.95,
         "rccc_wrt_max": 0.5,
         "mat_type": 1,
+        "prob_remain": 0.8,
         # hyperparameters for the Q-learning
         "ql": DotDict(
             {
@@ -38,4 +38,6 @@ params = DotDict(
         ),
     }
 )
-params.update({"prob_remain": np.linspace(start=0.5, stop=0.9, num=params.num_groups)})
+params.update(
+    {"weights": FairWeight(num_groups=params.num_groups, weight_coefficient=2).weights}
+)

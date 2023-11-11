@@ -36,6 +36,7 @@ class DQNAgent:
     def __init__(
         self,
         env,
+        weights: np.array,
         h_size: int = 64,
         learning_rate: float = 1e-3,
         discount_factor: float = 0.95,
@@ -47,7 +48,7 @@ class DQNAgent:
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
         self.decaying_factor = decaying_factor
-        self.weights = env.weights
+        self.weights = weights
         self.deterministic = deterministic
         if not self.deterministic:
             # initialize the stochastic policy as uniform distribution
@@ -109,12 +110,12 @@ class DQNAgent:
         if self.deterministic:
             # use vectorized computation to speed up the process
             q_values = q_values.detach().numpy()
-            ggf_q_values = np.dot(self.env.weights, np.sort(q_values, axis=0))
+            ggf_q_values = np.dot(self.weights, np.sort(q_values, axis=0))
             return np.argmax(ggf_q_values).item()
         start_time = datetime.now()
         # stochastic policy is given by solving LP, check first if we need to solve the LP
         is_deterministic_optimal, a_idx = test_deterministic_optimal(
-            q_values=q_values.detach().numpy(), weights=self.env.weights
+            q_values=q_values.detach().numpy(), weights=self.weights
         )
         self.time_stat.check_dtm_act.append(
             (datetime.now() - start_time).total_seconds()
@@ -124,7 +125,7 @@ class DQNAgent:
             return a_idx
         start_time = datetime.now()
         policy_next = get_policy_from_q_values(
-            q_values=q_values.tolist(), weights=self.env.weights
+            q_values=q_values.tolist(), weights=self.weights
         )
         self.time_stat.solve_lp_act.append(
             (datetime.now() - start_time).total_seconds()
@@ -159,7 +160,7 @@ class DQNAgent:
         """
 
         # Convert the weights and rewards to column PyTorch tensors
-        weight_tensor = torch.tensor(self.env.weights, dtype=torch.float32)
+        weight_tensor = torch.tensor(self.weights, dtype=torch.float32)
         reward_tensor = torch.tensor(reward, dtype=torch.float32)
 
         # reshape the next Q-values to a matrix of shape (action, group)
@@ -188,7 +189,7 @@ class DQNAgent:
             start_time = datetime.now()
             # check first if we need to solve the LP
             is_deterministic_optimal, a_idx = test_deterministic_optimal(
-                q_values=next_q_values.detach().numpy(), weights=self.env.weights
+                q_values=next_q_values.detach().numpy(), weights=self.weights
             )
             self.time_stat.check_dtm_improve.append(
                 (datetime.now() - start_time).total_seconds()
@@ -201,7 +202,7 @@ class DQNAgent:
                 start_time = datetime.now()
                 policy_next = torch.tensor(
                     get_policy_from_q_values(
-                        q_values=next_q_values.tolist(), weights=self.env.weights
+                        q_values=next_q_values.tolist(), weights=self.weights
                     ),
                     dtype=torch.float32,
                 )
@@ -291,7 +292,7 @@ class DQNAgent:
                 )
             # get the expected rewards by averaging over samples, and then sort
             rewards_sorted = np.sort(np.mean(ep_rewards, axis=0))
-            episode_rewards.append(np.dot(self.env.weights, rewards_sorted))
+            episode_rewards.append(np.dot(self.weights, rewards_sorted))
             # update the exploration rate
             if self.exploration_rate > 0.001:
                 self.exploration_rate = self.exploration_rate * self.decaying_factor
