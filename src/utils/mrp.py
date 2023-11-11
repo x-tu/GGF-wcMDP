@@ -37,7 +37,9 @@ class MRPData:
 
         # TODO: remove after testing the correctness of the code
         for state_idx in range(len(self.global_states)):
-            state_vector = state_int_index_to_vector(state_idx, num_states, num_groups)
+            state_vector = state_int_index_to_vector(
+                state_int_index=state_idx, num_groups=num_groups, num_states=num_states
+            )
             for group_idx in range(num_groups):
                 assert (
                     state_vector[group_idx] == self.global_states[state_idx][group_idx]
