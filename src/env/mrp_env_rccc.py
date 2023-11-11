@@ -6,7 +6,6 @@ import numpy as np
 from gym import spaces
 
 from utils.encoding import state_int_index_to_vector, state_vector_to_int_index
-from utils.ggf import FairWeight
 from utils.mrp import MRPData
 
 warnings.filterwarnings("ignore")
@@ -46,9 +45,6 @@ class MachineReplacement(gym.Env):
             prob_remain=prob_remain,
             deterioration_step=deterioration_step,
         )
-        self.weights = FairWeight(
-            num_groups=num_groups, weight_coefficient=weight_coefficient
-        ).weights
 
         # Parameters for multiple machines
         self.observation_space = spaces.Discrete(self.mrp_data.num_global_states)
@@ -112,7 +108,7 @@ class MachineReplacement(gym.Env):
             np.arange(self.observation_space.n), p=next_state_prob
         )
         # get the reward
-        reward_list = self.mrp_data.global_costs[state, action, :]
+        reward_list = self.mrp_data.global_rewards[state, action, :]
         # get the done
         done = self.step_counter >= self.num_steps
         # register the information

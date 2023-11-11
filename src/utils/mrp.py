@@ -21,6 +21,7 @@ class MRPData:
 
         # get data for a single machine
         self.costs = CostReward(num_states=num_states, rccc_wrt_max=rccc_wrt_max).costs
+        self.rewards = -self.costs
         self.transitions = TransitionMatrix(
             num_states=num_states,
             prob_remain=prob_remain,
@@ -34,13 +35,16 @@ class MRPData:
         self.num_global_actions = len(self.global_actions)
         self.global_transitions = self.generate_global_transition_matrix()
         self.global_costs = self.generate_global_cost_matrix()
+        self.global_rewards = -self.global_costs
 
         # TODO: remove after testing the correctness of the code
         for state_idx in range(len(self.global_states)):
             state_vector = state_int_index_to_vector(
-                state_int_index=state_idx, num_groups=num_groups, num_states=num_states
+                state_int_index=state_idx,
+                num_groups=self.num_groups,
+                num_states=self.num_states,
             )
-            for group_idx in range(num_groups):
+            for group_idx in range(self.num_groups):
                 assert (
                     state_vector[group_idx] == self.global_states[state_idx][group_idx]
                 )
