@@ -4,7 +4,6 @@ import json
 import logging
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 
 from algorithms.dqn import DQNAgent
@@ -16,23 +15,16 @@ logging.getLogger("pyomo.core").setLevel(logging.ERROR)
 # params.update({"num_episodes": 20, "len_episode": 10, "num_samples": 1})
 
 # for batching the experiments
-for grp in [6]:
+for grp in [3]:
     params.update({"num_groups": grp})
-    params.update(
-        {"prob_remain": np.linspace(start=0.5, stop=0.9, num=params.num_groups)}
-    )
-    for dtm in [False]:
+    for dtm in [True]:
         params.dqn.deterministic = dtm
         # run experiments
         env = MachineReplacement(
-            num_arms=params.num_groups,
+            num_groups=params.num_groups,
             num_states=params.num_states,
-            rccc_wrt_max=params.rccc_wrt_max,
-            prob_remain=params.prob_remain,
-            mat_type=params.mat_type,
-            weight_coefficient=params.weight_coefficient,
+            num_actions=params.num_actions,
             num_steps=params.len_episode,
-            ggi=params.ggi,
             encoding_int=params.dqn.encoding_int,
         )
 
