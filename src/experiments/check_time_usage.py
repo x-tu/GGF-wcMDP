@@ -19,8 +19,8 @@ from solver.dual_q import build_dual_q_model
 from utils.common import DotDict
 
 # set up the parameters
-K_SIM = 10
-NUM_GROUPS = 3
+K_SIM = 10000
+NUM_GROUPS = 4
 # set the weights to be uniform
 WEIGHTS = [1 / NUM_GROUPS] * NUM_GROUPS
 
@@ -44,8 +44,8 @@ for k in tqdm(range(K_SIM)):
     # record the time usage for building the model
     time_stat.build.append((datetime.now() - start_time).total_seconds())
     # solve the model
-    start_time = datetime.now()
     optimizer = SolverFactory("gurobi", solver_io="python")
+    start_time = datetime.now()
     optimizer.solve(model, tee=False)
     # record the time usage for solving the model
     time_stat.solve.append((datetime.now() - start_time).total_seconds())
@@ -58,7 +58,14 @@ optimizer = SolverFactory("gurobi", solver_io="python")
 for k in tqdm(range(K_SIM)):
     q_values = np.random.rand(NUM_GROUPS, NUM_GROUPS + 1)
     start_time = datetime.now()
-    model.qvalues.construct(q_values.tolist())
+    # Notice here we update the protected parameters
+    model.qvalues._data.update(
+        {
+            (d, a): q_values[d][a]
+            for d in range(NUM_GROUPS)
+            for a in range(NUM_GROUPS + 1)
+        }
+    )
     # record the time for updating the parameters
     time_stat.update_param.append((datetime.now() - start_time).total_seconds())
     start_time = datetime.now()
