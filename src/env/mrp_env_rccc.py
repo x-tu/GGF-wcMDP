@@ -6,6 +6,7 @@ import numpy as np
 from gym import spaces
 
 from utils.encoding import state_int_index_to_vector, state_vector_to_int_index
+from utils.ggf import FairWeight
 from utils.mrp import MRPData
 
 warnings.filterwarnings("ignore")
@@ -24,6 +25,7 @@ class MachineReplacement(gym.Env):
         rccc_wrt_max: float = 1.5,
         prob_remain: float = 0.8,
         deterioration_step: int = 1,
+        weight_coefficient: int = 2,
     ):
         super(gym.Env, self).__init__()
 
@@ -44,6 +46,9 @@ class MachineReplacement(gym.Env):
             prob_remain=prob_remain,
             deterioration_step=deterioration_step,
         )
+        self.weights = FairWeight(
+            num_groups=num_groups, weight_coefficient=weight_coefficient
+        ).weights
 
         # Parameters for multiple machines
         self.observation_space = spaces.Discrete(self.mrp_data.num_global_states)
