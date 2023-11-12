@@ -5,6 +5,7 @@ import itertools
 import numpy as np
 
 from utils.encoding import state_int_index_to_vector
+from utils.ggf import FairWeight
 
 
 class MRPData:
@@ -16,6 +17,7 @@ class MRPData:
         rccc_wrt_max: float = 1.5,
         prob_remain: float = 0.8,
         deterioration_step: int = 1,
+        weight_type: str = "exponential2",
     ):
         self.num_groups = num_groups
         self.num_states = num_states
@@ -38,6 +40,11 @@ class MRPData:
         self.global_transitions = self.generate_global_transition_matrix()
         self.global_costs = self.generate_global_cost_matrix()
         self.global_rewards = -self.global_costs
+
+        # generate weights for multiple groups
+        self.weights = FairWeight(
+            num_groups=self.num_groups, weight_type=weight_type
+        ).weights
 
         # TODO: remove after testing the correctness of the code
         for state_idx in range(len(self.global_states)):

@@ -1,7 +1,6 @@
 """This script includes all base parameters."""
 
 from utils.common import DotDict
-from utils.ggf import FairWeight
 
 params = DotDict(
     {
@@ -37,7 +36,4 @@ params = DotDict(
             }
         ),
     }
-)
-params.update(
-    {"weights": FairWeight(num_groups=params.num_groups, weight_coefficient=2).weights}
 )
