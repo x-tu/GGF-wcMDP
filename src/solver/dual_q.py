@@ -26,9 +26,9 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
 
     # Variables
     # decision variable lambda
-    model.varL = pyo.Var(idx_list_d, within=pyo.NonNegativeReals)
+    model.varL = pyo.Var(idx_list_d, within=pyo.Reals)
     # decision variable nu
-    model.varN = pyo.Var(idx_list_d, within=pyo.NonNegativeReals)
+    model.varN = pyo.Var(idx_list_d, within=pyo.Reals)
     # decision variable pi(a|s)
     model.varP = pyo.Var(
         idx_list_a, within=pyo.NonNegativeReals, initialize=1 / len(idx_list_a)
