@@ -1,12 +1,13 @@
 import random
-from datetime import datetime
 
 import numpy as np
+from pandas import DataFrame as df
 from tqdm import tqdm
 
 from env.mrp_env_rccc import MachineReplacement
-from solver.dual_mdp import LPData, build_dlp, extract_dlp, policy_dlp, solve_dlp
-from utils.common import DotDict
+from solver.ggf_dlp import build_dlp, extract_dlp, solve_dlp
+from utils.common import MDP4LP, DotDict
+from utils.encoding import state_vector_to_int_index
 
 
 class DLPAgent:
@@ -14,48 +15,31 @@ class DLPAgent:
 
     def __init__(self, params: DotDict):
         self.params = params
-        self.time = {}
-        start_time = datetime.now()
         self.env = MachineReplacement(
-            num_arms=params.num_groups,
+            num_groups=params.num_groups,
             num_states=params.num_states,
-            rccc_wrt_max=params.rccc_wrt_max,
-            prob_remain=params.prob_remain,
-            mat_type=params.mat_type,
-            weight_coefficient=params.weight_coefficient,
+            num_actions=params.num_actions,
             num_steps=params.len_episode,
-            ggi=params.ggi,
-        )
-        self.time["Env"] = (datetime.now() - start_time).total_seconds()
-        start_dt_time = datetime.now()
-        self.mrp_data = LPData(
-            num_arms=params.num_groups,
-            num_states=params.num_states,
-            rccc_wrt_max=params.rccc_wrt_max,
             prob_remain=params.prob_remain,
-            mat_type=params.mat_type,
-            weights=self.env.weights,
-            discount=params.gamma,
-            encoding_int=True,
+            encoding_int=params.dqn.encoding_int,
         )
-        self.time["Data_build"] = (datetime.now() - start_dt_time).total_seconds()
-        start_build_time = datetime.now()
-        mlp_model = build_dlp(self.mrp_data)
-        self.time["LP_build"] = (datetime.now() - start_build_time).total_seconds()
-        start_slv_time = datetime.now()
-        models, self.mlp_model = solve_dlp(model=mlp_model)
-        self.time["LP_solve"] = (datetime.now() - start_slv_time).total_seconds()
-        start_ext_time = datetime.now()
-        _, policy = extract_dlp(mlp_model, self.mrp_data)
-        self.time["LP_extract"] = (datetime.now() - start_ext_time).total_seconds()
-        self.time["total"] = (datetime.now() - start_time).total_seconds()
-        from pandas import DataFrame as df
+        mdp = MDP4LP(
+            num_states=self.env.mrp_data.num_global_states,
+            num_actions=self.env.mrp_data.num_global_actions,
+            num_groups=self.env.mrp_data.num_groups,
+            transition=self.env.mrp_data.global_transitions,
+            costs=self.env.mrp_data.global_costs,
+            discount=self.params.gamma,
+            weights=self.env.mrp_data.weights,
+        )
+        self.weights = self.env.mrp_data.weights
 
-        time_df = df.from_dict(self.time, orient="index")
-        time_df.to_csv(f"results/time_{params.num_groups}.csv")
-        policy_df = df.from_dict(policy, orient="index")
+        model = build_dlp(mdp=mdp)
+        results, model = solve_dlp(model)
+        _, self.policy, self.ggf_value = extract_dlp(model, mdp)
+
+        policy_df = df.from_dict(self.policy, orient="index")
         policy_df.to_csv(f"results/policy_dlp_{params.num_groups}.csv")
-        print("Models: ", models)
 
     def run_mc_dlp(self, initial_states: list = None):
         """Run the MC simulation.
@@ -77,12 +61,17 @@ class DLPAgent:
                 state = self.env.reset(initial_state=init_state)
                 total_reward = 0
                 for t in range(self.params.len_episode):
-                    action = policy_dlp(state, self.mlp_model, self.mrp_data)
+                    state_idx = state_vector_to_int_index(
+                        state_vector=state, num_states=self.params.num_states
+                    )
+                    action = np.random.choice(
+                        range(len(self.policy[state_idx])), p=self.policy[state_idx]
+                    )
                     next_observation, reward, done, _ = self.env.step(action)
-                    total_reward += (1 - done) * self.mrp_data.discount ** t * reward
+                    total_reward += (1 - done) * self.params.gamma ** t * reward
                     state = (next_observation * self.env.num_states).astype(int)
                 ep_rewards.append(total_reward)
             # get the expected rewards by averaging over samples, and then sort
             rewards_sorted = np.sort(np.mean(ep_rewards, axis=0))
-            episode_rewards.append(np.dot(self.env.weights, rewards_sorted))
+            episode_rewards.append(np.dot(self.weights, rewards_sorted))
         return episode_rewards

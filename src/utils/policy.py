@@ -3,19 +3,19 @@
 import numpy as np
 from tqdm import tqdm
 
-from solver.dual_mdp import LPData
 from utils.common import DotDict
+from utils.mrp import MRPData
 
 
 def simulation_state_value(
-    params: DotDict, policy: np.array, mrp_data: LPData, initial_state_prob: np.array
+    params: DotDict, policy: np.array, mrp_data: MRPData, initial_state_prob: np.array
 ) -> np.array:
     """Main function to simulate the state value function from the policy.
 
     Args:
         params (`DotDict`): the parameters used for the simulation
         policy (`np.array`): the policy pi
-        mrp_data (`LPData`): the MRP data
+        mrp_data (`MRPData`): the MRP data
         initial_state_prob (`np.array`): the initial state distribution mu
 
     Returns:
@@ -41,7 +41,7 @@ def simulation_state_value(
                 for t in range(params.len_episode):
                     action_prob = policy.iloc[state].tolist()
                     action = np.random.choice(range(len(action_prob)), p=action_prob)
-                    reward_lp = mrp_data.global_costs[state, action]
+                    reward_lp = mrp_data.global_rewards[state, action]
                     next_observation = np.random.choice(
                         range(state_size),
                         p=mrp_data.global_transitions[state, :, action],
