@@ -6,23 +6,24 @@ import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
 
-def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
+def build_dual_q_model(q_values: np.array, weights: np.array) -> pyo.ConcreteModel:
     """The main function to build the dual Q model.
 
     Args:
-        q_values (list): q_values[group][action], the q values for each group and action.
-        weights (list): weights[group], the weights for each group.
+        q_values (np.array): q_values[group][action], the q values for each group and action.
+        weights (np.array): weights[group], the weights for each group.
 
     Returns:
         model (ConcreteModel): the pyomo model to solve.
     """
 
+    # create the model
     model = pyo.ConcreteModel()
 
     # group index list
-    idx_list_d = list(range(len(q_values)))
+    idx_list_d = list(range(q_values.shape[0]))
     # action index list
-    idx_list_a = list(range(len(q_values[0])))
+    idx_list_a = list(range(q_values.shape[1]))
 
     # Variables
     # decision variable lambda
@@ -32,6 +33,14 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
     # decision variable pi(a|s)
     model.varP = pyo.Var(
         idx_list_a, within=pyo.NonNegativeReals, initialize=1 / len(idx_list_a)
+    )
+
+    # Parameters
+    model.qvalues = pyo.Param(
+        idx_list_d,
+        idx_list_a,
+        initialize=lambda model, d, a: q_values[d][a],
+        mutable=True,
     )
 
     # Objective
@@ -49,11 +58,12 @@ def build_dual_q_model(q_values: list, weights: list) -> pyo.ConcreteModel:
             model.dual_constraints.add(
                 model.varL[d1] + model.varN[d2]
                 <= weights[d1]
-                * sum(q_values[d2][a] * model.varP[a] for a in idx_list_a)
+                * sum(model.qvalues[d2, a] * model.varP[a] for a in idx_list_a)
             )
 
     # Group 2 (1 constraint): the probabilities sum to 1
-    model.dual_constraints.add(sum(model.varP[a] for a in idx_list_a) == 1)
+    model.eq_constraints = pyo.ConstraintList()
+    model.eq_constraints.add(sum(model.varP[a] for a in idx_list_a) == 1)
     return model
 
 
