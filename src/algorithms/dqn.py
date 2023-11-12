@@ -7,9 +7,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from pyomo.opt import SolverFactory
 from tqdm import tqdm
 
-from solver.dual_q import get_policy_from_q_values, test_deterministic_optimal
+from solver.dual_q import build_dual_q_model, test_deterministic_optimal
 from utils.common import DotDict
 from utils.encoding import state_vector_to_int_index
 
@@ -36,7 +37,6 @@ class DQNAgent:
     def __init__(
         self,
         env,
-        weights: np.array,
         h_size: int = 64,
         learning_rate: float = 1e-3,
         discount_factor: float = 0.95,
@@ -48,7 +48,7 @@ class DQNAgent:
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
         self.decaying_factor = decaying_factor
-        self.weights = weights
+        self.weights = self.env.mrp_data.weights
         self.deterministic = deterministic
         if not self.deterministic:
             # initialize the stochastic policy as uniform distribution
@@ -87,6 +87,9 @@ class DQNAgent:
                 "solve_lp_improve": [],
             }
         )
+        # initialize the model and solver
+        self.model = None
+        self.solver = None
 
     def act(self, observation: np.array) -> int:
         """Select an action according to the observation.
@@ -103,19 +106,21 @@ class DQNAgent:
             return self.env.action_space.sample()
         # 2) exploitation
         # reshape the Q-values to a matrix of shape (group |N|, action |A|)
-        q_values = self.q_network(torch.tensor(observation).float()).reshape(
-            (self.env.reward_space.n, self.env.action_space.n)
+        q_values = (
+            self.q_network(torch.tensor(observation).float())
+            .reshape((self.env.reward_space.n, self.env.action_space.n))
+            .detach()
+            .numpy()
         )
         # deterministic policy is given by argmax GGF(r_prev + discount * q(s, a))
         if self.deterministic:
             # use vectorized computation to speed up the process
-            q_values = q_values.detach().numpy()
             ggf_q_values = np.dot(self.weights, np.sort(q_values, axis=0))
             return np.argmax(ggf_q_values).item()
         start_time = datetime.now()
         # stochastic policy is given by solving LP, check first if we need to solve the LP
         is_deterministic_optimal, a_idx = test_deterministic_optimal(
-            q_values=q_values.detach().numpy(), weights=self.weights
+            q_values=q_values, weights=self.weights
         )
         self.time_stat.check_dtm_act.append(
             (datetime.now() - start_time).total_seconds()
@@ -124,9 +129,22 @@ class DQNAgent:
             self.count_stat.is_deterministic_act += 1
             return a_idx
         start_time = datetime.now()
-        policy_next = get_policy_from_q_values(
-            q_values=q_values.tolist(), weights=self.weights
+
+        # update the model parameters, notice that we are accessing the private attribute
+        self.model.qvalues._data.update(
+            {
+                (d, a): q_values[d][a]
+                for d in range(self.env.num_groups)
+                for a in range(self.env.num_groups + 1)
+            }
         )
+        # TODO: remove this assertion after code being fully tested
+        assert (
+            self.model.qvalues._data[0, 0] == q_values[0, 0]
+        ), f"Q values not updated correctly. {self.model.qvalues._data[0, 0].value} vs. {q_values[0, 0]}"
+        self.solver.solve(self.model, tee=False)
+        policy_next = [self.model.varP[a].value for a in self.model.varP]
+
         self.time_stat.solve_lp_act.append(
             (datetime.now() - start_time).total_seconds()
         )
@@ -200,10 +218,18 @@ class DQNAgent:
                 policy_next[a_idx] = 1
             else:
                 start_time = datetime.now()
+                # solve the updated model
+                q_values_np = q_values.detach().numpy()
+                self.model.qvalues._data.update(
+                    {
+                        (d, a): q_values_np[d][a]
+                        for d in range(self.env.num_groups)
+                        for a in range(self.env.num_groups + 1)
+                    }
+                )
+                self.solver.solve(self.model, tee=False)
                 policy_next = torch.tensor(
-                    get_policy_from_q_values(
-                        q_values=next_q_values.tolist(), weights=self.weights
-                    ),
+                    [self.model.varP[a].value for a in self.model.varP],
                     dtype=torch.float32,
                 )
                 self.time_stat.solve_lp_improve.append(
@@ -248,6 +274,12 @@ class DQNAgent:
         episode_rewards = []
         states = []
         random.seed(random_seed)
+
+        # build the LP model only once
+        q_values = np.zeros((self.env.reward_space.n, self.env.action_space.n))
+        self.model = build_dual_q_model(q_values=q_values, weights=self.weights)
+        self.solver = SolverFactory("gurobi", solver_io="python")
+
         for _ in tqdm(range(num_episodes)):
             inner_start_time = datetime.now()
             ep_rewards = []
