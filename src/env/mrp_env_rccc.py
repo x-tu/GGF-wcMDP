@@ -44,6 +44,7 @@ class MachineReplacement(gym.Env):
             prob_remain=prob_remain,
             deterioration_step=deterioration_step,
         )
+        self.weights = self.mrp_data.weights
 
         # Parameters for multiple machines
         self.observation_space = spaces.Discrete(self.mrp_data.num_global_states)

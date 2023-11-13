@@ -35,5 +35,19 @@ params = DotDict(
                 "encoding_int": False,  # whether to encode the state as integer
             }
         ),
+        # hyperparameters for the A2C
+        "a2c": DotDict(
+            {
+                "alpha": 0.001,
+                "policy_loss_weight": 1.0,
+                "value_loss_weight": 0.6,
+                "entropy_loss_weight": 0.001,
+                "max_n_steps": 10,
+                "n_workers": 8,
+                "tau": 0.95,
+                "encoding_int": False,  # whether to encode the state as integer
+                "hidden_dims": (64, 64),
+            }
+        ),
     }
 )
