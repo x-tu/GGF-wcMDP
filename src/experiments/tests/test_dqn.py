@@ -10,14 +10,10 @@ params.update(
 )
 
 env = MachineReplacement(
-    num_arms=params.num_groups,
+    num_groups=params.num_groups,
     num_states=params.num_states,
-    rccc_wrt_max=params.rccc_wrt_max,
-    prob_remain=params.prob_remain,
-    mat_type=params.mat_type,
-    weight_coefficient=params.weight_coefficient,
+    num_actions=params.num_actions,
     num_steps=params.len_episode,
-    ggi=params.ggi,
     encoding_int=params.dqn.encoding_int,
 )
 
