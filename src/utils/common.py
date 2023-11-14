@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from utils.encoding import state_int_index_to_vector
+
 
 class DotDict(dict):
     """dot.notation access to dictionary attributes"""
@@ -35,7 +37,18 @@ class MDP4LP:
         weights: np.array,
         rewards: np.array = None,
         minimize: bool = True,
+        encoding_int: bool = True,
+        base_num_states: int = None,
     ):
+        if not encoding_int:
+            assert base_num_states is not None, "base_num_states must be provided."
+            self.state_tuple_list = [
+                tuple(
+                    state_int_index_to_vector(i, num_groups, base_num_states).tolist()
+                )
+                for i in range(num_states)
+            ]
+
         self.state_indices = np.arange(num_states)
         self.action_indices = np.arange(num_actions)
         self.group_indices = np.arange(num_groups)
@@ -43,6 +56,7 @@ class MDP4LP:
         self.costs = costs
         self.rewards = rewards
         self.discount = discount
+        self.encoding_int = encoding_int
         # add support for rewards
         if rewards:
             # double-check the minimize flag
