@@ -9,12 +9,15 @@ from pyomo.opt import SolverFactory
 from utils.common import MDP4LP, DotDict
 
 
-def build_dlp(mdp: MDP4LP, deterministic_policy: bool = False) -> pyo.ConcreteModel:
+def build_dlp(
+    mdp: MDP4LP, deterministic_policy: bool = False, print_results: bool = False
+) -> pyo.ConcreteModel:
     """Used to build the GGF dual MDP (stochastic) model."""
 
     model = pyo.ConcreteModel()
     model.deterministic_policy = deterministic_policy
     model.mdp = mdp
+    model.print_results = print_results
 
     # Create mu list
     big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
@@ -115,10 +118,7 @@ def solve_dlp(model: pyo.ConcreteModel):
     # Set the solver to be used
     start_time = datetime.now()
     optimizer = SolverFactory("gurobi", solver_io="python")
-    print(f"Solver selection time: {(datetime.now() - start_time).total_seconds()}")
-    # optimizer.options["sec"] = MAX_SOLVING_TIME
-    start_time = datetime.now()
-    results = optimizer.solve(model, tee=False, report_timing=True)
+    results = optimizer.solve(model, tee=False, report_timing=False)
     print(f"Solver solving time: {(datetime.now() - start_time).total_seconds()}")
     return results, model
 
@@ -164,24 +164,24 @@ def extract_dlp(model: pyo.ConcreteModel):
         # print the policy if the visitation frequency is not zero
         for a in model.mdp.action_indices:
             x_value = model.varX[s, a].value
-            if x_value > 1e-6:
+            if x_value > 1e-6 and model.print_results:
                 print(f"policy{state, a}: {x_value / x_sum}")
 
         # calculate the total visitation frequency
         x_total += x_sum
-    print("x_total: ", x_total)
+    print("x_total: ", x_total) if model.print_results else None
 
     # Dual variable lambda
     var_lambda = {}
     for d in model.mdp.group_indices:
         var_lambda[str(d)] = model.varN[d].value
-        print(f"lambda{d}: {model.varL[d].value}")
+        print(f"lambda{d}: {model.varL[d].value}") if model.print_results else None
 
     # Dual variable nu
     var_nu = {}
     for d in model.mdp.group_indices:
         var_nu[str(d)] = model.varN[d].value
-        print(f"nu{d}: {model.varN[d].value}")
+        print(f"nu{d}: {model.varN[d].value}") if model.print_results else None
 
     # Costs for group
     reward = []
@@ -192,7 +192,7 @@ def extract_dlp(model: pyo.ConcreteModel):
             for a in model.mdp.action_indices
         )
         reward.append(all_cost)
-        print(f"group {d}: {all_cost}")
+        print(f"group {d}: {all_cost}") if model.print_results else None
 
     # calculate the GGF value (XR)
     reward_sorted = np.sort(np.array(reward))
