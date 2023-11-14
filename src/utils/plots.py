@@ -25,7 +25,7 @@ def plot_figures(ep_list: list, lr_list: list, all_rewards: dict):
             rewards = all_rewards[unique_key_str]
             plt.subplot(len(ep_list), len(lr_list), sb_plot_index)
             plt.plot(rewards)
-            plt.ylim(ymin=0, ymax=20)
+            plt.ylim(ymin=-20, ymax=0)
             plt.title(f"Ep={ep}, Lr={lr}")
             plt.xlabel("Episodes")
             plt.ylabel("Discounted GGF Reward")

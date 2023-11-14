@@ -280,7 +280,7 @@ class DQNAgent:
         self.model = build_dual_q_model(q_values=q_values, weights=self.weights)
         self.solver = SolverFactory("gurobi", solver_io="python")
 
-        for _ in tqdm(range(num_episodes)):
+        for ep in tqdm(range(num_episodes)):
             inner_start_time = datetime.now()
             ep_rewards = []
             for n in range(num_samples):
@@ -331,6 +331,8 @@ class DQNAgent:
             self.time_stat.episode.append(
                 (datetime.now() - inner_start_time).total_seconds()
             )
+            if ep % 50 == 0:
+                print("ep:", episode_rewards[-1])
         self.time_stat.total = (datetime.now() - start_time).total_seconds()
         print("\n", states)
         return episode_rewards

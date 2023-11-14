@@ -13,15 +13,15 @@ from utils.plots import plot_figures
 
 logging.getLogger("pyomo.core").setLevel(logging.ERROR)
 
-# params.update({"num_episodes": 20, "len_episode": 10, "num_samples": 1})
+params.update({"num_episodes": 300, "len_episode": 150, "num_samples": 15})
 
 # batch-running parameters
-GROUPS = [3]
-DETERMINISTIC = [True, False]
+GROUPS = [6]
+DETERMINISTIC = [False]
 LEARNING_RATES = [1e-4]
-EXPLORATION_RATES = [0.6]
-PLOT = False
-SAVE_RESULTS = False
+EXPLORATION_RATES = [0.7]
+PLOT = True
+SAVE_RESULTS = True
 
 # for batching the experiments
 for grp in GROUPS:
@@ -56,36 +56,34 @@ for grp in GROUPS:
                 unique_key_str = f"{ep}-{lr}"
                 all_rewards[unique_key_str] = episode_rewards
 
-        if PLOT:
-            # plot the rewards
-            plot_figures(
-                ep_list=EXPLORATION_RATES,
-                lr_list=LEARNING_RATES,
-                all_rewards=all_rewards,
-            )
+                if SAVE_RESULTS:
+                    # file string
+                    TIME_STAMP = str(datetime.now().strftime("%m%d%H%M%S"))
+                    TYPE_INDICATOR = "D" if params.dqn.deterministic else "S"
+                    RUN = (
+                        f"A{agent.count_stat.is_deterministic_act}_I{agent.count_stat.is_deterministic_improve}_"
+                        f"{params.num_episodes}_{params.len_episode}_{params.num_samples}"
+                    )
+                    # save the rewards
+                    all_rewards_df = pd.DataFrame.from_dict(all_rewards)
+                    all_rewards_df.to_csv(
+                        f"results/rewards_dqn{TYPE_INDICATOR}_{params.num_groups}_{TIME_STAMP}_{RUN}.csv"
+                    )
+                    # save time statistics
+                    with open(
+                        f"results/time_stat_dqn{TYPE_INDICATOR}_{params.num_groups}_{TIME_STAMP}_{RUN}.json",
+                        "w",
+                    ) as fp:
+                        json.dump(agent.time_stat, fp)
+                    # save policy
+                    policy_df = pd.DataFrame.from_dict(agent.policy, orient="index")
+                    policy_df = policy_df.sort_index()
+                    policy_df.to_csv(
+                        f"results/policy_dqn{TYPE_INDICATOR}_{params.num_groups}_{TIME_STAMP}_{RUN}.csv"
+                    )
 
-        if SAVE_RESULTS:
-            # file string
-            TIME_STAMP = str(datetime.now().strftime("%m%d%H%M%S"))
-            TYPE_INDICATOR = "D" if params.dqn.deterministic else "S"
-            RUN = (
-                f"A{agent.count_stat.is_deterministic_act}_I{agent.count_stat.is_deterministic_improve}_"
-                f"{params.num_episodes}_{params.len_episode}_{params.num_samples}"
-            )
-            # save the rewards
-            all_rewards_df = pd.DataFrame.from_dict(all_rewards)
-            all_rewards_df.to_csv(
-                f"results/rewards_dqn{TYPE_INDICATOR}_{params.num_groups}_{TIME_STAMP}_{RUN}.csv"
-            )
-            # save time statistics
-            with open(
-                f"results/time_stat_dqn{TYPE_INDICATOR}_{params.num_groups}_{TIME_STAMP}_{RUN}.json",
-                "w",
-            ) as fp:
-                json.dump(agent.time_stat, fp)
-            # save policy
-            policy_df = pd.DataFrame.from_dict(agent.policy, orient="index")
-            policy_df = policy_df.sort_index()
-            policy_df.to_csv(
-                f"results/policy_dqn{TYPE_INDICATOR}_{params.num_groups}_{TIME_STAMP}_{RUN}.csv"
-            )
+if PLOT:
+    # plot the rewards
+    plot_figures(
+        ep_list=EXPLORATION_RATES, lr_list=LEARNING_RATES, all_rewards=all_rewards
+    )
