@@ -7,7 +7,7 @@ from utils.mrp import MRPData
 
 records = {}
 
-for group in [2, 3, 4, 5, 6, 7]:
+for group in [2, 3, 4]:
     print(f"\n=== Group: {group} ===")
     for deterministic in [False, True]:
         POLICY_STR = "deterministic" if deterministic else "stochastic"

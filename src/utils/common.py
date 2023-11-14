@@ -64,3 +64,33 @@ class MDP4LP:
             # maximizing rewards is equivalent to minimizing negative rewards
             self.costs = -rewards
         self.weights = weights
+
+        # validate the MDP data
+        self.validate_transition()
+        self.validate_costs()
+
+    def validate_transition(self):
+        """Validate the transition matrix."""
+        assert self.transition.shape == (
+            len(self.state_indices),
+            len(self.state_indices),
+            len(self.action_indices),
+        ), "The transition matrix must be a square matrix."
+        assert np.all(self.transition >= 0) & np.all(
+            self.transition <= 1
+        ), "The transition matrix must be a stochastic matrix."
+        assert np.all(
+            abs(np.sum(self.transition, axis=1) - 1.0) < 1e-4
+        ), "Each row of the transition matrix must sum to 1."
+
+    def validate_costs(self):
+        """Validate the cost matrix."""
+        assert self.costs.shape == (
+            len(self.state_indices),
+            len(self.action_indices),
+            len(self.group_indices),
+        ), "The cost matrix must be a 3D matrix."
+        assert np.all(self.costs >= 0), "The cost matrix must be non-negative."
+        assert np.all(
+            np.sum(self.costs, axis=2) >= 0
+        ), "The cost matrix must be non-negative."
