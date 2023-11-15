@@ -18,13 +18,44 @@ class MRPData:
         prob_remain: float = 0.8,
         deterioration_step: int = 1,
         weight_type: str = "exponential2",
+        cost_types_operation: list = None,
+        cost_types_replace: list = None,
     ):
         self.num_groups = num_groups
         self.num_states = num_states
         self.num_actions = num_actions
 
-        # get data for a single machine
-        self.costs = CostReward(num_states=num_states, rccc_wrt_max=rccc_wrt_max).costs
+        # get data for a single machine, note that only 2 actions are supported now
+        self.costs = np.zeros((self.num_groups, self.num_states, 2))
+
+        cost_types_operation = (
+            cost_types_operation
+            if cost_types_operation
+            else ["quadratic"] * self.num_groups
+        )
+        cost_types_replace = (
+            cost_types_replace if cost_types_replace else ["rccc"] * self.num_groups
+        )
+        assert (
+            len(cost_types_operation) == self.num_groups
+        ), "Please specify operation cost types for each group."
+        assert (
+            len(cost_types_replace) == self.num_groups
+        ), "Please specify replacement cost types for each group."
+
+        unique_cost_type = set(cost_types_operation + cost_types_replace)
+        assert unique_cost_type.issubset(
+            {"constant", "linear", "quadratic", "rccc", "random"}
+        ), "Cost type not supported."
+
+        # generate costs for each group
+        for group_idx in range(self.num_groups):
+            self.costs[group_idx, :, :] = CostReward(
+                num_states=num_states,
+                rccc_wrt_max=rccc_wrt_max,
+                cost_type_operation=cost_types_operation[group_idx],
+                cost_type_replace=cost_types_replace[group_idx],
+            ).costs
         self.rewards = -self.costs
         self.transitions = TransitionMatrix(
             num_states=num_states,
@@ -103,7 +134,7 @@ class MRPData:
             for a in range(self.num_global_actions):
                 for d in range(self.num_groups):
                     global_costs[s, a, d] = self.costs[
-                        self.global_states[s, d], self.global_actions[a, d]
+                        d, self.global_states[s, d], self.global_actions[a, d]
                     ]
         return global_costs
 
@@ -137,7 +168,13 @@ class MRPData:
 class CostReward:
     """Define the cost function for a single machine."""
 
-    def __init__(self, num_states: int, rccc_wrt_max=1.5):
+    def __init__(
+        self,
+        num_states: int,
+        rccc_wrt_max=1.5,
+        cost_type_operation: str = "quadratic",
+        cost_type_replace: str = "rccc",
+    ):
         """Initialize the cost function.
 
         Assumption: there are only two types of actions: 0 (do nothing) and 1 (replace).
@@ -146,24 +183,37 @@ class CostReward:
             num_states (`int`): number of states.
             rccc_wrt_max (`float`): ratio of the Replacement Cost Constant Coefficient
                 w.r.t the max cost in passive mode.
+            cost_type_operation (`str`): the type of cost function for doing nothing.
+            cost_type_replace (`str`): the type of cost function for replacement.
         """
 
         self.num_s = num_states
-        self.costs = self.get_costs(rccc_wrt_max=rccc_wrt_max)
+        self.costs = self.get_costs(
+            rccc_wrt_max=rccc_wrt_max,
+            cost_type_operation=cost_type_operation,
+            cost_type_replace=cost_type_replace,
+        )
         self.rewards = 1 - self.costs
 
-    def get_costs(self, rccc_wrt_max: float = 1.5) -> np.array:
+    def get_costs(
+        self,
+        rccc_wrt_max: float = 1.5,
+        cost_type_operation: str = "quadratic",
+        cost_type_replace: str = "rccc",
+    ) -> np.array:
         """Define the cost function in size [S, A]."""
 
         costs = np.zeros([self.num_s, 2])
         # define the cost of doing nothing
-        costs[:, 0] = self.get_cost_by_type(cost_type="quadratic")
+        costs[:, 0] = self.get_cost_by_type(cost_type=cost_type_operation)
         # define the cost of replacement by the ratio
-        costs[:, 1] = self.get_cost_by_type(cost_type="rccc", rccc_wrt_max=rccc_wrt_max)
+        costs[:, 1] = self.get_cost_by_type(
+            cost_type=cost_type_replace, rccc_wrt_max=rccc_wrt_max
+        )
         return costs / np.max(costs)
 
     def get_cost_by_type(self, cost_type: str, rccc_wrt_max: float = 1.5) -> np.array:
-        """Define the cost function in size [S, D] under given action.
+        """Define the cost function in size [S, 1] under given action.
 
         Args:
             cost_type (`str`): the type of cost function.
@@ -183,7 +233,7 @@ class CostReward:
             "rccc": np.full(
                 shape=self.num_s, fill_value=rccc_wrt_max * (self.num_s - 1) ** 2
             ),
-            "random": np.random.rand(self.num_s),
+            "random": np.sort(np.random.rand(self.num_s)),
         }
         return cost_type_mapping.get(cost_type, np.zeros(self.num_s))
 

@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from utils.encoding import state_int_index_to_vector
+
 
 class DotDict(dict):
     """dot.notation access to dictionary attributes"""
@@ -35,7 +37,18 @@ class MDP4LP:
         weights: np.array,
         rewards: np.array = None,
         minimize: bool = True,
+        encoding_int: bool = True,
+        base_num_states: int = None,
     ):
+        if not encoding_int:
+            assert base_num_states is not None, "base_num_states must be provided."
+            self.state_tuple_list = [
+                tuple(
+                    state_int_index_to_vector(i, num_groups, base_num_states).tolist()
+                )
+                for i in range(num_states)
+            ]
+
         self.state_indices = np.arange(num_states)
         self.action_indices = np.arange(num_actions)
         self.group_indices = np.arange(num_groups)
@@ -43,6 +56,7 @@ class MDP4LP:
         self.costs = costs
         self.rewards = rewards
         self.discount = discount
+        self.encoding_int = encoding_int
         # add support for rewards
         if rewards:
             # double-check the minimize flag
@@ -50,3 +64,33 @@ class MDP4LP:
             # maximizing rewards is equivalent to minimizing negative rewards
             self.costs = -rewards
         self.weights = weights
+
+        # validate the MDP data
+        self.validate_transition()
+        self.validate_costs()
+
+    def validate_transition(self):
+        """Validate the transition matrix."""
+        assert self.transition.shape == (
+            len(self.state_indices),
+            len(self.state_indices),
+            len(self.action_indices),
+        ), "The transition matrix must be a square matrix."
+        assert np.all(self.transition >= 0) & np.all(
+            self.transition <= 1
+        ), "The transition matrix must be a stochastic matrix."
+        assert np.all(
+            abs(np.sum(self.transition, axis=1) - 1.0) < 1e-4
+        ), "Each row of the transition matrix must sum to 1."
+
+    def validate_costs(self):
+        """Validate the cost matrix."""
+        assert self.costs.shape == (
+            len(self.state_indices),
+            len(self.action_indices),
+            len(self.group_indices),
+        ), "The cost matrix must be a 3D matrix."
+        assert np.all(self.costs >= 0), "The cost matrix must be non-negative."
+        assert np.all(
+            np.sum(self.costs, axis=2) >= 0
+        ), "The cost matrix must be non-negative."
