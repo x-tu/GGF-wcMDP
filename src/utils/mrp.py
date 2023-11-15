@@ -1,6 +1,7 @@
 """This module contains classes and functions for the MRP data generation."""
 
 import itertools
+from typing import Union
 
 import numpy as np
 
@@ -15,7 +16,7 @@ class MRPData:
         num_states: int = 3,
         num_actions: int = 2,
         rccc_wrt_max: float = 1.5,
-        prob_remain: float = 0.8,
+        prob_remain: Union[float, list] = 0.8,
         deterioration_step: int = 1,
         weight_type: str = "exponential2",
         cost_types_operation: list = None,
@@ -27,7 +28,6 @@ class MRPData:
 
         # get data for a single machine, note that only 2 actions are supported now
         self.costs = np.zeros((self.num_groups, self.num_states, 2))
-
         cost_types_operation = (
             cost_types_operation
             if cost_types_operation
@@ -36,17 +36,6 @@ class MRPData:
         cost_types_replace = (
             cost_types_replace if cost_types_replace else ["rccc"] * self.num_groups
         )
-        assert (
-            len(cost_types_operation) == self.num_groups
-        ), "Please specify operation cost types for each group."
-        assert (
-            len(cost_types_replace) == self.num_groups
-        ), "Please specify replacement cost types for each group."
-
-        unique_cost_type = set(cost_types_operation + cost_types_replace)
-        assert unique_cost_type.issubset(
-            {"constant", "linear", "quadratic", "rccc", "random"}
-        ), "Cost type not supported."
 
         # generate costs for each group
         for group_idx in range(self.num_groups):
@@ -57,11 +46,18 @@ class MRPData:
                 cost_type_replace=cost_types_replace[group_idx],
             ).costs
         self.rewards = -self.costs
-        self.transitions = TransitionMatrix(
-            num_states=num_states,
-            prob_remain=prob_remain,
-            deterioration_step=deterioration_step,
-        ).transitions
+        if isinstance(prob_remain, float):
+            prob_remain = [prob_remain] * self.num_groups
+        self.transitions = np.zeros(
+            (self.num_groups, self.num_states, self.num_states, 2)
+        )
+        for group_idx in range(self.num_groups):
+            self.transitions[group_idx, :, :, :] = TransitionMatrix(
+                num_states=num_states,
+                prob_remain=prob_remain[group_idx],
+                reset_prob=1,
+                deterioration_step=deterioration_step,
+            ).transitions
 
         # generate data for multiple groups
         self.global_states = self.get_global_states()
@@ -155,6 +151,7 @@ class MRPData:
                     temp_trans_prob = 1
                     for d in range(self.num_groups):
                         temp_trans_prob *= self.transitions[
+                            d,
                             self.global_states[s, d],
                             self.global_states[next_s, d],
                             self.global_actions[a, d],
@@ -201,7 +198,7 @@ class CostReward:
         cost_type_operation: str = "quadratic",
         cost_type_replace: str = "rccc",
     ) -> np.array:
-        """Define the cost function in size [S, A]."""
+        """Define the cost function in size [S, A] (A=2)."""
 
         costs = np.zeros([self.num_s, 2])
         # define the cost of doing nothing
@@ -242,7 +239,11 @@ class TransitionMatrix:
     """Define the Markov chain transition matrix for a single machine."""
 
     def __init__(
-        self, num_states: int, prob_remain: float = 0.5, deterioration_step: int = 1
+        self,
+        num_states: int,
+        prob_remain: float = 0.5,
+        reset_prob: float = 1,
+        deterioration_step: int = 1,
     ):
         """Initialize the transition matrix in size [S, S, A].
 
@@ -260,8 +261,10 @@ class TransitionMatrix:
         self.transitions[:, :, 0] = self.deterioration(
             prob_remain=prob_remain, deterioration_step=deterioration_step
         )
-        # define the transition matrix for replacement
-        self.transitions[:, :, 1] = self.pure_reset(prob_remain=prob_remain)
+        # define the transition matrix for replacement successfully
+        self.transitions[:, :, 1] = self.prob_reset(
+            reset_prob=reset_prob, prob_remain=prob_remain
+        )
 
     def pure_reset(self, prob_remain: float) -> np.array:
         """Define the transition matrix for replacement.
@@ -278,6 +281,38 @@ class TransitionMatrix:
         replacement_transition[:, 0] = prob_remain
         # going to deterioration
         replacement_transition[:, 1] = 1 - prob_remain
+        return replacement_transition
+
+    def prob_reset(self, reset_prob: float, prob_remain: float) -> np.array:
+        """Define the transition matrix for replacement.
+
+        Args:
+            reset_prob (`float`): probability of remaining at state 0 after replacement
+            prob_remain (`float`): probability of remaining at the same state after deterioration
+
+        Returns:
+            replace_transitions (`np.array`): transition matrix for replacement
+        """
+        replacement_transition = np.zeros([self.num_s, self.num_s])
+
+        for state in range(self.num_s):
+            # with probability 1/N it will be successfully repaired
+            replacement_transition[state, 0] = reset_prob * prob_remain
+            replacement_transition[state, 1] = reset_prob * (1 - prob_remain)
+
+            # with probability 1 - 1/N it fails to be repaired
+            replacement_transition[state, state] += (1 - reset_prob) * prob_remain
+            if state + 1 < self.num_s:
+                replacement_transition[state, state + 1] += (1 - reset_prob) * (
+                    1 - prob_remain
+                )
+            else:
+                replacement_transition[state, state] += (1 - reset_prob) * (
+                    1 - prob_remain
+                )
+
+            # data validation
+            assert replacement_transition[state, :].sum() == 1
         return replacement_transition
 
     def deterioration(self, prob_remain: float, deterioration_step) -> np.array:
