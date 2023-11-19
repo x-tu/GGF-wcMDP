@@ -57,7 +57,7 @@ def simulation_state_value(
 
 
 def calculate_state_value(
-    discount: int,
+    discount: float,
     initial_state_prob: np.array,
     policy: np.array,
     rewards: np.array,
@@ -69,7 +69,7 @@ def calculate_state_value(
     V = sum_{t=0}^T mu^T (gamma * pi * P)^t * pi * r
 
     Args:
-        discount (`int`): the discount factor gamma
+        discount (`float`): the discount factor gamma
         initial_state_prob (`np.array`): the initial state distribution mu
         policy (`np.array`): the policy pi
         rewards (`np.array`): the reward matrix r
@@ -104,6 +104,48 @@ def calculate_state_value(
         )
         state_value_list.append(state_value.copy())
     return state_value_list
+
+
+def calculate_visitation_freq(
+    discount: float,
+    initial_state_prob: np.array,
+    policy: np.array,
+    transition_prob: np.array,
+    time_horizon: int,
+):
+    """Main function to calculate the state visitation frequency from the policy.
+
+    X = sum_{t=0}^T mu^T (gamma * pi * P)^t * pi
+
+    Args:
+        discount (`int`): the discount factor gamma
+        initial_state_prob (`np.array`): the initial state distribution mu
+        policy (`np.array`): the policy pi
+        transition_prob (`np.array`): the transition probability matrix P
+        time_horizon (`int`): the time horizon T
+    """
+
+    # calculate the state value function
+    _, S, A = transition_prob.shape
+    visitation_freq = np.zeros(S * A)
+
+    # transform the policy matrix to block diagonal matrix of size S * SA
+    policy_trans = transform_policy_matrix(policy)
+    # reshape the transition and reward matrix
+    transition_prob_trans = reshape_transition_matrix(transition_prob)
+
+    # calculate the state value function
+    for t in range(time_horizon):
+        visitation_freq += np.matmul(
+            np.matmul(
+                initial_state_prob,
+                np.linalg.matrix_power(
+                    discount * np.matmul(policy_trans, transition_prob_trans), t
+                ),
+            ),
+            policy_trans,
+        )
+    return visitation_freq.reshape(S, A)
 
 
 def transform_policy_matrix(policy_matrix: np.array) -> np.array:

@@ -24,6 +24,7 @@ def build_dlp(
         big_mu_list[prob1_state_idx] = 1
     else:
         big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
+    model.init_distribution = big_mu_list
 
     # Variables
     model.varL = pyo.Var(mdp.group_indices.tolist(), within=pyo.Reals)
@@ -228,16 +229,20 @@ def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
     ggf_value_ln = round(sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4)
 
     if print_results:
+        print(f"Proportion of stochastic policy: {round(proportion * 100, 2)}%")
         pd.set_option("display.max_rows", None)
         pd.set_option("display.max_columns", None)
         pd.set_option("display.expand_frame_repr", False)
         policy_formatted = policy.apply(
             lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))
         )
+        var_x_formatted = var_x.apply(
+            lambda x: x.map(lambda val: str(int(val)) if val == 0 else round(val, 4))
+        )
         space_df = pd.DataFrame(
             [" "] * model.mdp.num_states, index=s_idx, columns=[" "]
         )
-        concat_df = pd.concat([policy_formatted, space_df, var_x], axis=1)
+        concat_df = pd.concat([policy_formatted, space_df, var_x_formatted], axis=1)
         space_size = 12 + model.mdp.num_actions * 4
         print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
 
@@ -251,7 +256,6 @@ def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
         print(concat_df)
         print("GGF Value (DLP) L+N: ", ggf_value_ln)
         print("GGF Value (DLP) XR: ", ggf_value_xr)
-        print(f"Proportion of stochastic policy: {round(proportion* 100, 2)}%")
 
     results = DotDict(
         {
