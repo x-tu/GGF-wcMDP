@@ -273,6 +273,17 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     pd.set_option("display.max_columns", None)
     pd.set_option("display.expand_frame_repr", False)
 
+    cost_g1_df = pd.DataFrame(
+        model.mdp.costs[:, :, 0],
+        index=results.policy.index,
+        columns=model.mdp.action_indices,
+    ).round(2)
+    cost_g2_df = pd.DataFrame(
+        model.mdp.costs[:, :, 1],
+        index=results.policy.index,
+        columns=model.mdp.action_indices,
+    ).round(2)
+
     policy_formatted = results.policy.apply(
         lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))
     )
@@ -282,7 +293,19 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     space_df = pd.DataFrame(
         [" "] * model.mdp.num_states, index=results.policy.index, columns=[" "]
     )
-    concat_df = pd.concat([policy_formatted, space_df, var_x_formatted], axis=1)
+    concat_df = pd.concat(
+        [
+            policy_formatted,
+            space_df,
+            var_x_formatted,
+            space_df,
+            space_df,
+            cost_g1_df,
+            space_df,
+            cost_g2_df,
+        ],
+        axis=1,
+    )
     space_size = 12 + model.mdp.num_actions * 4
     print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
 
