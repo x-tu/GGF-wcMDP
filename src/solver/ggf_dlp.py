@@ -10,17 +10,20 @@ from utils.common import MDP4LP, DotDict
 
 
 def build_dlp(
-    mdp: MDP4LP, deterministic_policy: bool = False, print_results: bool = False
+    mdp: MDP4LP, deterministic_policy: bool = False, prob1_state_idx: int = None
 ) -> pyo.ConcreteModel:
     """Used to build the GGF dual MDP (stochastic) model."""
 
     model = pyo.ConcreteModel()
     model.deterministic_policy = deterministic_policy
     model.mdp = mdp
-    model.print_results = print_results
 
-    # Create mu list
-    big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
+    # Create mu list (uniform by default)
+    if prob1_state_idx:
+        big_mu_list = [0] * len(mdp.state_indices)
+        big_mu_list[prob1_state_idx] = 1
+    else:
+        big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
 
     # Variables
     model.varL = pyo.Var(mdp.group_indices.tolist(), within=pyo.Reals)
@@ -103,27 +106,50 @@ def build_dlp_fix(mdp: MDP4LP, policy: pd.DataFrame) -> pyo.ConcreteModel:
     return model
 
 
-def solve_dlp(model: pyo.ConcreteModel):
+def solve_dlp(model: pyo.ConcreteModel, num_opt_solutions: int = 1):
     """ Selects the solver and set the optimization settings.
 
     Args:
         model: the MRP model to be optimized
+        num_opt_solutions: the number of optimal solutions to be returned
 
     Returns:
         results: the default optimization report
         model: the optimized model
+        all_solutions: the list of all sub-solutions found
 
     """
 
     # Set the solver to be used
     start_time = datetime.now()
-    optimizer = SolverFactory("gurobi", solver_io="python")
-    results = optimizer.solve(model, tee=False, report_timing=False)
-    print(f"Solver solving time: {(datetime.now() - start_time).total_seconds()}")
-    return results, model
+    opt = SolverFactory("gurobi_persistent", solver_io="python")
+    opt.set_instance(model)
+
+    if num_opt_solutions > 1:
+        opt.set_gurobi_param("PoolSolutions", num_opt_solutions)
+        opt.set_gurobi_param("PoolSearchMode", 2)
+
+    # Solve the model
+    results = opt.solve(model, tee=False, report_timing=False)
+    print(
+        f"Solver solving time: {round((datetime.now() - start_time).total_seconds(), 4)}"
+    )
+
+    if num_opt_solutions > 1:
+        num_opt_solutions = opt.get_model_attr("SolCount")
+        print("Number of solutions found: " + str(num_opt_solutions))
+
+        # Print objective values of solutions
+        all_solutions = []
+        for e in range(num_opt_solutions):
+            opt.set_gurobi_param("SolutionNumber", e)
+            all_solutions.append(opt._solver_model.getAttr("Xn"))
+        all_solutions = reformat_sub_solutions(all_solutions=all_solutions, model=model)
+        return results, model, all_solutions
+    return results, model, None
 
 
-def extract_dlp(model: pyo.ConcreteModel):
+def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
     """ This function is used to extract optimized results.
 
     Args:
@@ -135,85 +161,105 @@ def extract_dlp(model: pyo.ConcreteModel):
         policy: the policy to use
     """
 
-    # Policy formatting
-    if model.deterministic_policy:
-        # in case of the float zero error, format the policy to integer
-        for s in model.mdp.state_indices:
-            for a in model.mdp.action_indices:
-                model.varPi[s, a] = round(model.varPi[s, a].value)
-                # model.varX[s, a] = model.varPi[s, a] * model.varX[s, a]
-            assert sum([model.varPi[s, a].value for a in model.mdp.action_indices]) == 1
-
-    # Print results
-    policy = {}
-    var_x = {}
-    x_total = 0
+    # extract the policy Pi and visitation frequency X
+    policy_np = np.zeros((model.mdp.num_states, model.mdp.num_actions))
+    var_x_np = np.zeros((model.mdp.num_states, model.mdp.num_actions))
     for s in model.mdp.state_indices:
-        state = model.mdp.state_tuple_list[s] if not model.mdp.encoding_int else s
-
-        # used to calculate the total x
-        x_sum = sum([model.varX[s, a].value for a in model.mdp.action_indices])
-        x_sum = max(x_sum, 1e-6)  # avoid zero division
-
-        # record the policy and visitation frequency
-        policy[str(state)] = [
-            model.varX[s, a].value / x_sum for a in model.mdp.action_indices
-        ]
-        var_x[str(state)] = [model.varX[s, a].value for a in model.mdp.action_indices]
-
-        # print the policy if the visitation frequency is not zero
+        x_sum = (
+            sum([model.varX[s, a].value for a in model.mdp.action_indices])
+            if not model.deterministic_policy
+            else None
+        )
         for a in model.mdp.action_indices:
-            x_value = model.varX[s, a].value
-            if x_value > 1e-6 and model.print_results:
-                print(f"policy{state, a}: {x_value / x_sum}")
+            var_x_np[s, a] = model.varX[s, a].value
+            if model.deterministic_policy:
+                if 0 < model.varPi[s, a].value < 1:
+                    policy_np[s, a] = round(model.varPi[s, a].value, 4)
+                else:
+                    policy_np[s, a] = round(model.varPi[s, a].value)
+            else:
+                policy_np[s, a] = model.varX[s, a].value / max(
+                    x_sum, 1e-6
+                )  # avoid zero division
+    # convert to dataframe
+    s_idx = np.array(
+        [
+            str(model.mdp.state_tuple_list[s]) if not model.mdp.encoding_int else str(s)
+            for s in model.mdp.state_indices
+        ]
+    )
+    var_x = pd.DataFrame(var_x_np, index=s_idx, columns=model.mdp.action_indices).round(
+        4
+    )
+    policy = pd.DataFrame(
+        policy_np, index=s_idx, columns=model.mdp.action_indices
+    ).round(4)
 
-        # calculate the total visitation frequency
-        x_total += x_sum
-    print("x_total: ", x_total) if model.print_results else None
-
-    # Dual variable lambda
-    var_lambda = {}
+    # extract the dual variables L, N
+    dual_var_df = pd.DataFrame(
+        index=model.mdp.group_indices, columns=["Var L", "Var N"]
+    )
     for d in model.mdp.group_indices:
-        var_lambda[str(d)] = model.varN[d].value
-        print(f"lambda{d}: {model.varL[d].value}") if model.print_results else None
+        dual_var_df.loc[d] = [
+            round(model.varL[d].value, 4),
+            round(model.varN[d].value, 4),
+        ]
 
-    # Dual variable nu
-    var_nu = {}
-    for d in model.mdp.group_indices:
-        var_nu[str(d)] = model.varN[d].value
-        print(f"nu{d}: {model.varN[d].value}") if model.print_results else None
+    # Count the proportion of deterministic policy to positive policy
+    proportion = np.sum((policy_np > 0) & (policy_np < 1)) / np.sum(policy_np > 0)
 
-    # Costs for group
+    # Costs for each group
     reward = []
     for d in model.mdp.group_indices:
-        all_cost = sum(
-            model.mdp.costs[s, a, d] * model.varX[s, a].value
-            for s in model.mdp.state_indices
-            for a in model.mdp.action_indices
+        all_cost = round(
+            sum(
+                model.mdp.costs[s, a, d] * model.varX[s, a].value
+                for s in model.mdp.state_indices
+                for a in model.mdp.action_indices
+            ),
+            4,
         )
         reward.append(all_cost)
-        print(f"group {d}: {all_cost}") if model.print_results else None
 
-    # calculate the GGF value (XR)
+    # calculate the GGF values
     reward_sorted = np.sort(np.array(reward))
-    ggf_value_xr = np.dot(reward_sorted, model.mdp.weights)
-    print("GGF Value (DLP) XR: ", ggf_value_xr)
+    ggf_value_xr = round(np.dot(reward_sorted, model.mdp.weights), 4)
+    # ggf_value_xr = np.mean(model.mdp.weights) * sum(reward_sorted)
+    ggf_value_ln = round(sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4)
 
-    # calculate the GGF value (L+N)
-    ggf_value_ln = sum(
-        model.varL[d].value + model.varN[d].value for d in model.mdp.group_indices
-    )
-    print("GGF Value (DLP) L+N: ", ggf_value_ln)
+    if print_results:
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.expand_frame_repr", False)
+        policy_formatted = policy.apply(
+            lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))
+        )
+        space_df = pd.DataFrame(
+            [" "] * model.mdp.num_states, index=s_idx, columns=[" "]
+        )
+        concat_df = pd.concat([policy_formatted, space_df, var_x], axis=1)
+        space_size = 12 + model.mdp.num_actions * 4
+        print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
+
+        space_df = pd.DataFrame(
+            [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
+        )
+        reward_df = pd.DataFrame(
+            reward, index=model.mdp.group_indices, columns=["Group Reward"]
+        )
+        concat_df = pd.concat([dual_var_df, space_df, reward_df], axis=1)
+        print(concat_df)
+        print("GGF Value (DLP) L+N: ", ggf_value_ln)
+        print("GGF Value (DLP) XR: ", ggf_value_xr)
+        print(f"Proportion of stochastic policy: {round(proportion* 100, 2)}%")
 
     results = DotDict(
         {
-            "policy": policy,
             "var_x": var_x,
-            "var_lambda": var_lambda,
-            "var_nu": var_nu,
-            "reward": reward,
-            "ggf_value_xr": ggf_value_xr,
-            "ggf_value_ln": ggf_value_ln,
+            "policy": policy,
+            "var_dual": dual_var_df,
+            "ggf_value_xr": round(ggf_value_xr, 4),
+            "ggf_value_ln": round(ggf_value_ln, 4),
         }
     )
     return results
@@ -229,3 +275,81 @@ def policy_dlp(mdp, state, model: pyo.ConcreteModel, deterministic=False):
         x_values = [model.varX[state, int(a)].value for a in list(mdp.action_indices)]
         x_probs = [x / sum(x_values) for x in x_values]
         return random.choices(mdp.action_indices, weights=x_probs, k=1)[0]
+
+
+def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
+    num_groups = len(model.mdp.group_indices)
+    results = []
+    for sol_idx in len(all_solutions):
+        sol = all_solutions[sol_idx]
+        varL = np.array(sol[0:num_groups])
+        varN = np.array(sol[num_groups : 2 * num_groups])
+        dual_var_df = pd.DataFrame(
+            np.zeros((model.mdp.num_groups, 2)),
+            index=model.mdp.group_indices,
+            columns=["varL", "varN"],
+        ).round(4)
+        for d in model.mdp.group_indices:
+            dual_var_df.loc[d, "varL"] = varL[d]
+            dual_var_df.loc[d, "varN"] = varN[d]
+
+        if model.deterministic_policy:
+            policy_np = (
+                np.array(
+                    sol[
+                        2 * num_groups : 2 * num_groups
+                        + model.mdp.num_states * model.mdp.num_actions
+                    ]
+                )
+                .round(1)
+                .reshape(model.mdp.num_states, model.mdp.num_actions)
+            )
+            var_x_np = (
+                np.array(
+                    sol[
+                        2 * num_groups
+                        + model.mdp.num_states
+                        * model.mdp.num_actions : 2
+                        * model.mdp.num_groups
+                        + 2 * model.mdp.num_states * model.mdp.num_actions
+                    ]
+                )
+                .round(4)
+                .reshape(model.mdp.num_states, model.mdp.num_actions)
+            )
+        else:
+            var_x_np = (
+                np.array(
+                    sol[
+                        2 * num_groups : 2 * num_groups
+                        + model.mdp.num_states * model.mdp.num_actions
+                    ]
+                )
+                .round(1)
+                .reshape(model.mdp.num_states, model.mdp.num_actions)
+            )
+            policy_np = np.zeros((model.mdp.num_states, model.mdp.num_actions))
+            for s in model.mdp.state_indices:
+                x_sum = sum([var_x_np[s, a] for a in model.mdp.action_indices])
+                for a in model.mdp.action_indices:
+                    policy_np[s, a] = var_x_np[s, a] / max(x_sum, 1e-6)
+        # convert to dataframe
+        s_idx = np.array(
+            [
+                str(model.mdp.state_tuple_list[s])
+                if not model.mdp.encoding_int
+                else str(s)
+                for s in model.mdp.state_indices
+            ]
+        )
+        var_x = pd.DataFrame(
+            var_x_np, index=s_idx, columns=model.mdp.action_indices
+        ).round(4)
+        policy = pd.DataFrame(
+            policy_np, index=s_idx, columns=model.mdp.action_indices
+        ).round()
+
+        results[sol_idx] = DotDict(
+            {"var_x": var_x, "policy": policy, "var_dual": dual_var_df}
+        )
+    return results
