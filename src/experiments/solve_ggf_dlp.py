@@ -49,6 +49,10 @@ for group in [2]:
         results = extract_dlp(
             model=model, print_results=print_results["print_solve_results"]
         )
+        # save the policy
+        results.policy.to_csv(
+            f"results/policy/{POLICY_STR}_policy_group{group}_state{params.num_states}.csv"
+        )
 
         if print_results["print_var_x_recalculation"]:
             visitation_freq = calculate_visitation_freq(

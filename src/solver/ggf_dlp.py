@@ -308,11 +308,11 @@ def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
         dual_var_df = pd.DataFrame(
             np.zeros((model.mdp.num_groups, 2)),
             index=model.mdp.group_indices,
-            columns=["varL", "varN"],
+            columns=["Var L", "Var N"],
         ).round(4)
         for d in model.mdp.group_indices:
-            dual_var_df.loc[d, "varL"] = varL[d]
-            dual_var_df.loc[d, "varN"] = varN[d]
+            dual_var_df.loc[d, "Var L"] = round(varL[d], 4)
+            dual_var_df.loc[d, "Var N"] = round(varN[d], 4)
 
         if model.deterministic_policy:
             policy_np = (
@@ -379,7 +379,7 @@ def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
                 "reward": reward,
                 "ggf_value_xr": np.dot(np.sort(reward), model.mdp.weights).round(4),
                 "ggf_value_ln": round(
-                    sum(dual_var_df["varL"]) + sum(dual_var_df["varN"]), 4
+                    sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4
                 ),
             }
         )
