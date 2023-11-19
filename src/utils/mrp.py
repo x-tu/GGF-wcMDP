@@ -23,6 +23,13 @@ class MRPData:
         cost_types_replace: list = None,
         add_absorbing_state: bool = False,
     ):
+        """Initialize the MRP data.
+
+        Allowed Types:
+            costs: ["zero", "constant", "linear", "quadratic", "exponential", "rccc", "random"]
+            weights: ["uniform", "exponential2", "exponential3", "random"]
+
+        """
         self.num_groups = num_groups
         self.num_states = num_states
         self.num_actions = num_actions
@@ -223,12 +230,24 @@ class CostReward:
         """
 
         # type validation
-        assert cost_type in ["constant", "linear", "quadratic", "rccc", "random"]
+        assert cost_type in [
+            "zero",
+            "constant",
+            "linear",
+            "quadratic",
+            "exponential",
+            "rccc",
+            "random",
+        ]
         # define a dictionary to map cost types to their corresponding calculations
         cost_type_mapping = {
+            "zero": np.full(shape=self.num_s, fill_value=0),
             "constant": np.full(shape=self.num_s, fill_value=1),
             "linear": np.linspace(start=0, stop=self.num_s - 1, num=self.num_s),
             "quadratic": np.linspace(start=0, stop=self.num_s - 1, num=self.num_s) ** 2,
+            "exponential": np.exp(
+                np.linspace(start=0, stop=self.num_s - 1, num=self.num_s)
+            ),
             "rccc": np.full(
                 shape=self.num_s, fill_value=rccc_wrt_max * (self.num_s - 1) ** 2
             ),
