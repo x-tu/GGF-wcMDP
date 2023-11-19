@@ -17,7 +17,7 @@ class FairWeight:
             "uniform",
             "exponential2",
             "exponential3",
-            "uniform",
+            "random",
         ], "The weight type is not supported."
         weight_mapping = {
             "uniform": np.array([1 / num_groups] * num_groups),
