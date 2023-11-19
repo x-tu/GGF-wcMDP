@@ -49,6 +49,9 @@ class MDP4LP:
                 for i in range(num_states)
             ]
 
+        self.num_states = num_states
+        self.num_actions = num_actions
+        self.num_groups = num_groups
         self.state_indices = np.arange(num_states)
         self.action_indices = np.arange(num_actions)
         self.group_indices = np.arange(num_groups)
