@@ -136,17 +136,19 @@ def solve_dlp(model: pyo.ConcreteModel, num_opt_solutions: int = 1):
         f"Solver solving time: {round((datetime.now() - start_time).total_seconds(), 4)}"
     )
 
-    if num_opt_solutions > 1:
-        num_opt_solutions = opt.get_model_attr("SolCount")
-        print("Number of solutions found: " + str(num_opt_solutions))
+    num_opt_solutions = opt.get_model_attr("SolCount")
+    print("Number of solutions found: " + str(num_opt_solutions))
 
+    if num_opt_solutions > 1:
         # Print objective values of solutions
         all_solutions = []
         for e in range(num_opt_solutions):
             opt.set_gurobi_param("SolutionNumber", e)
             all_solutions.append(opt._solver_model.getAttr("Xn"))
-        all_solutions = reformat_sub_solutions(all_solutions=all_solutions, model=model)
-        return results, model, all_solutions
+        all_solutions_dict = reformat_sub_solutions(
+            all_solutions=all_solutions, model=model
+        )
+        return results, model, all_solutions_dict
     return results, model, None
 
 
@@ -208,64 +210,25 @@ def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
 
     # Count the proportion of deterministic policy to positive policy
     proportion = np.sum((policy_np > 0) & (policy_np < 1)) / np.sum(policy_np > 0)
-
-    # Costs for each group
-    reward = []
-    for d in model.mdp.group_indices:
-        all_cost = round(
-            sum(
-                model.mdp.costs[s, a, d] * model.varX[s, a].value
-                for s in model.mdp.state_indices
-                for a in model.mdp.action_indices
-            ),
-            4,
-        )
-        reward.append(all_cost)
-
-    # calculate the GGF values
-    reward_sorted = np.sort(np.array(reward))
-    ggf_value_xr = round(np.dot(reward_sorted, model.mdp.weights), 4)
-    # ggf_value_xr = np.mean(model.mdp.weights) * sum(reward_sorted)
-    ggf_value_ln = round(sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4)
-
-    if print_results:
-        print(f"Proportion of stochastic policy: {round(proportion * 100, 2)}%")
-        pd.set_option("display.max_rows", None)
-        pd.set_option("display.max_columns", None)
-        pd.set_option("display.expand_frame_repr", False)
-        policy_formatted = policy.apply(
-            lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))
-        )
-        var_x_formatted = var_x.apply(
-            lambda x: x.map(lambda val: str(int(val)) if val == 0 else round(val, 4))
-        )
-        space_df = pd.DataFrame(
-            [" "] * model.mdp.num_states, index=s_idx, columns=[" "]
-        )
-        concat_df = pd.concat([policy_formatted, space_df, var_x_formatted], axis=1)
-        space_size = 12 + model.mdp.num_actions * 4
-        print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
-
-        space_df = pd.DataFrame(
-            [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
-        )
-        reward_df = pd.DataFrame(
-            reward, index=model.mdp.group_indices, columns=["Group Reward"]
-        )
-        concat_df = pd.concat([dual_var_df, space_df, reward_df], axis=1)
-        print(concat_df)
-        print("GGF Value (DLP) L+N: ", ggf_value_ln)
-        print("GGF Value (DLP) XR: ", ggf_value_xr)
+    # Calculate the reward for each group
+    reward = calculate_group_reward(model=model)
 
     results = DotDict(
         {
             "var_x": var_x,
             "policy": policy,
             "var_dual": dual_var_df,
-            "ggf_value_xr": round(ggf_value_xr, 4),
-            "ggf_value_ln": round(ggf_value_ln, 4),
+            "reward": reward,
+            "ggf_value_xr": np.dot(np.sort(reward), model.mdp.weights).round(4),
+            "ggf_value_ln": round(
+                sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4
+            ),
         }
     )
+
+    if print_results:
+        print(f"Proportion of stochastic policy: {round(proportion * 100, 2)}%")
+        format_prints(results=results, model=model)
     return results
 
 
@@ -281,10 +244,64 @@ def policy_dlp(mdp, state, model: pyo.ConcreteModel, deterministic=False):
         return random.choices(mdp.action_indices, weights=x_probs, k=1)[0]
 
 
+def calculate_group_reward(model: pyo.ConcreteModel) -> np.array:
+    # Costs for each group
+    reward = []
+    for d in model.mdp.group_indices:
+        all_cost = round(
+            sum(
+                model.mdp.costs[s, a, d] * model.varX[s, a].value
+                for s in model.mdp.state_indices
+                for a in model.mdp.action_indices
+            ),
+            4,
+        )
+        reward.append(all_cost)
+    return np.array(reward)
+
+
+def format_prints(results: DotDict, model: pyo.ConcreteModel):
+    """ This function is used to format the results and print them.
+
+    Args:
+        results: the results to be printed
+        model: the DLP model
+
+    """
+    # disable the output limit
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.expand_frame_repr", False)
+
+    policy_formatted = results.policy.apply(
+        lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))
+    )
+    var_x_formatted = results.var_x.apply(
+        lambda x: x.map(lambda val: str(int(val)) if val == 0 else round(val, 4))
+    )
+    space_df = pd.DataFrame(
+        [" "] * model.mdp.num_states, index=results.policy.index, columns=[" "]
+    )
+    concat_df = pd.concat([policy_formatted, space_df, var_x_formatted], axis=1)
+    space_size = 12 + model.mdp.num_actions * 4
+    print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
+
+    space_df = pd.DataFrame(
+        [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
+    )
+    reward_df = pd.DataFrame(
+        results.reward, index=model.mdp.group_indices, columns=["Group Reward"]
+    )
+    print(pd.concat([results.var_dual, space_df, reward_df], axis=1))
+
+    print("GGF Value (DLP) L+N: ", results.ggf_value_ln)
+    print("GGF Value (DLP) XR: ", results.ggf_value_xr)
+
+
 def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
     num_groups = len(model.mdp.group_indices)
-    results = []
-    for sol_idx in len(all_solutions):
+    all_results = {}
+    for sol_idx in range(len(all_solutions)):
         sol = all_solutions[sol_idx]
         varL = np.array(sol[0:num_groups])
         varN = np.array(sol[num_groups : 2 * num_groups])
@@ -352,8 +369,18 @@ def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
         policy = pd.DataFrame(
             policy_np, index=s_idx, columns=model.mdp.action_indices
         ).round()
+        reward = calculate_group_reward(model=model)
 
-        results[sol_idx] = DotDict(
-            {"var_x": var_x, "policy": policy, "var_dual": dual_var_df}
+        all_results[sol_idx] = DotDict(
+            {
+                "var_x": var_x,
+                "policy": policy,
+                "var_dual": dual_var_df,
+                "reward": reward,
+                "ggf_value_xr": np.dot(np.sort(reward), model.mdp.weights).round(4),
+                "ggf_value_ln": round(
+                    sum(dual_var_df["varL"]) + sum(dual_var_df["varN"]), 4
+                ),
+            }
         )
-    return results
+    return all_results
