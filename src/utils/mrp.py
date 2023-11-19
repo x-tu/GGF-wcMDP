@@ -21,6 +21,7 @@ class MRPData:
         weight_type: str = "exponential2",
         cost_types_operation: list = None,
         cost_types_replace: list = None,
+        add_absorbing_state: bool = False,
     ):
         self.num_groups = num_groups
         self.num_states = num_states
@@ -57,6 +58,7 @@ class MRPData:
                 prob_remain=prob_remain[group_idx],
                 reset_prob=1,
                 deterioration_step=deterioration_step,
+                add_absorbing_state=add_absorbing_state,
             ).transitions
 
         # generate data for multiple groups
@@ -244,6 +246,7 @@ class TransitionMatrix:
         prob_remain: float = 0.5,
         reset_prob: float = 1,
         deterioration_step: int = 1,
+        add_absorbing_state: bool = False,
     ):
         """Initialize the transition matrix in size [S, S, A].
 
@@ -265,6 +268,9 @@ class TransitionMatrix:
         self.transitions[:, :, 1] = self.prob_reset(
             reset_prob=reset_prob, prob_remain=prob_remain
         )
+        if add_absorbing_state:
+            self.transitions[-1, :, 1] = 0
+            self.transitions[-1, -1, 1] = 1  # stuck in the last step
 
     def pure_reset(self, prob_remain: float) -> np.array:
         """Define the transition matrix for replacement.
