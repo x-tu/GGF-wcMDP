@@ -27,7 +27,7 @@ def build_dlp(
     model.init_distribution = big_mu_list
 
     # Variables
-    model.varL = pyo.Var(mdp.group_indices.tolist(), within=pyo.Reals)
+    model.varL = pyo.Var(mdp.group_indices, within=pyo.Reals)
     model.varN = pyo.Var(mdp.group_indices, within=pyo.Reals)
     model.varX = pyo.Var(
         mdp.state_indices, mdp.action_indices, within=pyo.NonNegativeReals
@@ -307,7 +307,9 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
         axis=1,
     )
     space_size = 12 + model.mdp.num_actions * 4
-    print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
+    print(
+        f"Policy:{' ' * space_size}Var X:{' ' * int(space_size/2)}Costs - Group 1 | Group 2{' ' * space_size}\n{concat_df}"
+    )
 
     space_df = pd.DataFrame(
         [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
