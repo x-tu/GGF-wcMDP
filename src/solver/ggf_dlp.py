@@ -143,9 +143,12 @@ def solve_dlp(model: pyo.ConcreteModel, num_opt_solutions: int = 1):
     if num_opt_solutions > 1:
         # Print objective values of solutions
         all_solutions = []
+        print("(Sub-)Optimal GGF Values: ")
         for e in range(num_opt_solutions):
             opt.set_gurobi_param("SolutionNumber", e)
+            print("%g " % opt.get_model_attr("PoolObjVal"), end=" ")
             all_solutions.append(opt._solver_model.getAttr("Xn"))
+        print("")
         all_solutions_dict = reformat_sub_solutions(
             all_solutions=all_solutions, model=model
         )
@@ -328,7 +331,7 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
 
     print("Var X total:", sum(results.var_x.sum()))
     print("GGF Value (DLP) L+N: ", results.ggf_value_ln)
-    print("GGF Value (DLP) XC: ", results.ggf_value_xc)
+    print("GGF Value (DLP) XC:  ", results.ggf_value_xc)
 
 
 def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
