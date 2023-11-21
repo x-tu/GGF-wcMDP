@@ -294,11 +294,8 @@ class TransitionMatrix:
             self.transitions[-1, :, 1] = 0
             self.transitions[-1, -1, 1] = 1  # stuck in the last step
 
-    def pure_reset(self, prob_remain: float) -> np.array:
-        """Define the transition matrix for replacement.
-
-        Args:
-            prob_remain (`float`): probability of remaining at state 0 after replacement
+    def pure_reset(self) -> np.array:
+        """Reset the machine to new state with probability 1.
 
         Returns:
             replace_transitions (`np.array`): transition matrix for replacement
@@ -306,9 +303,9 @@ class TransitionMatrix:
 
         replacement_transition = np.zeros([self.num_s, self.num_s])
         # staying at new state
-        replacement_transition[:, 0] = prob_remain
+        replacement_transition[:, 0] = 1
         # going to deterioration
-        replacement_transition[:, 1] = 1 - prob_remain
+        replacement_transition[:, 1] = 0
         return replacement_transition
 
     def prob_reset(self, reset_prob: float, prob_remain: float) -> np.array:
