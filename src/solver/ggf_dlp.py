@@ -319,6 +319,7 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     )
     print(pd.concat([results.var_dual, space_df, reward_df], axis=1))
 
+    print("Var X total:", sum(results.var_x.sum()))
     print("GGF Value (DLP) L+N: ", results.ggf_value_ln)
     print("GGF Value (DLP) XR: ", results.ggf_value_xr)
 
