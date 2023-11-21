@@ -7,7 +7,7 @@ class FairWeight:
     """Define the fairness weight for each group."""
 
     def __init__(self, num_groups: int, weight_type: str = "exponential2"):
-        """Provide the weights for each group.
+        """Provide the weights for each group in descending order.
 
         Args:
             num_groups (int): number of groups.
@@ -25,7 +25,7 @@ class FairWeight:
             "exponential3": np.array([1 / (3 ** i) for i in range(num_groups)]),
             "random": np.random.rand(num_groups),
         }
-        self.weights = weight_mapping.get(weight_type)
+        self.weights = sorted(weight_mapping.get(weight_type), reverse=True)
         self.weights /= np.sum(self.weights)
 
 
