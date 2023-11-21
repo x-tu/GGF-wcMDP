@@ -19,9 +19,10 @@ def build_dlp(
     model.mdp = mdp
 
     # Create mu list (uniform by default)
-    if prob1_state_idx:
+    if isinstance(prob1_state_idx, int):
         big_mu_list = [0] * len(mdp.state_indices)
         big_mu_list[prob1_state_idx] = 1
+        print("Initial distribution: ", big_mu_list)
     else:
         big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
     model.init_distribution = big_mu_list
@@ -156,14 +157,13 @@ def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
     """ This function is used to extract optimized results.
 
     Args:
-        :param model: the optimized concrete model
-        :param mdp: the MRP parameter setting
+        model: the MRP model to be optimized
+        print_results: whether to print the results
 
     Returns:
-        reward: the rewards for all groups
-        policy: the policy to use
-    """
+        results: the extracted results
 
+    """
     # extract the policy Pi and visitation frequency X
     policy_np = np.zeros((model.mdp.num_states, model.mdp.num_actions))
     var_x_np = np.zeros((model.mdp.num_states, model.mdp.num_actions))
@@ -210,16 +210,23 @@ def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
 
     # Count the proportion of deterministic policy to positive policy
     proportion = np.sum((policy_np > 0) & (policy_np < 1)) / np.sum(policy_np > 0)
-    # Calculate the reward for each group
-    reward = calculate_group_reward(model=model)
+    # Calculate the cost for each group
+    costs = calculate_group_cost(model=model)
+    # GGF value
+    cost_sorted = (
+        np.sort(costs)[::-1]
+        if model.objective.sense == pyo.minimize
+        else np.sort(costs)
+    )
+    ggf_value_xc = np.dot(cost_sorted, model.mdp.weights).round(4)
 
     results = DotDict(
         {
             "var_x": var_x,
             "policy": policy,
             "var_dual": dual_var_df,
-            "reward": reward,
-            "ggf_value_xr": np.dot(np.sort(reward), model.mdp.weights).round(4),
+            "costs": costs,
+            "ggf_value_xc": ggf_value_xc,
             "ggf_value_ln": round(
                 sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4
             ),
@@ -244,9 +251,9 @@ def policy_dlp(mdp, state, model: pyo.ConcreteModel, deterministic=False):
         return random.choices(mdp.action_indices, weights=x_probs, k=1)[0]
 
 
-def calculate_group_reward(model: pyo.ConcreteModel) -> np.array:
+def calculate_group_cost(model: pyo.ConcreteModel) -> np.array:
     # Costs for each group
-    reward = []
+    costs = []
     for d in model.mdp.group_indices:
         all_cost = round(
             sum(
@@ -256,8 +263,8 @@ def calculate_group_reward(model: pyo.ConcreteModel) -> np.array:
             ),
             4,
         )
-        reward.append(all_cost)
-    return np.array(reward)
+        costs.append(all_cost)
+    return np.array(costs)
 
 
 def format_prints(results: DotDict, model: pyo.ConcreteModel):
@@ -314,14 +321,14 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     space_df = pd.DataFrame(
         [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
     )
-    reward_df = pd.DataFrame(
-        results.reward, index=model.mdp.group_indices, columns=["Group Reward"]
+    cost_df = pd.DataFrame(
+        results.cost, index=model.mdp.group_indices, columns=["Group Costs"]
     )
-    print(pd.concat([results.var_dual, space_df, reward_df], axis=1))
+    print(pd.concat([results.var_dual, space_df, cost_df], axis=1))
 
     print("Var X total:", sum(results.var_x.sum()))
     print("GGF Value (DLP) L+N: ", results.ggf_value_ln)
-    print("GGF Value (DLP) XR: ", results.ggf_value_xr)
+    print("GGF Value (DLP) XC: ", results.ggf_value_xc)
 
 
 def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
@@ -395,15 +402,21 @@ def reformat_sub_solutions(all_solutions: list, model: pyo.ConcreteModel):
         policy = pd.DataFrame(
             policy_np, index=s_idx, columns=model.mdp.action_indices
         ).round()
-        reward = calculate_group_reward(model=model)
+        costs = calculate_group_cost(model=model)
+        costs_sorted = (
+            np.sort(costs)[::-1]
+            if model.objective.sense == pyo.minimize
+            else np.sort(costs)
+        )
+        ggf_value_xc = np.dot(costs_sorted, model.mdp.weights).round(4)
 
         all_results[sol_idx] = DotDict(
             {
                 "var_x": var_x,
                 "policy": policy,
                 "var_dual": dual_var_df,
-                "reward": reward,
-                "ggf_value_xr": np.dot(np.sort(reward), model.mdp.weights).round(4),
+                "costs": costs,
+                "ggf_value_xc": ggf_value_xc,
                 "ggf_value_ln": round(
                     sum(dual_var_df["Var L"]) + sum(dual_var_df["Var N"]), 4
                 ),
