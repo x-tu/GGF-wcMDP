@@ -20,6 +20,9 @@ params = DotDict(
         "len_episode": 100,
         "num_samples": 10,
         "gamma": 0.95,
+        "seed": 0,
+        "prob1_state_idx": None,
+        "deterministic_policy": False,
         # hyperparameters for the Q-learning
         "ql": DotDict(
             {
