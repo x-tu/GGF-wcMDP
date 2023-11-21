@@ -97,7 +97,7 @@ if run_simulation:
             discount=params.gamma,
             initial_state_prob=initial_state_prob,
             policy=policy.to_numpy(),
-            rewards=mrp_data.global_costs,
+            reward_or_cost=mrp_data.global_costs,
             transition_prob=mrp_data.global_transitions,
             time_horizon=params.len_episode,
         )

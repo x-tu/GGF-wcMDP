@@ -60,7 +60,7 @@ def calculate_state_value(
     discount: float,
     initial_state_prob: np.array,
     policy: np.array,
-    rewards: np.array,
+    reward_or_cost: np.array,
     transition_prob: np.array,
     time_horizon: int,
 ):
@@ -72,21 +72,21 @@ def calculate_state_value(
         discount (`float`): the discount factor gamma
         initial_state_prob (`np.array`): the initial state distribution mu
         policy (`np.array`): the policy pi
-        rewards (`np.array`): the reward matrix r
+        reward_or_cost (`np.array`): the reward or cost matrix r
         transition_prob (`np.array`): the transition probability matrix P
         time_horizon (`int`): the time horizon T
     """
 
     # calculate the state value function
-    _, _, R = rewards.shape
+    _, _, R = reward_or_cost.shape
     state_value = np.zeros(R)
     state_value_list = [state_value.copy()]
 
     # transform the policy matrix to block diagonal matrix of size S * SA
     policy_trans = transform_policy_matrix(policy)
-    # reshape the transition and reward matrix
+    # reshape the transition and reward_or_cost matrix
     transition_prob_trans = reshape_transition_matrix(transition_prob)
-    rewards_trans = reshape_reward_matrix(rewards)
+    reward_or_cost_trans = reshape_reward_matrix(reward_or_cost)
 
     # calculate the state value function
     for t in range(time_horizon):
@@ -100,7 +100,7 @@ def calculate_state_value(
                 ),
                 policy_trans,
             ),
-            rewards_trans,
+            reward_or_cost_trans,
         )
         state_value_list.append(state_value.copy())
     return state_value_list

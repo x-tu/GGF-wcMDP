@@ -19,8 +19,8 @@ class MRPData:
         prob_remain: Union[float, list] = 0.8,
         deterioration_step: int = 1,
         weight_type: str = "exponential2",
-        cost_types_operation: list = None,
-        cost_types_replace: list = None,
+        cost_types_operation: Union[list, str] = "quadratic",
+        cost_types_replace: Union[list, str] = "rccc",
         add_absorbing_state: bool = False,
         seed: int = 0,
     ):
@@ -39,13 +39,15 @@ class MRPData:
 
         # get data for a single machine, note that only 2 actions are supported now
         self.costs = np.zeros((self.num_groups, self.num_states, 2))
-        cost_types_operation = (
-            cost_types_operation
-            if cost_types_operation
-            else ["quadratic"] * self.num_groups
+        cost_types_operation_list = (
+            [cost_types_operation] * self.num_groups
+            if isinstance(cost_types_operation, str)
+            else cost_types_operation
         )
-        cost_types_replace = (
-            cost_types_replace if cost_types_replace else ["rccc"] * self.num_groups
+        cost_types_replace_list = (
+            [cost_types_replace] * self.num_groups
+            if isinstance(cost_types_replace, str)
+            else cost_types_replace
         )
 
         # generate costs for each group
@@ -53,8 +55,8 @@ class MRPData:
             self.costs[group_idx, :, :] = CostReward(
                 num_states=num_states,
                 rccc_wrt_max=rccc_wrt_max,
-                cost_type_operation=cost_types_operation[group_idx],
-                cost_type_replace=cost_types_replace[group_idx],
+                cost_type_operation=cost_types_operation_list[group_idx],
+                cost_type_replace=cost_types_replace_list[group_idx],
             ).costs
         self.rewards = -self.costs
         if isinstance(prob_remain, float):
