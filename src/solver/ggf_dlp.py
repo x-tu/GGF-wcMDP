@@ -27,7 +27,7 @@ def build_dlp(
     model.init_distribution = big_mu_list
 
     # Variables
-    model.varL = pyo.Var(mdp.group_indices.tolist(), within=pyo.Reals)
+    model.varL = pyo.Var(mdp.group_indices, within=pyo.Reals)
     model.varN = pyo.Var(mdp.group_indices, within=pyo.Reals)
     model.varX = pyo.Var(
         mdp.state_indices, mdp.action_indices, within=pyo.NonNegativeReals
@@ -273,6 +273,17 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     pd.set_option("display.max_columns", None)
     pd.set_option("display.expand_frame_repr", False)
 
+    cost_g1_df = pd.DataFrame(
+        model.mdp.costs[:, :, 0],
+        index=results.policy.index,
+        columns=model.mdp.action_indices,
+    ).round(2)
+    cost_g2_df = pd.DataFrame(
+        model.mdp.costs[:, :, 1],
+        index=results.policy.index,
+        columns=model.mdp.action_indices,
+    ).round(2)
+
     policy_formatted = results.policy.apply(
         lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))
     )
@@ -282,9 +293,23 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     space_df = pd.DataFrame(
         [" "] * model.mdp.num_states, index=results.policy.index, columns=[" "]
     )
-    concat_df = pd.concat([policy_formatted, space_df, var_x_formatted], axis=1)
+    concat_df = pd.concat(
+        [
+            policy_formatted,
+            space_df,
+            var_x_formatted,
+            space_df,
+            space_df,
+            cost_g1_df,
+            space_df,
+            cost_g2_df,
+        ],
+        axis=1,
+    )
     space_size = 12 + model.mdp.num_actions * 4
-    print(f"Policy:{' ' * space_size}Var X:\n{concat_df}")
+    print(
+        f"Policy:{' ' * space_size}Var X:{' ' * int(space_size/2)}Costs - Group 1 | Group 2{' ' * space_size}\n{concat_df}"
+    )
 
     space_df = pd.DataFrame(
         [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
@@ -294,6 +319,7 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
     )
     print(pd.concat([results.var_dual, space_df, reward_df], axis=1))
 
+    print("Var X total:", sum(results.var_x.sum()))
     print("GGF Value (DLP) L+N: ", results.ggf_value_ln)
     print("GGF Value (DLP) XR: ", results.ggf_value_xr)
 

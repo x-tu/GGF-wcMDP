@@ -22,6 +22,7 @@ class MRPData:
         cost_types_operation: list = None,
         cost_types_replace: list = None,
         add_absorbing_state: bool = False,
+        seed: int = 0,
     ):
         """Initialize the MRP data.
 
@@ -30,6 +31,8 @@ class MRPData:
             weights: ["uniform", "exponential2", "exponential3", "random"]
 
         """
+        np.random.seed(seed)
+
         self.num_groups = num_groups
         self.num_states = num_states
         self.num_actions = num_actions
