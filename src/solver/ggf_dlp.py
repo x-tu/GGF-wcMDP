@@ -322,7 +322,7 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
         [" "] * model.mdp.num_groups, index=model.mdp.group_indices, columns=[" "]
     )
     cost_df = pd.DataFrame(
-        results.cost, index=model.mdp.group_indices, columns=["Group Costs"]
+        results.costs, index=model.mdp.group_indices, columns=["Group Costs"]
     )
     print(pd.concat([results.var_dual, space_df, cost_df], axis=1))
 
