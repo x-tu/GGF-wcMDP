@@ -10,7 +10,7 @@ from utils.common import MDP4LP, DotDict
 
 
 def build_dlp(
-    mdp: MDP4LP, deterministic_policy: bool = False, prob1_state_idx: int = None
+    mdp: MDP4LP, deterministic_policy: bool = False, prob1_state_idx: int = None, initial_mu: list = None
 ) -> pyo.ConcreteModel:
     """Used to build the GGF dual MDP (stochastic) model."""
 
@@ -22,9 +22,11 @@ def build_dlp(
     if isinstance(prob1_state_idx, int):
         big_mu_list = [0] * len(mdp.state_indices)
         big_mu_list[prob1_state_idx] = 1
-        print("Initial distribution: ", big_mu_list)
     else:
         big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
+    if initial_mu:
+        big_mu_list = initial_mu
+    print("Initial distribution: ", big_mu_list)
     model.init_distribution = big_mu_list
 
     # Variables
