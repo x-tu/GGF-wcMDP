@@ -290,11 +290,16 @@ def format_prints(results: DotDict, model: pyo.ConcreteModel):
         index=results.policy.index,
         columns=model.mdp.action_indices,
     ).round(2)
-    cost_g2_df = pd.DataFrame(
-        model.mdp.costs[:, :, 1],
-        index=results.policy.index,
-        columns=model.mdp.action_indices,
-    ).round(2)
+    if model.mdp.num_groups > 1:
+        cost_g2_df = pd.DataFrame(
+            model.mdp.costs[:, :, 1],
+            index=results.policy.index,
+            columns=model.mdp.action_indices,
+        ).round(2)
+    else:
+        cost_g2_df = pd.DataFrame(
+            index=results.policy.index, columns=model.mdp.action_indices
+        )
 
     policy_formatted = results.policy.apply(
         lambda x: x.map(lambda val: round(val, 2) if 0 < val < 1 else str(int(val)))

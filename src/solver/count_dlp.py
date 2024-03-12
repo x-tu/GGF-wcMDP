@@ -1,7 +1,7 @@
-import random
-from datetime import datetime
+from math import factorial
 
 import numpy as np
+import pandas as pd
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
@@ -22,7 +22,12 @@ def build_count_dlp(
     # Indices
     state_indices = range(count_mdp.num_count_states)
     action_indices = range(count_mdp.num_count_actions)
-    model.init_distribution = [0.25, 0.5, 0.25]
+
+    count_factor = []
+    for s_count in count_mdp.count_states:
+        factor = factorial(count_mdp.num_states) / np.prod([factorial(s) for s in s_count])
+        count_factor.append(factor)
+    model.init_distribution = count_factor / np.sum(count_factor)
     # Variables
     model.varX = pyo.Var(
         state_indices, action_indices, within=pyo.NonNegativeReals
@@ -37,7 +42,7 @@ def build_count_dlp(
                 for a in action_indices
             )
             for s in state_indices
-            )
+        )
         ,
         sense=pyo.minimize,
     )
@@ -102,12 +107,25 @@ def extract_count_dlp(model: pyo.ConcreteModel, print_results: bool = False):
     for s in range(model.mdp.num_count_states):
         for a in range(model.mdp.num_count_actions):
             var_x_np[s, a] = model.varX[s, a].value
-    objective = model.objective()
-    return results
+    costs_pd = pd.DataFrame(model.mdp.count_costs,
+                            columns=[str(a) for a in model.mdp.count_actions],
+                            index=[str(s) for s in model.mdp.count_states])
+    costs_pd = costs_pd.apply(
+        lambda x: x.map(lambda val: str(int(val)) if val == 0 else round(val, 4))
+    )
+    # convert to the pandas dataframe
+    var_x_pd = pd.DataFrame(var_x_np,
+                            columns=[str(a) for a in model.mdp.count_actions],
+                            index=[str(s) for s in model.mdp.count_states])
+    var_x_formatted = var_x_pd.apply(
+        lambda x: x.map(lambda val: str(int(val)) if val == 0 else round(val, 4))
+    )
+    print(var_x_formatted)
+    print(costs_pd)
+    print("Objective: ", round(model.objective() / model.mdp.num_groups, 4))
 
 
-count_MDP = CountMDP(num_groups = 2, num_states = 2, num_actions = 2)
-model = build_count_dlp(count_MDP, deterministic_policy = False, initial_mu = None)
-results, model = solve_count_dlp(model, num_opt_solutions = 1)
-results = extract_count_dlp(model, print_results = True)
-print(results)
+count_MDP = CountMDP(num_groups=2, num_states=3, num_actions=2)
+model = build_count_dlp(count_MDP, deterministic_policy=False, initial_mu=None)
+results, model = solve_count_dlp(model, num_opt_solutions=1)
+extract_count_dlp(model, print_results=True)

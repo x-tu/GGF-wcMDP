@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils.mrp import MRPData
-from utils.encoding import state_int_index_to_vector
+from utils.encoding import state_int_index_to_vector, state_vector_to_int_index
 
 
 def count_to_normal(count_representation):
@@ -54,23 +54,29 @@ class CountMDP(MRPData):
         global_transitions = np.zeros((self.num_count_states,
                                        self.num_count_states,
                                        self.num_count_actions))
-        for s_idx in range(self.num_global_states):
-            s_vec = state_int_index_to_vector(s_idx, self.num_groups, self.num_states)
-            s_count = self.normal_to_count(s_vec)
-            sc_idx = self.count_states.index(s_count)
+        for sc_idx in range(self.num_count_states):
+            s_count = self.count_states[sc_idx]
+            s_vec = count_to_normal(s_count)
+            s_idx = state_vector_to_int_index(s_vec, self.num_states)
             for next_s_idx in range(self.num_global_states):
                 next_s_vec = state_int_index_to_vector(next_s_idx, self.num_groups, self.num_states)
                 next_s_count = self.normal_to_count(next_s_vec)
                 next_sc_idx = self.count_states.index(next_s_count)
-                for ac_idx in range(self.num_count_actions):
-                    if ac_idx != 0 and s_count[ac_idx - 1] > 0:
-                        a_idx = 1
-                    else:
-                        a_idx = 0
+                for a_idx in range(len(self.global_actions)):
+                    a_vec = self.global_actions[a_idx].tolist()
+                    ac_vec = self.action_normal_to_count(a_vec, s_vec)
+                    ac_idx = self.count_actions.tolist().index(ac_vec)
                     global_transitions[sc_idx, next_sc_idx, ac_idx] += self.global_transitions[s_idx, next_s_idx, a_idx]
         # normalize the transition matrix
         global_transitions /= np.sum(global_transitions, axis=1)[:, np.newaxis]
-        return global_transitions
+        return np.nan_to_num(global_transitions, nan=0)
+
+    def action_normal_to_count(self, a_vec, s_vec):
+        ac_vec = [0] * self.num_states
+        for idx in range(self.num_groups):
+            if a_vec[idx] > 0:
+                ac_vec[s_vec[idx]] = a_vec[idx]
+        return ac_vec
 
     def normal_to_count(self, normal_representation):
         count_representation = [0] * self.num_states
