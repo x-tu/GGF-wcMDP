@@ -85,10 +85,13 @@ class CountMDP(MRPData):
             for ac_idx in range(self.num_count_actions):
                 reward = 0
                 a_count = self.count_actions[ac_idx]
-                for idx in range(self.num_states):
-                    indicator = 1 if s_count[idx] > 0 else 0
-                    replace_cost = a_count[idx] * self.costs[0, idx, 1]
-                    do_nothing_cost = (s_count[idx] - a_count[idx]) * self.costs[0, idx, 0]
-                    reward += indicator * (replace_cost + do_nothing_cost)
-                global_costs[sc_idx, ac_idx] = reward
+                if all(s_count[i] >= a_count[i] for i in range(self.num_states)):
+                    for idx in range(self.num_states):
+                        indicator = 1 if s_count[idx] > 0 else 0
+                        replace_cost = a_count[idx] * self.costs[0, idx, 1]
+                        do_nothing_cost = (s_count[idx] - a_count[idx]) * self.costs[0, idx, 0]
+                        reward += indicator * (replace_cost + do_nothing_cost)
+                    global_costs[sc_idx, ac_idx] = reward
+                else:
+                    global_costs[sc_idx, ac_idx] = 1e6
         return global_costs
