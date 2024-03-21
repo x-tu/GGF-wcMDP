@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from algorithms.dlp import DLPAgent
+from src.algorithms.dlp import DLPAgent
 from experiments.configs.base import params
-from utils.encoding import state_int_index_to_vector
+from src.utils.encoding import state_int_index_to_vector
 
 params.update({"num_episodes": 500, "len_episode": 100, "num_samples": 10})
 timestamp = pd.Timestamp.now().strftime("%Y%m%d%H%M%S")
