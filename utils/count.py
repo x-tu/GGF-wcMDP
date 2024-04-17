@@ -172,3 +172,9 @@ class CountMDP(MRPData):
                 else:
                     global_costs[sc_idx, ac_idx] = 1e6
         return global_costs
+
+
+def softmax(x):
+    # Subtracting the maximum value for numerical stability
+    exp_x = np.exp(x - np.max(x))
+    return exp_x / (exp_x.sum() + 1e-8)

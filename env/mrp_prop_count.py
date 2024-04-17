@@ -6,7 +6,7 @@ import gym
 import numpy as np
 from gym import spaces
 
-from utils.count import CountMDP
+from utils.count import CountMDP, softmax
 
 warnings.filterwarnings("ignore")
 
@@ -78,6 +78,8 @@ class PropCountMDPEnv(gym.Env):
         self.count_mdp = self.count_mdp_pool[self.num_groups]
 
     def select_action_by_priority(self, action):
+        # apply softmax to the probability
+        action = softmax(action)
         count_action = np.zeros_like(action)
         # forbid taking actions
         zero_indices = np.where(self.observations[: self.num_states] == 0)[0]
@@ -87,6 +89,7 @@ class PropCountMDPEnv(gym.Env):
             prob_action = np.array(action) / sum(action)
         else:
             prob_action = self.observations[: self.num_states]
+        assert sum(prob_action) - 1 < 1e-6, f"{sum(prob_action)}, {prob_action}"
         for _ in self.range_k:
             action_idx = np.random.choice(range(self.num_states), p=prob_action)
             count_action[action_idx] += 1
