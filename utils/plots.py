@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 
+
 def plot_figures(ep_list: list, lr_list: list, all_rewards: dict):
     """Plot the learning curves for different parameter settings.
 
@@ -61,7 +62,7 @@ def plot_results(log_folder, title="Learning Curve"):
     fig = plt.figure(title)
     plt.plot(x, y)
     # plot a horizontal line showing the optimum
-    plt.axhline(y=3.8275, color="r", linestyle="--")
+    # plt.axhline(y=3.8275, color="r", linestyle="--")
     plt.xlabel("Episodes")
     plt.ylabel("Mean Discounted Return")
     plt.title(title+ " Smoothed")

@@ -1,0 +1,54 @@
+import os
+import time
+
+import numpy as np
+import pandas as pd
+import torch
+from tqdm import tqdm
+
+from algorithms.q_learning_count import QAgent
+from env.mrp_prop_count import PropCountMDPEnv
+from experiments.configs.base import params
+from stable_baselines3 import A2C, DDPG, DQN, PPO
+from stable_baselines3.common.monitor import Monitor
+from utils.callbacks import SaveOnBestTrainingRewardCallback
+from utils.count import CountMDP, count_to_normal
+from utils.mrp import MRPData
+from utils.plots import moving_average, plot_results
+
+params.update({"num_episodes": 1000, "len_episode": 300})
+num_runs = 1
+# Create log dir
+log_dir = "experiments/tmp/"
+
+all_rewards = np.zeros((params.num_episodes, num_runs))
+for n in range(num_runs):
+    env = PropCountMDPEnv(
+        machine_range=[2, 5],
+        resource_range=[1, 1],
+        num_states=params.num_states,
+        len_episode=params.len_episode,
+    )
+    env = Monitor(env, log_dir)
+    callback = SaveOnBestTrainingRewardCallback(
+        check_freq=params.len_episode * 20, log_dir=log_dir
+    )
+    total_timesteps = params.num_episodes * params.len_episode
+
+    model = A2C(policy="MlpPolicy", env=env, learning_rate=1e-4, gamma=params.gamma)
+    model.learn(total_timesteps=total_timesteps, callback=callback)
+    all_rewards[:, n] = env.env.training_rewards[: params.num_episodes]
+
+model.save("experiments/tmp/a2c")
+# save all rewards
+df = pd.DataFrame(all_rewards)
+df.to_csv("experiments/tmp/a2c.csv")
+
+plot_results(log_dir)
+
+# # Print the policy
+# for idx, count_mdp in env.env.count_mdp_pool.items():
+#     for state in count_mdp.count_state_props:
+#         th_obs = torch.as_tensor(state).unsqueeze(0)
+#         probs = model.policy.get_distribution(th_obs).distribution.probs[0].detach().numpy().round(4)
+#         print("state", state, ": ", probs)

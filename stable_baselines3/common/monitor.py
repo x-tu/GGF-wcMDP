@@ -96,7 +96,9 @@ class Monitor(gym.Wrapper):
         self.rewards.append(reward)
         if done:
             self.needs_reset = True
-            ep_rew = sum(self.rewards)
+            # ep_rew = sum(self.rewards)
+            ep_rew = np.sum([reward * (self.env.gamma ** i) for i, reward in enumerate(self.rewards)])
+            # ep_rew = (1+2/3)*20 - np.sum([reward * (0.95 ** i) for i, reward in enumerate(self.rewards)])
             ep_len = len(self.rewards)
             ep_info = {"r": round(ep_rew, 6), "l": ep_len, "t": round(time.time() - self.t_start, 6)}
             for key in self.info_keywords:
