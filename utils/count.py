@@ -53,11 +53,26 @@ class CountMDP(MRPData):
             str(state): state_vector_to_int_index(count_to_normal(state), self.num_states) for state in
             self.count_states}
         self.s_idx_to_x_mapping = {str(value): eval(key) for key, value in self.x_to_s_idx_mapping.items()}
-        self.sn_idx_to_s_idx_mapping, sn_idx = {}, 0
+        self.sc_idx_to_s_idx_mapping, sc_idx = {}, 0
         for value in sorted(self.x_to_s_idx_mapping.values()):
-            self.sn_idx_to_s_idx_mapping[sn_idx] = value
-            sn_idx += 1
+            self.sc_idx_to_s_idx_mapping[sc_idx] = value
+            sc_idx += 1
         self.ac_to_idx_mapping = {str(action): idx for idx, action in enumerate(self.count_actions)}
+        self.count_env_idx_mapping = self.get_env_mapping()
+
+    def get_env_mapping(self):
+        count_env_idx_mapping = {}
+        for s_idx in range(len(self.count_states)):
+            s_count = self.count_states[s_idx]
+            s_vec = count_to_normal(s_count)
+            for action in range(len(self.global_actions)):
+                a_vec = [0] * self.num_groups
+                if action > 0:
+                    a_vec[action - 1] = 1
+                ac_vec = np.array(self.action_normal_to_count(a_vec, s_vec))
+                a_idx = self.ac_to_idx_mapping[str(ac_vec)]
+                count_env_idx_mapping[(s_idx, action)] = a_idx
+        return count_env_idx_mapping
 
     def get_global_count_states(self, current_combination, remaining_sum, remaining_states):
         if remaining_states == 0:
