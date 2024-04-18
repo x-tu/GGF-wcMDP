@@ -176,5 +176,6 @@ class CountMDP(MRPData):
 
 def softmax(x):
     # Subtracting the maximum value for numerical stability
-    exp_x = np.exp(x - np.max(x))
-    return exp_x / (exp_x.sum() + 1e-8)
+    exp_x = np.exp(x - np.max(x)).round(4)
+    prob = exp_x / exp_x.sum()
+    return prob

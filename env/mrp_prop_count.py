@@ -44,7 +44,7 @@ class PropCountMDPEnv(gym.Env):
         self.rccc_wrt_max = rccc_wrt_max
         self.prob_remain = prob_remain
         self.deterioration_step = deterioration_step
-        self.reward_offset = 1.5
+        self.reward_offset = 1
 
         # used to speed up data generation
         self.count_mdp_pool = {}
@@ -59,7 +59,7 @@ class PropCountMDPEnv(gym.Env):
             low=0, high=1, shape=(self.num_states + 1,), dtype=np.float32
         )
         self.action_space = spaces.Box(
-            low=0, high=1, shape=(self.num_states,), dtype=np.float32
+            low=0, high=1, shape=(self.num_states + 1,), dtype=np.float32
         )
         self.reward_space = spaces.Box(low=0, high=5, shape=(1,), dtype=np.float32)
 
@@ -77,22 +77,39 @@ class PropCountMDPEnv(gym.Env):
         self.num_budget = np.random.choice(self.range_k)
         self.count_mdp = self.count_mdp_pool[self.num_groups]
 
-    def select_action_by_priority(self, action):
-        # apply softmax to the probability
-        action = softmax(action)
-        count_action = np.zeros_like(action)
-        # forbid taking actions
+    def discretize_budget_proportion(self, budget_proportion: float) -> int:
+        """Discretize the budget proportion.
+
+        Args:
+            budget_proportion (float): The proportion of budget to use.
+        Returns:
+            budget_to_use (int): The number of budget to use.
+
+        """
+        interval_width = 1 / (self.num_budget + 1)
+        budget_to_use = int(budget_proportion / interval_width)
+        # deal with the boundary case where proportion is 1 and falls into the last interval
+        return min(budget_to_use, self.num_budget)
+
+    def select_action_by_priority(self, composed_action):
+        # assign the budget to use
+        budget_to_use = self.discretize_budget_proportion(composed_action[-1])
+
+        # forbid taking actions if no machines
+        action = softmax(composed_action[: self.num_states])
         zero_indices = np.where(self.observations[: self.num_states] == 0)[0]
-        for idx in zero_indices:
-            action[idx] = 0
-        if sum(action) > 0:
-            prob_action = np.array(action) / sum(action)
-        else:
-            prob_action = self.observations[: self.num_states]
-        assert sum(prob_action) - 1 < 1e-6, f"{sum(prob_action)}, {prob_action}"
-        for _ in self.range_k:
+        action[zero_indices] = 0
+        prob_action = action / np.sum(action)
+
+        # convert the action to count action
+        count_action = np.zeros_like(action)
+        state_count = self.observations[: self.num_states] * self.num_groups
+        while budget_to_use > 0:
             action_idx = np.random.choice(range(self.num_states), p=prob_action)
-            count_action[action_idx] += 1
+            if state_count[action_idx] > 0:
+                count_action[action_idx] += 1
+                state_count[action_idx] -= 1
+                budget_to_use -= 1
         return count_action.astype(int)
 
     def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):
@@ -102,7 +119,7 @@ class PropCountMDPEnv(gym.Env):
         self.observations = self.count_mdp.count_state_props[sc_idx]
         return self.observations
 
-    def step(self, action: int):
+    def step(self, action: np.array):
         """Take a step in the environment."""
         # get action idx
         count_action = self.select_action_by_priority(action)
@@ -125,6 +142,7 @@ class PropCountMDPEnv(gym.Env):
         # register the information
         info = {"reward": reward}
         self.episode_rewards += (self.gamma**self.step_counter) * reward
+        # TODO: can be optimized
         self.observations = np.array(next_state + [self.num_budget]) / self.num_groups
 
         # get the done
