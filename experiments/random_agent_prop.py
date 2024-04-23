@@ -11,7 +11,7 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy
 params.len_episode = 500
 
 env = PropCountMDPEnv(
-    machine_range=[2, 5],
+    machine_range=[2, 2],
     resource_range=[1, 1],
     num_states=params.num_states,
     len_episode=params.len_episode,
@@ -24,13 +24,15 @@ import numpy as np
 # state = count_mdp.count_state_props[0]
 
 random_rewards = []
-for ep in tqdm(range(1000)):
+for ep in tqdm(range(600)):
     ep_rewards = 0
     state = env.reset()
     for t in range(300):
         # get the action
-        action = [1 / env.count_mdp.num_states] * env.count_mdp.num_states
-        count_action = env.select_action_by_priority(action)
+        action = [1 / env.count_mdp.num_states] * env.count_mdp.num_states + [
+            np.random.uniform(0, 1)
+        ]
+        count_action = env.select_action_by_priority(np.array(action))
         action_idx = env.count_mdp.ac_to_idx_mapping[str(count_action)]
         # get state
         count_state = state[: env.count_mdp.num_states] * env.count_mdp.num_groups
@@ -52,7 +54,7 @@ for ep in tqdm(range(1000)):
         env.observations = next_state
     random_rewards.append(ep_rewards)
 df = pd.DataFrame(np.array(random_rewards))
-df.to_csv("experiments/tmp/random_2.csv")
+df.to_csv("experiments/tmp/random.csv")
 
 
 # Print the policy
