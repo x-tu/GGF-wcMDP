@@ -122,9 +122,9 @@ class PropCountSimMDPEnv(gym.Env):
         """Take a step in the environment."""
         reward = 0
         count_action = self.select_action_by_priority(action)
-        count_state = (self.observations[: self.num_states] * self.num_groups).astype(
-            int
-        )
+        count_state = np.round(
+            self.observations[: self.num_states] * self.num_groups
+        ).astype(int)
 
         # simulate the next state
         next_count_state = np.zeros_like(count_state)
