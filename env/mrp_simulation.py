@@ -85,32 +85,28 @@ class PropCountSimMDPEnv(gym.Env):
         # deal with the boundary case where proportion is 1 and falls into the last interval
         return min(budget_to_use, self.num_budget)
 
-    def select_action_by_priority(self, composed_action):
+    def select_action_by_priority(self, imaginary_action):
         # assign the budget to use
-        budget_to_use = self.discretize_budget_proportion(composed_action[-1])
-
-        # forbid taking actions if no machines
-        action = composed_action[: self.num_states]
+        imaginary_action[-1] = 0.5
         zero_indices = np.where(self.observations[: self.num_states] == 0)[0]
-        action[zero_indices] = 0
-        prob_action = (
-            action / np.sum(action)
-            if np.sum(action) > 0
-            else self.observations[: self.num_states]
-        )
+        imaginary_action[zero_indices] = 0
+        prob_action = imaginary_action / np.sum(imaginary_action)
         # prob_action = softmax(action)
         # convert the action to count action
-        count_action = np.zeros_like(action)
+        count_action = np.zeros_like(prob_action)
         state_count = self.observations[: self.num_states] * self.num_groups
         num_samples = 0
+        budget_to_use = self.num_budget
         while budget_to_use > 0 and num_samples < self.num_groups:
-            action_idx = np.random.choice(range(self.num_states), p=prob_action)
-            if state_count[action_idx] > 0:
+            action_idx = np.random.choice(range(self.num_states + 1), p=prob_action)
+            if action_idx == self.num_states:
+                budget_to_use -= 1
+            elif state_count[action_idx] > 0:
                 count_action[action_idx] += 1
                 state_count[action_idx] -= 1
                 budget_to_use -= 1
             num_samples += 1
-        return count_action.astype(int)
+        return count_action[: self.num_states].astype(int)
 
     def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):
         """Reset the environment."""
