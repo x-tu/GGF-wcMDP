@@ -98,16 +98,18 @@ class PropCountSimMDPEnv(gym.Env):
             if np.sum(action) > 0
             else self.observations[: self.num_states]
         )
-
+        # prob_action = softmax(action)
         # convert the action to count action
         count_action = np.zeros_like(action)
         state_count = self.observations[: self.num_states] * self.num_groups
-        while budget_to_use > 0:
+        num_samples = 0
+        while budget_to_use > 0 and num_samples < self.num_groups:
             action_idx = np.random.choice(range(self.num_states), p=prob_action)
             if state_count[action_idx] > 0:
                 count_action[action_idx] += 1
                 state_count[action_idx] -= 1
                 budget_to_use -= 1
+            num_samples += 1
         return count_action.astype(int)
 
     def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):
