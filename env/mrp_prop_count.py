@@ -96,10 +96,14 @@ class PropCountMDPEnv(gym.Env):
         budget_to_use = self.discretize_budget_proportion(composed_action[-1])
 
         # forbid taking actions if no machines
-        action = softmax(composed_action[: self.num_states])
+        action = composed_action[: self.num_states]
         zero_indices = np.where(self.observations[: self.num_states] == 0)[0]
         action[zero_indices] = 0
-        prob_action = action / np.sum(action)
+        prob_action = (
+            action / np.sum(action)
+            if np.sum(action) > 0
+            else self.observations[: self.num_states]
+        )
 
         # convert the action to count action
         count_action = np.zeros_like(action)

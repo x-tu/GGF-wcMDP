@@ -8,7 +8,7 @@ from stable_baselines3.common.monitor import Monitor
 from utils.callbacks import SaveOnBestTrainingRewardCallback
 from utils.plots import moving_average, plot_results
 
-params.update({"num_episodes": 1000, "len_episode": 300})
+params.update({"num_episodes": 600, "len_episode": 300})
 num_runs = 1
 # Create log dir
 log_dir = "experiments/tmp/"
@@ -27,13 +27,13 @@ for n in range(num_runs):
     )
     total_timesteps = params.num_episodes * params.len_episode
 
-    model = PPO(policy="MlpPolicy", env=env, learning_rate=1e-4, gamma=params.gamma)
+    model = DDPG(policy="MlpPolicy", env=env, learning_rate=1e-4, gamma=params.gamma)
     model.learn(total_timesteps=total_timesteps, callback=callback)
     all_rewards[:, n] = env.env.training_rewards[: params.num_episodes]
 
-model.save("experiments/tmp/ppo")
+model.save("experiments/tmp/ddpg1")
 # save all rewards
 df = pd.DataFrame(all_rewards)
-df.to_csv("experiments/tmp/ppo.csv")
+df.to_csv("experiments/tmp/ddpg1.csv")
 
 plot_results(log_dir)
