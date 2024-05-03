@@ -6,24 +6,39 @@ from utils.count import CountMDP
 from utils.mrp import MRPData
 
 params.num_states = 3
-params.num_groups = 3
+params.num_groups = 2
 
 # count_mdp = CountMDP(num_groups=2, num_resource=1, num_states=3)
 mrp = MRPData(num_groups=params.num_groups, num_states=params.num_states)
-costs = mrp.costs[:, :, 0].T
-transitions = np.zeros((params.num_states, params.num_states, 2, params.num_groups))
-for arm in range(2):
-    transitions[:, :, :, arm] = mrp.transitions[arm, :, :, :]
 
 whittle_agent = Whittle(
     num_states=params.num_states,
     num_arms=params.num_groups,
-    reward=costs,
-    transition=transitions,
+    reward=mrp.costs,
+    transition=mrp.transitions,
     horizon=300,
 )
-whittle_agent.whittle_brute_force(0, 1, 1000)
-whittle_agent.Whittle_policy(
-    whittle_indices=whittle_agent.w_indices, n_selection=1, current_x=1, current_t=1
-)
-print(whittle_agent.w_indices)
+whittle_agent.whittle_brute_force(lower_bound=0, upper_bound=1, num_trials=1000)
+
+# MC simulation to evaluate the policy
+state = np.array([0, 0])
+total_reward = 0
+for t in range(300):
+    # with 1 arm to be selected
+    action = whittle_agent.Whittle_policy(
+        whittle_indices=whittle_agent.w_indices,
+        n_selection=1,
+        current_x=state,
+        current_t=t,
+    )
+    # get the reward
+    next_state = np.zeros_like(state)
+    for arm in range(params.num_groups):
+        total_reward += (mrp.costs[arm, state[arm], action[arm]]) * (params.gamma**t)
+        next_state[arm] = np.random.choice(
+            range(params.num_states), p=mrp.transitions[arm, state[arm], :, action[arm]]
+        )
+    state = next_state
+print(
+    total_reward / params.num_groups
+)  # to get the mean group reward to compare with weighted average comparison
