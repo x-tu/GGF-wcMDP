@@ -4,11 +4,20 @@ import numpy as np
 
 
 class Whittle:
-    def __init__(self, num_states: int, num_arms: int, reward, transition, horizon):
+    def __init__(
+        self,
+        num_states: int,
+        num_arms: int,
+        reward,
+        transition,
+        horizon,
+        discount_rate=0.95,
+    ):
         self.num_x = num_states
         self.num_a = num_arms
-        self.reward = reward
-        self.transition = transition
+        self.reward = reward  # (arm, x, act)
+        self.transition = transition  # (arm, x, x', a)
+        self.discount_rate = discount_rate
         self.horizon = horizon
         self.digits = 4
         self.w_indices = []
@@ -70,9 +79,10 @@ class Whittle:
                 # Get the state-action value functions
                 for act in range(2):
                     Q[x, t, act] = (
-                        self.reward[x, arm]
+                        self.reward[arm, x, act]
                         - penalty * act
-                        + np.dot(V[:, t + 1], self.transition[x, :, act, arm])
+                        + self.discount_rate
+                        * np.dot(V[:, t + 1], self.transition[arm, x, :, act])
                     )
                 # Get the value function and the policy
                 if Q[x, t, 1] < Q[x, t, 0]:
@@ -83,6 +93,25 @@ class Whittle:
                     pi[x, t] = 1
             t = t - 1
         return pi, V, Q
+
+    def value_iteration(self, arm, penalty):
+        V = np.zeros((self.num_x, self.horizon + 1), dtype=np.float32)
+        pi = np.zeros((self.num_x, self.horizon), dtype=np.int32)
+
+        for t in range(self.horizon - 1, -1, -1):
+            for x in range(self.num_x):
+                Q = np.zeros(2)
+                for act in range(2):
+                    Q[act] = self.reward[arm, x, act] - penalty * act
+                    for next_x in range(self.num_x):
+                        Q[act] += self.transition[arm, x, next_x, act] * (
+                            self.discount_rate * V[next_x, t + 1]
+                        )
+
+                best_action = np.argmax(Q)
+                V[x, t] = Q[best_action]
+                pi[x, t] = best_action
+        return pi, V
 
     @staticmethod
     def Whittle_policy(whittle_indices, n_selection, current_x, current_t):
