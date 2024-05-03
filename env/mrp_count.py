@@ -19,7 +19,8 @@ class CountMDPEnv(gym.Env):
             num_groups: int,
             num_states: int,
             num_actions: int,
-            num_steps: int,
+            len_episode: int = 300,
+            gamma: float = 0.95,
             rccc_wrt_max: float = 1.5,
             prob_remain: float = 0.8,
             deterioration_step: int = 1,
@@ -30,7 +31,8 @@ class CountMDPEnv(gym.Env):
         self.num_groups = num_groups
         self.num_states = num_states
         self.num_actions = num_actions
-        self.num_steps = num_steps
+        self.len_episode = len_episode
+        self.gamma = gamma
         self.count_mdp = CountMDP(
             num_groups=num_groups,
             num_states=num_states,
@@ -39,10 +41,14 @@ class CountMDPEnv(gym.Env):
             prob_remain=prob_remain,
             deterioration_step=deterioration_step,
         )
+        reward_copy = self.count_mdp.count_rewards.copy()
+        reward_copy[reward_copy == -1e6] = 0
+        self.reward_offset = reward_copy.min()
+
         # Parameters for multiple machines
         self.observation_space = spaces.Discrete(self.count_mdp.num_count_states)
         self.action_space = spaces.Discrete(self.count_mdp.num_groups+1)
-        self.reward_space = spaces.Box(low=-99, high=0, shape=(1,), dtype=np.float32)
+        self.reward_space = spaces.Box(low=0, high=-self.reward_offset, shape=(1,), dtype=np.float32)
 
         # Initialization
         self.step_counter = 0
@@ -54,42 +60,36 @@ class CountMDPEnv(gym.Env):
     def seed(self, seed=None):
         return
 
-    def reset(self, s_idx: Union[int, list] = 0, deterministic=False):
+    def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):
         """Reset the environment."""
-        self.training_rewards.append(self.episode_rewards)
-        self.step_counter = 0
-        self.episode_rewards = 0
-        self.reward_info = []
-        return s_idx/len(self.count_mdp.count_states)
-        # return np.array(self.count_mdp.count_states[s_idx])/len(self.count_mdp.count_states)
+        sc_idx = np.random.randint(0, len(self.count_mdp.count_states))
+        return sc_idx
 
     def step(self, action: int):
         """Take a step in the environment."""
 
-        s_idx = int(self.observations * len(self.count_mdp.count_states))
-        sc_idx = self.count_mdp.sn_idx_to_s_idx_mapping[s_idx]
-        sc_vec = self.count_mdp.s_idx_to_x_mapping[str(sc_idx)]
-        s_vec = count_to_normal(sc_vec)
-        a_vec = [0] * self.num_groups
-        if action > 0:
-            a_vec[action-1] = 1
-        ac_vec = np.array(self.count_mdp.action_normal_to_count(a_vec=a_vec, s_vec=s_vec))
-        a_idx = self.count_mdp.ac_to_idx_mapping[str(ac_vec)]
-
+        ac_idx = self.count_mdp.count_env_idx_mapping[(self.observations, action)]
         # get next state
-        next_state_prob = self.count_mdp.count_transitions[s_idx, :, a_idx]
+        next_state_prob = self.count_mdp.count_transitions[self.observations, :, ac_idx]
         next_state = np.random.choice(
             np.arange(self.observation_space.n), p=next_state_prob
         )
         # get the reward
-        reward = self.count_mdp.count_rewards[s_idx, a_idx]
+        reward = self.count_mdp.count_rewards[self.observations, ac_idx] - self.reward_offset
         # get the done
         self.step_counter += 1
-        done = self.step_counter >= self.num_steps
+        done = self.step_counter >= self.len_episode
+        if done:
+            num_groups = self.count_mdp.num_groups
+            # print("ep r:", (-self.reward_offset * (1/(1-self.gamma)) - self.episode_rewards)/num_groups)
+            rescaled_ep_reward = (-self.reward_offset * (1/(1-self.gamma)) - self.episode_rewards)/num_groups
+            self.training_rewards.append(rescaled_ep_reward)
+            self.episode_rewards = 0
+            self.step_counter = 0
         # register the information
-        info = {f"reward": reward}
-        self.episode_rewards += reward * 0.95 ** self.step_counter
-        self.observations = next_state / len(self.count_mdp.count_states)
+        info = {"reward": reward}
+        self.episode_rewards += (self.gamma ** self.step_counter) * reward
+        self.observations = next_state
         return self.observations, reward, done, info
 
     def render(self, mode="human"):

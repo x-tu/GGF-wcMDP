@@ -1,6 +1,8 @@
 """This scripts include all plotting functions used to analyze results."""
 
 import matplotlib.pyplot as plt
+import numpy as np
+from stable_baselines3.common.results_plotter import load_results, ts2xy
 
 
 def plot_figures(ep_list: list, lr_list: list, all_rewards: dict):
@@ -31,4 +33,37 @@ def plot_figures(ep_list: list, lr_list: list, all_rewards: dict):
             plt.ylabel("Discounted GGF Reward")
             sb_plot_index += 1
     plt.tight_layout()
+    plt.show()
+
+
+def moving_average(values, window):
+    """
+    Smooth values by doing a moving average
+    :param values: (numpy array)
+    :param window: (int)
+    :return: (numpy array)
+    """
+    weights = np.repeat(1.0, window) / window
+    return np.convolve(values, weights, "valid")
+
+
+def plot_results(log_folder, title="Learning Curve"):
+    """
+    plot the results
+
+    :param log_folder: (str) the save location of the results to plot
+    :param title: (str) the title of the task to plot
+    """
+    x, y = ts2xy(load_results(log_folder), "episodes")
+    y = moving_average(y, window=10)
+    # Truncate x
+    x = x[len(x) - len(y):]
+
+    fig = plt.figure(title)
+    plt.plot(x, y)
+    # plot a horizontal line showing the optimum
+    # plt.axhline(y=3.8275, color="r", linestyle="--")
+    plt.xlabel("Episodes")
+    plt.ylabel("Mean Discounted Return")
+    plt.title(title+ " Smoothed")
     plt.show()
