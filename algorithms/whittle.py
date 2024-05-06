@@ -127,10 +127,6 @@ class Whittle:
         unique_indices, counts = np.unique(
             current_indices[sorted_indices], return_counts=True
         )
-        # if all whittle index values are negative, do not select any action
-        # TODO: this is a tempory solution, need to be fixed
-        if np.all(unique_indices < 0):
-            return np.zeros(num_a, dtype=np.int32)
         top_indices = []
         top_len = 0
         for idx in range(len(unique_indices)):
@@ -152,4 +148,8 @@ class Whittle:
         # Create action vector
         action_vector = np.zeros_like(current_indices, dtype=np.int32)
         action_vector[top_indices] = 1
+        # if the whittle index values are negative, do not select any action
+        for arm in range(num_a):
+            if current_indices[arm] < 0:
+                action_vector[arm] = 0
         return action_vector
