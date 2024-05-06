@@ -45,8 +45,11 @@ class Whittle:
             penalty_ref = lower_bound
             ref_pol, _, _ = self.backward(arm, penalty_ref)
             upb_pol, _, _ = self.backward(arm, upper_bound)
+            # ref_pol, _ = self.value_iteration(arm, penalty_ref)
+            # upb_pol, _ = self.value_iteration(arm, upper_bound)
             for penalty in np.linspace(lower_bound, upper_bound, num_trials):
                 nxt_pol, _, _ = self.backward(arm, penalty)
+                # nxt_pol, _ = self.value_iteration(arm, penalty)
                 if self.is_equal_mat(nxt_pol, upb_pol):
                     flag, arm_indices = self.indexability_check(
                         arm_indices, nxt_pol, ref_pol, penalty
@@ -116,7 +119,6 @@ class Whittle:
     @staticmethod
     def Whittle_policy(whittle_indices, n_selection, current_x, current_t):
         num_a = len(whittle_indices)
-        action = np.zeros(num_a, dtype=np.int32)
         current_indices = np.zeros(num_a)
         for arm in range(num_a):
             current_indices[arm] = whittle_indices[arm][current_x[arm], current_t]
@@ -125,6 +127,10 @@ class Whittle:
         unique_indices, counts = np.unique(
             current_indices[sorted_indices], return_counts=True
         )
+        # if all whittle index values are negative, do not select any action
+        # TODO: this is a tempory solution, need to be fixed
+        if np.all(unique_indices < 0):
+            return np.zeros(num_a, dtype=np.int32)
         top_indices = []
         top_len = 0
         for idx in range(len(unique_indices)):
