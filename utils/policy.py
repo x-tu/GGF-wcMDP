@@ -1,44 +1,59 @@
 """ This module contains the functions to calculate and simulate the state value function."""
 
 import numpy as np
+from scipy import stats
 from tqdm import tqdm
 
 from utils.common import DotDict
+from utils.encoding import state_int_index_to_vector, state_vector_to_int_index
 from utils.mrp import MRPData
-from utils.encoding import state_vector_to_int_index, state_int_index_to_vector
 
 
 def simulate_permuted_state_value(
-        params: DotDict,
-        policy: np.array, mrp_data: MRPData,
-        initial_state_prob: np.array,
-        all_permutation_matrix: np.array):
+    params: DotDict,
+    policy: np.array,
+    mrp_data: MRPData,
+    initial_state_prob: np.array,
+    all_permutation_matrix: np.array,
+):
     """Simulate the state value function from the policy with permutation."""
 
     Vt = np.zeros((params.num_samples, params.num_groups, params.len_episode))
     for n in range(params.num_samples):
         # select the initial state according to the initial state distribution
-        s_idx = np.random.choice(range(mrp_data.num_global_states), p=initial_state_prob)
+        s_idx = np.random.choice(
+            range(mrp_data.num_global_states), p=initial_state_prob
+        )
         for t in range(params.len_episode):
-            perm_matrix = all_permutation_matrix[np.random.choice(len(all_permutation_matrix))]
+            perm_matrix = all_permutation_matrix[
+                np.random.choice(len(all_permutation_matrix))
+            ]
             inverse_perm_matrix = np.linalg.inv(perm_matrix)
             # permute the state
-            s_vector = state_int_index_to_vector(state_int_index=s_idx,
-                                                 num_groups=params.num_groups,
-                                                 num_states=params.num_states)
+            s_vector = state_int_index_to_vector(
+                state_int_index=s_idx,
+                num_groups=params.num_groups,
+                num_states=params.num_states,
+            )
             perm_s_vector = np.matmul(perm_matrix, s_vector)
-            perm_s_idx = state_vector_to_int_index(state_vector=perm_s_vector, num_states=params.num_states)
+            perm_s_idx = state_vector_to_int_index(
+                state_vector=perm_s_vector, num_states=params.num_states
+            )
             # select the permute action
             perm_a_prob = policy.iloc[perm_s_idx]
             perm_a_idx = np.random.choice(range(len(perm_a_prob)), p=perm_a_prob)
             # TODO: 1) permute the action back, 2) keep using permuted action, but permute the reward
             perm_reward = mrp_data.global_costs[perm_s_idx, perm_a_idx]
             reward = np.matmul(perm_reward, inverse_perm_matrix)
-            Vt[n, :, t] = params.gamma ** t * reward
+            Vt[n, :, t] = params.gamma**t * reward
             # transit to the next state
             perm_next_s_prob = mrp_data.global_transitions[perm_s_idx, :, perm_a_idx]
-            perm_next_s_idx = np.random.choice(range(len(perm_next_s_prob)), p=perm_next_s_prob)
-            perm_next_s = state_int_index_to_vector(perm_next_s_idx, params.num_groups, params.num_states)
+            perm_next_s_idx = np.random.choice(
+                range(len(perm_next_s_prob)), p=perm_next_s_prob
+            )
+            perm_next_s = state_int_index_to_vector(
+                perm_next_s_idx, params.num_groups, params.num_states
+            )
             next_s = np.matmul(perm_next_s, inverse_perm_matrix)
             next_s_idx = state_vector_to_int_index(next_s, params.num_states)
             s_idx = next_s_idx
@@ -84,7 +99,7 @@ def simulation_state_value(
                         range(state_size),
                         p=mrp_data.global_transitions[state, :, action],
                     )
-                    total_reward += params.gamma ** t * reward_lp
+                    total_reward += params.gamma**t * reward_lp
                     state = next_observation
                     state_values[t, :, n, init_state] = total_reward.copy()
     # calculate the expected state values based on the initial state distribution
@@ -238,3 +253,8 @@ def reshape_reward_matrix(reward_matrix: np.array) -> np.array:
     for r in range(R):
         new_reward_matrix[:, r] = reward_matrix[:, :, r].reshape(S * A)
     return new_reward_matrix
+
+
+def check_equal_means(groups):
+    f_statistic, p_value = stats.f_oneway(*groups)
+    return p_value > 0.05
