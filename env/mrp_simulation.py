@@ -47,6 +47,7 @@ class PropCountSimMDPEnv(gym.Env):
         self.reward_offset = 1
 
         # used to speed up data generation
+        # "zero", "constant", "linear", "quadratic", "exponential", "rccc", "random",
         self.count_mdp = CountMDP(num_groups=1, num_states=self.num_states)
 
         # Parameters for multiple machines
@@ -63,6 +64,7 @@ class PropCountSimMDPEnv(gym.Env):
         self.episode_rewards = 0
         self.training_rewards = []
         self.reset()
+        self.group_rewards = np.zeros(self.num_groups)
 
     def seed(self, seed=None):
         return
@@ -118,6 +120,13 @@ class PropCountSimMDPEnv(gym.Env):
         state_indices = np.random.choice(range(self.num_states), size=self.num_groups)
         initial_state = np.bincount(state_indices, minlength=self.num_states)
         self.observations = np.append(initial_state, self.num_budget) / self.num_groups
+        # initialize the machine index
+        machine_indices = list(range(self.num_groups))
+        self.group_indices = {}
+        for i in range(self.num_states):
+            np.random.shuffle(machine_indices)
+            self.group_indices[i] = machine_indices[: initial_state[i]]
+            machine_indices = machine_indices[initial_state[i] :]
         return self.observations
 
     def step(self, action: np.array):
@@ -139,9 +148,18 @@ class PropCountSimMDPEnv(gym.Env):
                     p=self.count_mdp.global_transitions[i, :, action_idx],
                 )
                 next_count_state[next_state_index] += 1
-                reward += (
+                # randomly select the group indices
+                selected_idx = np.random.choice(self.group_indices[i])
+                step_reward = (
                     self.count_mdp.global_rewards[i, action_idx, 0] + self.reward_offset
                 )
+                self.group_rewards[selected_idx] += (
+                    self.gamma**self.step_counter
+                ) * step_reward
+                reward += step_reward
+                # update index tracking
+                self.group_indices[i].remove(selected_idx)
+                self.group_indices[next_state_index].append(selected_idx)
         reward /= self.num_groups
         assert (
             np.sum(next_count_state) == self.num_groups
