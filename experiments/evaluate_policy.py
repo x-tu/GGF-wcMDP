@@ -1,53 +1,80 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 from tqdm import tqdm
 
-from env.mrp_count import CountMDPEnv
+from env.mrp_simulation import PropCountSimMDPEnv
 from experiments.configs.base import params
-from stable_baselines3 import A2C, DQN, PPO
-from stable_baselines3.common.results_plotter import load_results, ts2xy
+from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
+from utils.count import CountMDP
+from utils.policy import check_equal_means
 
-params.len_episode = 500
+params.num_groups = 2
+num_resource = 1
+algorithm = PPO
+params.len_episode = 300
+runs = 1000
 
-env = CountMDPEnv(
-    num_groups=params.num_groups,
+env = PropCountSimMDPEnv(
+    machine_range=[params.num_groups, params.num_groups],
+    resource_range=[num_resource, num_resource],
     num_states=params.num_states,
-    num_actions=params.num_actions,
     len_episode=params.len_episode,
 )
 
-model = PPO.load("experiments/tmp/ppo")
-
-import numpy as np
-
-# ep_rewards = 0
-# state = 0
-# for t in tqdm(range(300)):
-#     action, _ = model.predict(state, deterministic=True)
-#     ac_idx = env.count_mdp.count_env_idx_mapping[(state, int(action))]
-#     # get next state
-#     next_state_prob = env.count_mdp.count_transitions[state, :, ac_idx]
-#     next_state = np.random.choice(
-#         np.arange(env.observation_space.n), p=next_state_prob
-#     )
-#     # get the reward
-#     reward = env.count_mdp.count_rewards[state, ac_idx]
-#     ep_rewards += (params.gamma ** t) * reward
-#     state = next_state
-# print(-ep_rewards / params.num_groups)
+env.num_budget = num_resource
+count_mdp = CountMDP(
+    num_groups=params.num_groups,
+    num_resource=num_resource,
+    num_states=params.num_states,
+)
+model = algorithm.load(f"experiments/tmp/model/{algorithm.__name__.lower()}")
 
 # Print the policy
-for state in range(len(env.count_mdp.count_states)):
+for state in count_mdp.count_state_props:
     th_obs = torch.as_tensor(state).unsqueeze(0)
-    try:
-        probs = (
-            model.policy.get_distribution(th_obs)
-            .distribution.probs[0]
-            .detach()
-            .numpy()
-            .round(4)
-        )
-    except:
-        action_idx = model.policy.q_net._predict(th_obs)
-        probs = np.zeros(env.action_space.n)
-        probs[action_idx] = 1
-    print("state", state, ": ", probs)
+    env.observations = state
+    action_priority, _ = model.predict(state, deterministic=False)
+    count_action = env.select_action_by_priority(action_priority)
+    print(
+        "state",
+        state * params.num_groups,
+        ": ",
+        count_action,
+        " | ",
+        action_priority.round(2),
+    )
+
+
+def simulate_group_rewards(runs):
+    group_rewards = np.zeros((runs, params.num_groups))
+    for run in tqdm(range(runs)):
+        state = env.reset()
+        env.group_rewards = np.zeros(params.num_groups)
+        for t in range(300):
+            # get the action
+            action_priority, _ = model.predict(state, deterministic=True)
+            next_state, reward, done, info = env.step(action_priority)
+            state = next_state
+        group_rewards[run, :] = env.group_rewards
+    return group_rewards
+
+
+# Evaluate the policy
+group_rewards = simulate_group_rewards(runs=runs)
+rewards_df = pd.DataFrame(group_rewards)
+rewards_df.columns = [f"Group {i+1}" for i in range(params.num_groups)]
+rewards_df.to_csv(
+    f"experiments/tmp/rewards_{algorithm.__name__.lower()}{params.num_groups}.csv",
+    index=False,
+)
+
+print(check_equal_means(groups=group_rewards.T))
+# plot the mean and variance of the two groups
+rewards_df.mean().plot(kind="bar", yerr=rewards_df.std())
+# specify the y range and interval
+plt.ylim([0, 20])
+# label is horizontal
+plt.xticks(rotation=0)
+plt.show()
