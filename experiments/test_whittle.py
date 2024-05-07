@@ -1,10 +1,11 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from algorithms.whittle import Whittle
 from experiments.configs.base import params
 from utils.mrp import MRPData
+from utils.policy import check_equal_means
 
 params.num_states = 3
 params.num_groups = 2
@@ -48,17 +49,11 @@ for run in range(n_runs):
         state = next_state
 # to get the mean group reward to compare with weighted average comparison
 total_rewards = group_rewards.sum(axis=0) / params.num_groups
-
-
-def check_equal_means(groups):
-    f_statistic, p_value = stats.f_oneway(*groups)
-    return p_value > 0.05
-
+# mean rewards
+print("Mean: ", total_rewards.mean())
+print("Std:", total_rewards.std() / np.sqrt(n_runs))
 
 print(check_equal_means(group_rewards))
-
-# plot histogram of the individual rewards
-import matplotlib.pyplot as plt
 
 rewards_df = pd.DataFrame(group_rewards.T)
 rewards_df.columns = [f"Group {i}" for i in range(params.num_groups)]
@@ -67,12 +62,8 @@ rewards_df.mean().plot(kind="bar", yerr=rewards_df.std())
 # label is horizontal
 plt.xticks(rotation=0)
 plt.show()
-# plot the distribution of the differences of rewards
-differences = group_rewards[0] - group_rewards[1]
-# plot the histogram of the differences with density estimation
-plt.hist(differences, bins=50, alpha=0.5, density=True)
-# plt.bar(differences, stats.norm.pdf(differences, np.mean(differences), np.std(differences)))
-plt.show()
 
 # save the rewards
-rewards_df.to_csv("experiments/tmp/whittle_rewards.csv", index=False)
+rewards_df.to_csv(
+    f"experiments/tmp/rewards_whittle{params.num_groups}.csv", index=False
+)
