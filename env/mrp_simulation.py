@@ -24,10 +24,14 @@ class PropCountSimMDPEnv(gym.Env):
         rccc_wrt_max: float = 1.5,
         prob_remain: float = 0.8,
         deterioration_step: int = 1,
+        cost_types_operation: str = "quadratic",
+        cost_types_replace: str = "rccc",
     ):
         super(gym.Env, self).__init__()
 
         # assign parameters
+        self.group_rewards = None
+        self.last_group_rewards = None
         self.observations = None
         self.num_groups = None
         self.num_budget = None
@@ -47,7 +51,13 @@ class PropCountSimMDPEnv(gym.Env):
         self.reward_offset = 1
 
         # used to speed up data generation
-        self.count_mdp = CountMDP(num_groups=1, num_states=self.num_states)
+        # "zero", "constant", "linear", "quadratic", "exponential", "rccc", "random",
+        self.count_mdp = CountMDP(
+            num_groups=1,
+            num_states=self.num_states,
+            cost_types_operation=cost_types_operation,
+            cost_types_replace=cost_types_replace,
+        )
 
         # Parameters for multiple machines
         self.observation_space = spaces.Box(
@@ -62,6 +72,7 @@ class PropCountSimMDPEnv(gym.Env):
         self.step_counter = 0
         self.episode_rewards = 0
         self.training_rewards = []
+        self.update_mdp()
         self.reset()
 
     def seed(self, seed=None):
@@ -70,6 +81,8 @@ class PropCountSimMDPEnv(gym.Env):
     def update_mdp(self):
         self.num_groups = np.random.choice(self.range_d)
         self.num_budget = np.random.choice(self.range_k)
+        self.last_group_rewards = np.copy(self.group_rewards)
+        self.group_rewards = np.zeros(self.num_groups)
 
     def discretize_budget_proportion(self, budget_proportion: float) -> int:
         """Discretize the budget proportion.
@@ -114,10 +127,16 @@ class PropCountSimMDPEnv(gym.Env):
 
     def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):
         """Reset the environment."""
-        self.update_mdp()
         state_indices = np.random.choice(range(self.num_states), size=self.num_groups)
         initial_state = np.bincount(state_indices, minlength=self.num_states)
         self.observations = np.append(initial_state, self.num_budget) / self.num_groups
+        # initialize the machine index
+        machine_indices = list(range(self.num_groups))
+        self.group_indices = {}
+        for i in range(self.num_states):
+            np.random.shuffle(machine_indices)
+            self.group_indices[i] = machine_indices[: initial_state[i]]
+            machine_indices = machine_indices[initial_state[i] :]
         return self.observations
 
     def step(self, action: np.array):
@@ -139,9 +158,18 @@ class PropCountSimMDPEnv(gym.Env):
                     p=self.count_mdp.global_transitions[i, :, action_idx],
                 )
                 next_count_state[next_state_index] += 1
-                reward += (
+                # randomly select the group indices
+                selected_idx = np.random.choice(self.group_indices[i])
+                step_reward = (
                     self.count_mdp.global_rewards[i, action_idx, 0] + self.reward_offset
                 )
+                self.group_rewards[selected_idx] += (
+                    self.gamma**self.step_counter
+                ) * step_reward
+                reward += step_reward
+                # update index tracking
+                self.group_indices[i].remove(selected_idx)
+                self.group_indices[next_state_index].append(selected_idx)
         reward /= self.num_groups
         assert (
             np.sum(next_count_state) == self.num_groups
@@ -161,6 +189,7 @@ class PropCountSimMDPEnv(gym.Env):
             self.training_rewards.append(self.episode_rewards)
             self.episode_rewards = 0
             self.step_counter = 0
+            self.update_mdp()
             self.reset()
         return self.observations, reward, done, info
 
