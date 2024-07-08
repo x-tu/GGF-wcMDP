@@ -16,6 +16,9 @@ algorithm = PPO
 params.len_episode = 300
 runs = 1000
 
+# identifier
+identifier = f"2_2_2_{num_resource}_{num_resource}"
+
 env = PropCountSimMDPEnv(
     machine_range=[params.num_groups, params.num_groups],
     resource_range=[num_resource, num_resource],
@@ -29,8 +32,9 @@ count_mdp = CountMDP(
     num_resource=num_resource,
     num_states=params.num_states,
 )
-model = algorithm.load(f"experiments/tmp/model/{algorithm.__name__.lower()}")
+model = algorithm.load(f"experiments/tmp/{algorithm.__name__.lower()}_{identifier}")
 
+identifier = f"2_2_{num_resource}_{num_resource}"
 # Print the policy
 for state in count_mdp.count_state_props:
     th_obs = torch.as_tensor(state).unsqueeze(0)
@@ -51,22 +55,22 @@ def simulate_group_rewards(runs):
     group_rewards = np.zeros((runs, params.num_groups))
     for run in tqdm(range(runs)):
         state = env.reset()
-        env.group_rewards = np.zeros(params.num_groups)
-        for t in range(300):
+        for t in range(params.len_episode):
             # get the action
             action_priority, _ = model.predict(state, deterministic=True)
             next_state, reward, done, info = env.step(action_priority)
             state = next_state
-        group_rewards[run, :] = env.group_rewards
+        group_rewards[run, :] = env.last_group_rewards
     return group_rewards
 
 
 # Evaluate the policy
 group_rewards = simulate_group_rewards(runs=runs)
+print(group_rewards.mean(axis=0))
 rewards_df = pd.DataFrame(group_rewards)
 rewards_df.columns = [f"Group {i+1}" for i in range(params.num_groups)]
 rewards_df.to_csv(
-    f"experiments/tmp/rewards_{algorithm.__name__.lower()}{params.num_groups}.csv",
+    f"experiments/tmp/rewards_{algorithm.__name__.lower()}_{identifier}.csv",
     index=False,
 )
 
