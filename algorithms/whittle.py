@@ -117,34 +117,40 @@ class Whittle:
         return pi, V
 
     @staticmethod
-    def Whittle_policy(whittle_indices, n_selection, current_x, current_t):
+    def Whittle_policy(
+        whittle_indices, n_selection, current_x, current_t, deterministic
+    ):
         num_a = len(whittle_indices)
-        current_indices = np.zeros(num_a)
-        for arm in range(num_a):
-            current_indices[arm] = whittle_indices[arm][current_x[arm], current_t]
-        # Sort indices based on values and shuffle indices with same values
-        sorted_indices = np.argsort(current_indices)[::-1]
-        unique_indices, counts = np.unique(
-            current_indices[sorted_indices], return_counts=True
+        current_indices = np.array(
+            [whittle_indices[arm][current_x[arm], current_t] for arm in range(num_a)]
         )
-        top_indices = []
-        top_len = 0
-        for idx in range(len(unique_indices)):
-            indices = np.where(
-                current_indices == unique_indices[len(unique_indices) - idx - 1]
-            )[0]
-            shuffled_indices = np.random.permutation(indices)
-            if top_len + len(shuffled_indices) < n_selection:
-                top_indices.extend(list(shuffled_indices))
-                top_len += len(shuffled_indices)
-            elif top_len + len(shuffled_indices) == n_selection:
-                top_indices.extend(list(shuffled_indices))
-                top_len += len(shuffled_indices)
-                break
-            else:
-                top_indices.extend(list(shuffled_indices[: n_selection - top_len]))
-                top_len += len(shuffled_indices[: n_selection - top_len])
-                break
+        if deterministic:
+            top_indices = np.argsort(-current_indices)[:n_selection]
+        else:
+            # Sort indices based on values and shuffle indices with same values
+            sorted_indices = np.argsort(current_indices)[::-1]
+            unique_indices, counts = np.unique(
+                current_indices[sorted_indices], return_counts=True
+            )
+            top_indices = []
+            top_len = 0
+            for idx in range(len(unique_indices)):
+                indices = np.where(
+                    current_indices == unique_indices[len(unique_indices) - idx - 1]
+                )[0]
+                shuffled_indices = np.random.permutation(indices)
+                # sort the indices from low to high
+                if top_len + len(shuffled_indices) < n_selection:
+                    top_indices.extend(list(shuffled_indices))
+                    top_len += len(shuffled_indices)
+                elif top_len + len(shuffled_indices) == n_selection:
+                    top_indices.extend(list(shuffled_indices))
+                    top_len += len(shuffled_indices)
+                    break
+                else:
+                    top_indices.extend(list(shuffled_indices[: n_selection - top_len]))
+                    top_len += len(shuffled_indices[: n_selection - top_len])
+                    break
         # Create action vector
         action_vector = np.zeros_like(current_indices, dtype=np.int32)
         action_vector[top_indices] = 1

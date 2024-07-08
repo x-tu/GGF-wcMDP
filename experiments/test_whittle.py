@@ -14,6 +14,7 @@ budget = 1
 n_runs = 1000
 
 mrp = MRPData(num_groups=params.num_groups, num_states=params.num_states)
+file_name = f"experiments/tmp/rewards_whittle{params.num_groups}deterministic.csv"
 
 whittle_agent = Whittle(
     num_states=params.num_states,
@@ -22,7 +23,7 @@ whittle_agent = Whittle(
     transition=mrp.transitions,  # (arm, x, x', act)
     horizon=params.len_episode,
 )
-whittle_agent.whittle_brute_force(lower_bound=-1.1, upper_bound=0.1, num_trials=1000)
+whittle_agent.whittle_brute_force(lower_bound=-1.1, upper_bound=1.1, num_trials=1000)
 
 # MC simulation to evaluate the policy
 group_rewards = np.zeros((params.num_groups, n_runs))
@@ -35,6 +36,7 @@ for run in range(n_runs):
             n_selection=budget,
             current_x=state,
             current_t=t,
+            deterministic=True,
         )
         # get the reward
         next_state = np.zeros_like(state)
@@ -56,14 +58,13 @@ print("Std:", total_rewards.std() / np.sqrt(n_runs))
 print(check_equal_means(group_rewards))
 
 rewards_df = pd.DataFrame(group_rewards.T)
-rewards_df.columns = [f"Group {i}" for i in range(params.num_groups)]
+rewards_df.columns = [f"Machine {i+1}" for i in range(params.num_groups)]
 # plot the mean and variance of the two groups
 rewards_df.mean().plot(kind="bar", yerr=rewards_df.std())
+print(rewards_df.mean())
 # label is horizontal
 plt.xticks(rotation=0)
 plt.show()
 
 # save the rewards
-rewards_df.to_csv(
-    f"experiments/tmp/rewards_whittle{params.num_groups}.csv", index=False
-)
+rewards_df.to_csv(file_name, index=False)
