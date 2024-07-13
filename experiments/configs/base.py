@@ -19,7 +19,7 @@ params = DotDict(
         "prob_remain": 0.8,
         "num_opt_solutions": 1,
         "num_episodes": 1000,
-        "len_episode": 100,
+        "len_episode": 300,
         "num_samples": 10,
         "gamma": 0.95,
         "seed": 0,

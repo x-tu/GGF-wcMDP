@@ -7,10 +7,6 @@ from experiments.configs.base import params
 from utils.mrp import MRPData
 from utils.policy import check_equal_means
 
-params.num_states = 3
-params.num_groups = 2
-params.len_episode = 300
-budget = 1
 n_runs = 1000
 digit = 4
 
@@ -24,7 +20,7 @@ identifier = (
     f"G{params.num_groups}_"
     f"C{params.cost_type_operation[:2]}-{params.cost_type_replace[:2]}_"
     f"F{'o' if params.ggi else 'x'}_"
-    f"K{budget}{'o' if params.force_to_use_all_resources else 'x'}"
+    f"K{params.budget}{'o' if params.force_to_use_all_resources else 'x'}"
 )
 
 file_name = f"experiments/tmp/rewards_whittle_{identifier}.csv"
@@ -47,7 +43,7 @@ for run in range(n_runs):
     for t in range(params.len_episode):
         action = whittle_agent.Whittle_policy(
             whittle_indices=whittle_agent.w_indices,
-            n_selection=budget,
+            n_selection=params.budget,
             current_x=state,
             current_t=t,
             shuffle_indices=params.ggi,
@@ -99,7 +95,7 @@ def get_policy(whittle_agent, params):
         normal_state = count_to_normal(count_state)
         normal_action = whittle_agent.Whittle_policy(
             whittle_indices=whittle_agent.w_indices,
-            n_selection=budget,
+            n_selection=params.budget,
             current_x=normal_state,
             current_t=0,
             shuffle_indices=params.ggi,
