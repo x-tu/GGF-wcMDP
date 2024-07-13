@@ -118,15 +118,18 @@ class Whittle:
 
     @staticmethod
     def Whittle_policy(
-        whittle_indices, n_selection, current_x, current_t, deterministic
+        whittle_indices,
+        n_selection,
+        current_x,
+        current_t,
+        shuffle_indices=True,
+        force_to_use_all_resources=False,
     ):
         num_a = len(whittle_indices)
         current_indices = np.array(
             [whittle_indices[arm][current_x[arm], current_t] for arm in range(num_a)]
         )
-        if deterministic:
-            top_indices = np.argsort(-current_indices)[:n_selection]
-        else:
+        if shuffle_indices:
             # Sort indices based on values and shuffle indices with same values
             sorted_indices = np.argsort(current_indices)[::-1]
             unique_indices, counts = np.unique(
@@ -151,11 +154,14 @@ class Whittle:
                     top_indices.extend(list(shuffled_indices[: n_selection - top_len]))
                     top_len += len(shuffled_indices[: n_selection - top_len])
                     break
+            else:
+                top_indices = np.argsort(-current_indices)[:n_selection]
         # Create action vector
         action_vector = np.zeros_like(current_indices, dtype=np.int32)
         action_vector[top_indices] = 1
-        # if the whittle index values are negative, do not select any action
-        for arm in range(num_a):
-            if current_indices[arm] < 0:
-                action_vector[arm] = 0
+        if not force_to_use_all_resources:
+            # if the whittle index values are negative, do not select any action
+            for arm in range(num_a):
+                if current_indices[arm] < 0:
+                    action_vector[arm] = 0
         return action_vector

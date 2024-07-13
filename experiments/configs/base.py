@@ -8,12 +8,14 @@ params = DotDict(
         "num_actions": 2,
         "num_states": 3,
         "num_groups": 2,
+        "budget": 1,
         "ggi": True,
         "rccc_wrt_max": 0.5,
         "mat_type": 1,
         "weight_type": "exponential2",
         "cost_type_operation": "quadratic",
         "cost_type_replace": "rccc",
+        "force_to_use_all_resources": True,
         "prob_remain": 0.8,
         "num_opt_solutions": 1,
         "num_episodes": 1000,
@@ -23,6 +25,7 @@ params = DotDict(
         "seed": 0,
         "prob1_state_idx": None,
         "deterministic_policy": False,
+        "log_dir": "experiments/tmp/",
         # hyperparameters for the Q-learning
         "ql": DotDict(
             {
