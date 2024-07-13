@@ -137,8 +137,11 @@ class CountMDP(MRPData):
                         sc_idx, next_sc_idx, ac_idx
                     ] += self.global_transitions[s_idx, next_s_idx, a_idx]
         # normalize the transition matrix
-        global_transitions /= np.sum(global_transitions, axis=1)[:, np.newaxis]
-        return np.nan_to_num(global_transitions, nan=0)
+        sum_transitions = np.sum(global_transitions, axis=1)[:, np.newaxis]
+        # avoid division by zero
+        sum_transitions[sum_transitions == 0] = 1
+        global_transitions /= sum_transitions
+        return global_transitions
 
     def action_normal_to_count(self, a_vec, s_vec):
         ac_vec = [0] * self.num_states
