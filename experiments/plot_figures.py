@@ -6,7 +6,7 @@ from experiments.configs.base import params
 from utils.plots import moving_average
 
 data = {}
-for algorithm in ["sac", "ppo", "td3"]:
+for algorithm in ["ppo", "sac", "td3"]:
     df = pd.read_csv(
         f"experiments/tmp/learning_reward_{algorithm}_{params.identifier}.csv"
     )["0"]

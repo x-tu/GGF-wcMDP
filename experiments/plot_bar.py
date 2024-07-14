@@ -5,7 +5,7 @@ from experiments.configs.base import params
 
 group_rewards = pd.DataFrame()
 
-for algorithm in ["PPO", "SAC", "TD3", "Whittle"]:
+for algorithm in ["PPO", "SAC", "TD3", "Whittle", "Random"]:
     df = pd.read_csv(
         f"experiments/tmp/rewards_{algorithm.lower()}_{params.identifier}.csv"
     )
@@ -18,7 +18,12 @@ for algorithm in ["PPO", "SAC", "TD3", "Whittle"]:
     group_rewards = pd.concat([group_rewards, df])
 
 # plot the mean and variance of the two groups
-group_rewards.groupby("Algorithms").mean().plot(
+bar_group_rewards = (
+    group_rewards.groupby("Algorithms")
+    .mean()
+    .reindex(["PPO", "SAC", "TD3", "Whittle", "Random"])
+)
+bar_group_rewards.plot(
     kind="bar", yerr=group_rewards.groupby("Algorithms").std(), alpha=0.8
 )
 

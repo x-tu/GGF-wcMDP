@@ -50,9 +50,7 @@ def train_agent(algorithm, params):
 # train the agents
 for algorithm in algorithms:
     model, training_rewards = train_agent(algorithm, params)
-    file_name = (
-        f"experiments/tmp/rewards_{algorithm.__name__.lower()}_{params.identifier}.csv"
-    )
+    file_name = f"experiments/tmp/learning_reward_{algorithm.__name__.lower()}_{params.identifier}.csv"
     if file_out:
         pd.DataFrame(training_rewards).to_csv(file_name)
     plt.plot(moving_average(training_rewards, window=10), label=algorithm.__name__)
