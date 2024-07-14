@@ -25,6 +25,8 @@ params = DotDict(
         "seed": 0,
         "prob1_state_idx": None,
         "deterministic_policy": False,
+        # related to file I/O
+        "digit": 4,
         "log_dir": "experiments/tmp/",
         # hyperparameters for the Q-learning
         "ql": DotDict(
@@ -47,4 +49,10 @@ params = DotDict(
             }
         ),
     }
+)
+params.identifier = (
+    f"G{params.num_groups}_"
+    f"C{params.cost_type_operation[:2]}-{params.cost_type_replace[:2]}_"
+    f"F{'o' if params.ggi else 'x'}_"
+    f"K{params.budget}{'o' if params.force_to_use_all_resources else 'x'}"
 )

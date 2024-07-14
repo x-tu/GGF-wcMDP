@@ -8,7 +8,6 @@ from utils.mrp import MRPData
 from utils.policy import check_equal_means
 
 n_runs = 1000
-digit = 4
 
 mrp = MRPData(
     num_groups=params.num_groups,
@@ -16,16 +15,10 @@ mrp = MRPData(
     cost_types_operation=params.cost_type_operation,
     cost_types_replace=params.cost_type_replace,
 )
-identifier = (
-    f"G{params.num_groups}_"
-    f"C{params.cost_type_operation[:2]}-{params.cost_type_replace[:2]}_"
-    f"F{'o' if params.ggi else 'x'}_"
-    f"K{params.budget}{'o' if params.force_to_use_all_resources else 'x'}"
-)
 
-file_name = f"experiments/tmp/rewards_whittle_{identifier}.csv"
-policy_file_name = f"experiments/tmp/policy_whittle_{identifier}.csv"
-whittle_index_file_name = f"experiments/tmp/whittle_index_{identifier}.csv"
+file_name = f"experiments/tmp/rewards_whittle_{params.identifier}.csv"
+policy_file_name = f"experiments/tmp/policy_whittle_{params.identifier}.csv"
+whittle_index_file_name = f"experiments/tmp/whittle_index_{params.identifier}.csv"
 whittle_agent = Whittle(
     num_states=params.num_states,
     num_arms=params.num_groups,
@@ -59,20 +52,23 @@ for run in range(n_runs):
                 range(params.num_states),
                 p=mrp.transitions[arm, state[arm], :, action[arm]],
             )
+        # print(state, action, group_rewards[:, run], next_state)
         state = next_state
 # to get the mean group reward to compare with weighted average comparison
 total_rewards = group_rewards.sum(axis=0) / params.num_groups
-# mean rewards
-print("Mean: ", total_rewards.mean().round(digit))
-print("Std:", (total_rewards.std() / np.sqrt(n_runs)).round(digit))
-
-print(check_equal_means(group_rewards))
 
 rewards_df = pd.DataFrame(group_rewards.T)
 rewards_df.columns = [f"Machine {i + 1}" for i in range(params.num_groups)]
 # plot the mean and variance of the two groups
 rewards_df.mean().plot(kind="bar", yerr=rewards_df.std())
-print(rewards_df.mean().round(digit))
+print("Mean:", rewards_df.mean().values.round(params.digit))
+print("Std:", rewards_df.std().values.round(params.digit))
+print(check_equal_means(group_rewards))
+# calculate GGF
+print(
+    "GGF: ", np.dot(np.sort(rewards_df.mean().values), np.array(mrp.weights)).round(4)
+)
+
 # label is horizontal
 plt.xticks(rotation=0)
 plt.show()
@@ -116,7 +112,3 @@ pd.DataFrame.from_dict(get_policy(whittle_agent, params), orient="index").to_csv
 )
 # save the whittle index
 pd.DataFrame(whittle_agent.w_indices[0]).to_csv(whittle_index_file_name)
-# calculate GGF
-print(
-    "GGF: ", np.dot(np.sort(rewards_df.mean().values), np.array(mrp.weights)).round(4)
-)
