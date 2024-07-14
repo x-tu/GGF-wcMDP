@@ -1,24 +1,27 @@
 """Callback function used to save the best model based on the training reward."""
 import os
+
 import numpy as np
 
-from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.results_plotter import load_results, ts2xy
 
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
-    """ Callback for saving a model based on the training reward.
+    """Callback for saving a model based on the training reward.
 
     check_freq: (int)
     log_dir: (str) Path to the folder where the model will be saved.
     verbose: (int) Verbosity level, 0: not output, 1: info, 2: debug.
     """
 
-    def __init__(self, check_freq: int, log_dir: str, verbose=1):
+    def __init__(
+        self, check_freq: int, log_dir: str, verbose=1, model_name: str = "best_model"
+    ):
         super().__init__(verbose)
         self.check_freq = check_freq
         self.log_dir = log_dir
-        self.save_path = os.path.join(log_dir, "best_model")
+        self.save_path = os.path.join(log_dir, model_name)
         self.best_mean_reward = -np.inf
 
     def _init_callback(self) -> None:
