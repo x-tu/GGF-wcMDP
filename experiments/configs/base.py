@@ -58,5 +58,6 @@ params.identifier = (
     f"F{'o' if params.ggi else 'x'}_"
     f"K{params.budget}{'o' if params.force_to_use_all_resources else 'x'}"
 )
+# Default exponential2 weights for quick access. Check the setting before use.
 weights = np.array([1 / (2**i) for i in range(params.num_groups)])
 params.weights = weights / np.sum(weights)

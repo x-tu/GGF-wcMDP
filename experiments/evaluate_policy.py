@@ -11,6 +11,7 @@ from utils.policy import check_equal_means
 
 ALGORITHMS = [PPO, SAC, TD3]
 RUNS = 1000
+RDM_NUM_EPISODES = 300
 FILE_OUT = False
 
 
@@ -95,11 +96,10 @@ env = PropCountSimMDPEnv(
     force_to_use_all_resources=params.force_to_use_all_resources,
 )
 random_agent = RandomAgent(env)
-rewards = random_agent.run(num_episodes=RUNS, len_episode=params.len_episode)
+rewards = random_agent.run(num_episodes=RDM_NUM_EPISODES)
 # calculate GGF
 print(
-    f"GGF-random: ",
-    np.dot(np.sort(rewards.mean(axis=0)), np.array(params.weights)).round(params.digit),
+    f"GGF-random: ", np.dot(np.sort(rewards), params.weights).mean().round(params.digit)
 )
 if FILE_OUT:
     pd.DataFrame(rewards).to_csv(
