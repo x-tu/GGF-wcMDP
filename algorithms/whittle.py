@@ -154,8 +154,8 @@ class Whittle:
                     top_indices.extend(list(shuffled_indices[: n_selection - top_len]))
                     top_len += len(shuffled_indices[: n_selection - top_len])
                     break
-            else:
-                top_indices = np.argsort(-current_indices)[:n_selection]
+        else:
+            top_indices = np.argsort(-current_indices)[:n_selection]
         # Create action vector
         action_vector = np.zeros_like(current_indices, dtype=np.int32)
         action_vector[top_indices] = 1
