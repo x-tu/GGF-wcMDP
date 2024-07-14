@@ -27,7 +27,7 @@ params = DotDict(
         "deterministic_policy": False,
         # related to file I/O
         "digit": 4,
-        "log_dir": "experiments/tmp/",
+        "log_dir": "./experiments/tmp/",
         # hyperparameters for the Q-learning
         "ql": DotDict(
             {
