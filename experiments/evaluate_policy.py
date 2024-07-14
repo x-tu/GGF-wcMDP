@@ -51,10 +51,6 @@ def simulate_group_rewards(env_sim, model_sim, runs):
     return rewards
 
 
-# Weights for calculating GGF
-weights = np.array([1 / (2**i) for i in range(params.num_groups)])
-weights /= np.sum(weights)
-
 # Evaluate the policy
 for algorithm in ALGORITHMS:
     env = PropCountSimMDPEnv(
@@ -81,7 +77,7 @@ for algorithm in ALGORITHMS:
     # calculate GGF
     print(
         f"GGF-{algorithm.__name__.lower()}: ",
-        np.dot(np.sort(rewards_df.mean().values), np.array(weights)).round(
+        np.dot(np.sort(rewards_df.mean().values), np.array(params.weights)).round(
             params.digit
         ),
     )
@@ -103,7 +99,7 @@ rewards = random_agent.run(num_episodes=RUNS, len_episode=params.len_episode)
 # calculate GGF
 print(
     f"GGF-random: ",
-    np.dot(np.sort(rewards.mean(axis=0)), np.array(weights)).round(params.digit),
+    np.dot(np.sort(rewards.mean(axis=0)), np.array(params.weights)).round(params.digit),
 )
 if FILE_OUT:
     pd.DataFrame(rewards).to_csv(

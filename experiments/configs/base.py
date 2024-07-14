@@ -1,5 +1,7 @@
 """This script includes all base parameters."""
 
+import numpy as np
+
 from utils.common import DotDict
 
 params = DotDict(
@@ -56,3 +58,5 @@ params.identifier = (
     f"F{'o' if params.ggi else 'x'}_"
     f"K{params.budget}{'o' if params.force_to_use_all_resources else 'x'}"
 )
+weights = np.array([1 / (2**i) for i in range(params.num_groups)])
+params.weights = weights / np.sum(weights)
