@@ -26,6 +26,7 @@ class PropCountSimMDPEnv(gym.Env):
         deterioration_step: int = 1,
         cost_types_operation: str = "quadratic",
         cost_types_replace: str = "rccc",
+        force_to_use_all_resources: bool = False,
     ):
         super(gym.Env, self).__init__()
 
@@ -41,6 +42,7 @@ class PropCountSimMDPEnv(gym.Env):
         if resource_range is None:
             resource_range = [1, 1]
         self.range_k = list(range(resource_range[0], resource_range[1] + 1))
+        self.force_to_use_all_resources = force_to_use_all_resources
 
         self.num_states = num_states
         self.len_episode = len_episode
@@ -63,9 +65,14 @@ class PropCountSimMDPEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(self.num_states + 1,), dtype=np.float32
         )
-        self.action_space = spaces.Box(
-            low=0, high=1, shape=(self.num_states + 1,), dtype=np.float32
-        )
+        if self.force_to_use_all_resources:
+            self.action_space = spaces.Box(
+                low=0, high=1, shape=(self.num_states,), dtype=np.float32
+            )
+        else:
+            self.action_space = spaces.Box(
+                low=0, high=1, shape=(self.num_states + 1,), dtype=np.float32
+            )
         self.reward_space = spaces.Box(low=0, high=5, shape=(1,), dtype=np.float32)
 
         # Initialization
@@ -99,8 +106,11 @@ class PropCountSimMDPEnv(gym.Env):
         return min(budget_to_use, self.num_budget)
 
     def select_action_by_priority(self, composed_action):
-        # assign the budget to use
-        budget_to_use = self.discretize_budget_proportion(composed_action[-1])
+        if self.force_to_use_all_resources:
+            budget_to_use = self.num_budget
+        else:
+            # assign the budget to use
+            budget_to_use = self.discretize_budget_proportion(composed_action[-1])
 
         # forbid taking actions if no machines
         action = composed_action[: self.num_states]
@@ -149,6 +159,7 @@ class PropCountSimMDPEnv(gym.Env):
 
         # simulate the next state
         next_count_state = np.zeros_like(count_state)
+        # ca_copy = count_action.copy()
         for i in range(self.num_states):
             for j in range(count_state[i]):
                 action_idx = 1 if count_action[i] > 0 else 0
@@ -171,6 +182,7 @@ class PropCountSimMDPEnv(gym.Env):
                 self.group_indices[i].remove(selected_idx)
                 self.group_indices[next_state_index].append(selected_idx)
         reward /= self.num_groups
+        # print(count_state, ca_copy, self.group_rewards, next_count_state)
         assert (
             np.sum(next_count_state) == self.num_groups
         ), f"{np.sum(next_count_state)} != {self.num_groups}"
