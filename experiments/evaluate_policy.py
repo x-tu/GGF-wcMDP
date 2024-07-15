@@ -12,7 +12,7 @@ from utils.policy import check_equal_means
 ALGORITHMS = [PPO, SAC, TD3]
 RUNS = 1000
 RDM_NUM_EPISODES = 300
-FILE_OUT = False
+FILE_OUT = True
 
 
 def extract_policy(env_policy, model_policy):

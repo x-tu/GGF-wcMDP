@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from algorithms.whittle import Whittle
 from experiments.configs.base import params
@@ -30,7 +31,7 @@ whittle_agent.whittle_brute_force(lower_bound=-2, upper_bound=2, num_trials=1000
 
 # MC simulation to evaluate the policy
 group_rewards = np.zeros((params.num_groups, n_runs))
-for run in range(n_runs):
+for run in tqdm(range(n_runs)):
     s_idx = np.random.choice(len(mrp.global_states))
     state = mrp.global_states[s_idx]
     for t in range(params.len_episode):
