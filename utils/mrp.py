@@ -19,6 +19,7 @@ class MRPData:
         prob_remain: Union[float, list] = 0.8,
         deterioration_step: int = 1,
         weight_type: str = "exponential2",
+        force_to_use_all_resources: bool = False,
         cost_types_operation: Union[list, str] = "quadratic",
         cost_types_replace: Union[list, str] = "rccc",
         add_absorbing_state: bool = False,
@@ -76,7 +77,7 @@ class MRPData:
         # generate data for multiple groups
         self.global_states = self.get_global_states()
         self.num_global_states = len(self.global_states)
-        self.global_actions = self.get_global_actions()
+        self.global_actions = self.get_global_actions(force_to_use_all_resources)
         self.num_global_actions = len(self.global_actions)
         self.global_transitions = self.generate_global_transition_matrix()
         self.global_costs = self.generate_global_cost_matrix()
@@ -114,8 +115,8 @@ class MRPData:
         tuple_list_s = list(itertools.product(*state_D_dim_temp))
         return np.array(tuple_list_s)
 
-    def get_global_actions(self) -> np.array:
-        """ A helper function used to get all possible actions: [Keep] + [replace_1, ..., replace_D].
+    def get_global_actions(self, force_to_use_all_resources: False) -> np.array:
+        """A helper function used to get all possible actions: [Keep] + [replace_1, ..., replace_D].
 
         Example (2 groups, 0: not replace, 1: replace):
             [0, 0; 1, 0; 0, 1]
@@ -123,11 +124,12 @@ class MRPData:
         Returns:
             (`np.array`): all possible actions
         """
-
-        # Keep all groups ([0]*D)
-        all_zeros = np.zeros(self.num_groups, dtype=int)
         # Replace the n-th group (diagonal[replace_1, ..., replace_D])
         replace_n = np.eye(self.num_groups, dtype=int)
+        # Keep all groups ([0]*D)
+        if force_to_use_all_resources:
+            return replace_n
+        all_zeros = np.zeros(self.num_groups, dtype=int)
         return np.vstack([all_zeros, replace_n])
 
     def generate_global_cost_matrix(self) -> np.array:

@@ -10,7 +10,10 @@ from utils.common import MDP4LP, DotDict
 
 
 def build_dlp(
-    mdp: MDP4LP, deterministic_policy: bool = False, prob1_state_idx: int = None, initial_mu: list = None
+    mdp: MDP4LP,
+    deterministic_policy: bool = False,
+    prob1_state_idx: int = None,
+    initial_mu: list = None,
 ) -> pyo.ConcreteModel:
     """Used to build the GGF dual MDP (stochastic) model."""
 
@@ -24,9 +27,9 @@ def build_dlp(
         big_mu_list[prob1_state_idx] = 1
     else:
         big_mu_list = [1 / len(mdp.state_indices)] * len(mdp.state_indices)
+        print("Uniform initial distribution")
     if initial_mu:
         big_mu_list = initial_mu
-    print("Initial distribution: ", big_mu_list)
     model.init_distribution = big_mu_list
 
     # Variables
@@ -111,7 +114,7 @@ def build_dlp_fix(mdp: MDP4LP, policy: pd.DataFrame) -> pyo.ConcreteModel:
 
 
 def solve_dlp(model: pyo.ConcreteModel, num_opt_solutions: int = 1):
-    """ Selects the solver and set the optimization settings.
+    """Selects the solver and set the optimization settings.
 
     Args:
         model: the MRP model to be optimized
@@ -159,7 +162,7 @@ def solve_dlp(model: pyo.ConcreteModel, num_opt_solutions: int = 1):
 
 
 def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
-    """ This function is used to extract optimized results.
+    """This function is used to extract optimized results.
 
     Args:
         model: the MRP model to be optimized
@@ -241,6 +244,9 @@ def extract_dlp(model: pyo.ConcreteModel, print_results: bool = False):
     if print_results:
         print(f"Proportion of stochastic policy: {round(proportion * 100, 2)}%")
         format_prints(results=results, model=model)
+    else:
+        print("GGF Value (DLP) L+N: ", results.ggf_value_ln)
+        print("GGF Value (DLP) XC:  ", results.ggf_value_xc)
     return results
 
 
@@ -273,7 +279,7 @@ def calculate_group_cost(model: pyo.ConcreteModel) -> np.array:
 
 
 def format_prints(results: DotDict, model: pyo.ConcreteModel):
-    """ This function is used to format the results and print them.
+    """This function is used to format the results and print them.
 
     Args:
         results: the results to be printed
