@@ -87,6 +87,6 @@ plt.ylabel("GGF Expected Returns")
 plt.title("Learning Curves (Smoothed)")
 # set figure size
 plt.gcf().set_size_inches(6, 5)
-plt.savefig(f"experiments/tmp/{params.identifier}.png")
 plt.legend()
+plt.savefig(f"experiments/tmp/{params.identifier}.png")
 plt.show()
