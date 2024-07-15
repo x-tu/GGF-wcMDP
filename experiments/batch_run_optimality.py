@@ -16,8 +16,12 @@ file_out = True
 
 def train_agent(algorithm, params):
     env = PropCountSimMDPEnv(
-        machine_range=[params.num_groups, params.num_groups],
-        resource_range=[params.budget, params.budget],
+        machine_range=params.machine_range
+        if params.machine_range
+        else [params.num_groups, params.num_groups],
+        resource_range=params.resource_range
+        if params.resource_range
+        else [params.budget, params.budget],
         num_states=params.num_states,
         len_episode=params.len_episode,
         cost_types_operation=params.cost_type_operation,
