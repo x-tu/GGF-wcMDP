@@ -82,7 +82,7 @@ class Whittle:
                 # Get the state-action value functions
                 for act in range(2):
                     Q[x, t, act] = (
-                        self.reward[arm, x, act]
+                        self.reward[0, x, act]
                         - penalty * act
                         + self.discount_rate
                         * np.dot(V[:, t + 1], self.transition[arm, x, :, act])

@@ -28,17 +28,20 @@ def build_whittle_agent_with_gcd():
     print(f"Reduced num_groups: {reduced_num_groups}, Reduced budget: {reduced_budget}")
 
     mrp = MRPData(
-        num_groups=reduced_num_groups,
+        num_groups=1,
         num_states=params.num_states,
         cost_types_operation=params.cost_type_operation,
         cost_types_replace=params.cost_type_replace,
     )
+    # repeat the rewards and transitions for the number of groups (Only for homogeneous sub-MDPs. Check before use.)
+    rewards = np.tile(mrp.rewards + 1, (params.num_groups, 1, 1))
+    transitions = np.tile(mrp.transitions, (params.num_groups, 1, 1, 1))
 
     agent = Whittle(
         num_states=params.num_states,
         num_arms=reduced_num_groups,
-        reward=mrp.rewards + 1,  # (arm, x, act)
-        transition=mrp.transitions,  # (arm, x, x', act)
+        reward=rewards,  # (arm, x, act)
+        transition=transitions,  # (arm, x, x', act)
         horizon=params.len_episode,
     )
 
