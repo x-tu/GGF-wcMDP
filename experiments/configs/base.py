@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from utils.common import DotDict
+from utils.common import DotDict, get_default_weights, get_identifier
 
 params = DotDict(
     {
@@ -54,22 +54,6 @@ params = DotDict(
         ),
     }
 )
-g_string = (
-    f"{params.machine_range[0]}-{params.machine_range[1]}"
-    if params.machine_range
-    else params.num_groups
-)
-k_string = (
-    f"{params.resource_range[0]}-{params.resource_range[1]}"
-    if params.resource_range
-    else params.budget
-)
-params.identifier = (
-    f"G{g_string}_"
-    f"C{params.cost_type_operation[:2]}-{params.cost_type_replace[:2]}_"
-    f"F{'o' if params.ggi else 'x'}_"
-    f"K{k_string}{'o' if params.force_to_use_all_resources else 'x'}"
-)
+params.identifier = get_identifier(params)
 # Default exponential2 weights for quick access. Check the setting before use.
-weights = np.array([1 / (2**i) for i in range(params.num_groups)])
-params.weights = weights / np.sum(weights)
+params.weights = get_default_weights(params.num_groups)

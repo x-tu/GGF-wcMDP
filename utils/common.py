@@ -97,3 +97,42 @@ class MDP4LP:
         assert np.all(
             np.sum(self.costs, axis=2) >= 0
         ), "The cost matrix must be non-negative."
+
+
+def get_identifier(params):
+    g_string = (
+        f"{params.machine_range[0]}-{params.machine_range[1]}"
+        if params.machine_range
+        else params.num_groups
+    )
+    k_string = (
+        f"{params.resource_range[0]}-{params.resource_range[1]}"
+        if params.resource_range
+        else params.budget
+    )
+    return (
+        f"G{g_string}_"
+        f"C{params.cost_type_operation[:2]}-{params.cost_type_replace[:2]}_"
+        f"F{'o' if params.ggi else 'x'}_"
+        f"K{k_string}{'o' if params.force_to_use_all_resources else 'x'}"
+    )
+
+
+def get_default_weights(num_groups):
+    weights = np.array([1 / (2**i) for i in range(num_groups)])
+    return weights / np.sum(weights)
+
+
+def update_params(params, num_groups, budget: None):
+    # update identifier
+    parts = params.identifier.split("_")
+    parts[0] = f"G{num_groups}"
+    if budget is not None:
+        parts[
+            -1
+        ] = f"K{budget}{parts[-1][-1]}"  # Keep the last character ('o' or 'x') from the original identifier
+    params.identifier = "_".join(parts)
+    # update weights
+    weights = np.array([1 / (2**i) for i in range(num_groups)])
+    params.weights = weights / np.sum(weights)
+    return params
