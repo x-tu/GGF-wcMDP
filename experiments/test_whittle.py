@@ -60,11 +60,10 @@ def build_whittle_agent_with_gcd():
     except FileNotFoundError:
         agent.whittle_brute_force(lower_bound=-2, upper_bound=2, num_trials=1000)
         whittle_indices = agent.w_indices[0]
-        if FILE_OUTPUT:
-            # save the whittle index
-            pd.DataFrame(agent.w_indices[0]).to_csv(
-                f"experiments/tmp/whittle_index_{params.identifier}.csv"
-            )
+        # save the whittle index
+        pd.DataFrame(agent.w_indices[0]).to_csv(
+            f"experiments/tmp/whittle_index_{params.identifier}.csv"
+        )
 
     # Update the indices to the original number of groups
     agent.num_a = params.num_groups
