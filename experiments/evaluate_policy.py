@@ -6,13 +6,19 @@ from tqdm import tqdm
 from env.mrp_simulation import PropCountSimMDPEnv
 from experiments.configs.base import params
 from stable_baselines3 import PPO, SAC, TD3
+from utils.common import update_params
 from utils.count import CountMDP
 from utils.policy import check_equal_means
+
+# random agent
+from utils.random import RandomAgent
 
 ALGORITHMS = [PPO, SAC, TD3]
 RUNS = 1000
 RDM_NUM_EPISODES = 300
 FILE_OUT = True
+GROUPS = [10, 50, 100]
+BUDGET_PROPS = [0.1, 0.2, 0.5]
 
 
 def extract_policy(env_policy, model_policy):
@@ -52,56 +58,61 @@ def simulate_group_rewards(env_sim, model_sim, runs):
     return rewards
 
 
-# Evaluate the policy
-for algorithm in ALGORITHMS:
-    env = PropCountSimMDPEnv(
-        machine_range=[params.num_groups, params.num_groups],
-        resource_range=[params.budget, params.budget],
-        num_states=params.num_states,
-        len_episode=params.len_episode,
-        cost_types_operation=params.cost_type_operation,
-        cost_types_replace=params.cost_type_replace,
-        force_to_use_all_resources=params.force_to_use_all_resources,
-    )
-    model = algorithm.load(
-        f"experiments/tmp/{algorithm.__name__.lower()}_{params.identifier}.zip"
-    )
-    # extract_policy(env, model)
-    group_rewards = simulate_group_rewards(env, model, RUNS)
-    rewards_df = pd.DataFrame(group_rewards)
-    if FILE_OUT:
-        rewards_df.to_csv(
-            f"experiments/tmp/rewards_{algorithm.__name__.lower()}_{params.identifier}.csv"
+for group in GROUPS:
+    params.num_groups = group
+    for budget in BUDGET_PROPS:
+        params.budget = int(budget * group)
+        params = update_params(params, group, params.budget)
+
+        print("Number of groups:", group, "Budget:", params.budget)
+        # Evaluate the policy
+        for algorithm in ALGORITHMS:
+            env = PropCountSimMDPEnv(
+                machine_range=[params.num_groups, params.num_groups],
+                resource_range=[params.budget, params.budget],
+                num_states=params.num_states,
+                len_episode=params.len_episode,
+                cost_types_operation=params.cost_type_operation,
+                cost_types_replace=params.cost_type_replace,
+                force_to_use_all_resources=params.force_to_use_all_resources,
+            )
+            model = algorithm.load(
+                f"experiments/tmp/{algorithm.__name__.lower()}_{params.identifier}.zip"
+            )
+            # extract_policy(env, model)
+            group_rewards = simulate_group_rewards(env, model, RUNS)
+            rewards_df = pd.DataFrame(group_rewards)
+            if FILE_OUT:
+                rewards_df.to_csv(
+                    f"experiments/tmp/rewards_{algorithm.__name__.lower()}_{params.identifier}.csv"
+                )
+            print(check_equal_means(groups=group_rewards.T))
+
+            # calculate GGF
+            print(
+                f"GGF-{algorithm.__name__.lower()}: ",
+                np.dot(
+                    np.sort(rewards_df.mean().values), np.array(params.weights)
+                ).round(params.digit),
+            )
+
+        env = PropCountSimMDPEnv(
+            machine_range=[params.num_groups, params.num_groups],
+            resource_range=[params.budget, params.budget],
+            num_states=params.num_states,
+            len_episode=params.len_episode,
+            cost_types_operation=params.cost_type_operation,
+            cost_types_replace=params.cost_type_replace,
+            force_to_use_all_resources=params.force_to_use_all_resources,
         )
-    print(check_equal_means(groups=group_rewards.T))
-
-    # calculate GGF
-    print(
-        f"GGF-{algorithm.__name__.lower()}: ",
-        np.dot(np.sort(rewards_df.mean().values), np.array(params.weights)).round(
-            params.digit
-        ),
-    )
-
-# random agent
-from utils.random import RandomAgent
-
-env = PropCountSimMDPEnv(
-    machine_range=[params.num_groups, params.num_groups],
-    resource_range=[params.budget, params.budget],
-    num_states=params.num_states,
-    len_episode=params.len_episode,
-    cost_types_operation=params.cost_type_operation,
-    cost_types_replace=params.cost_type_replace,
-    force_to_use_all_resources=params.force_to_use_all_resources,
-)
-random_agent = RandomAgent(env)
-rewards = random_agent.run(num_episodes=RDM_NUM_EPISODES)
-# calculate GGF
-print(
-    f"GGF-random: ", np.dot(np.sort(rewards), params.weights).mean().round(params.digit)
-)
-if FILE_OUT:
-    pd.DataFrame(rewards).to_csv(
-        f"experiments/tmp/rewards_random_{params.identifier}.csv"
-    )
+        random_agent = RandomAgent(env)
+        rewards = random_agent.run(num_episodes=RDM_NUM_EPISODES)
+        # calculate GGF
+        print(
+            f"GGF-random: ",
+            np.dot(np.sort(rewards), params.weights).mean().round(params.digit),
+        )
+        if FILE_OUT:
+            pd.DataFrame(rewards).to_csv(
+                f"experiments/tmp/rewards_random_{params.identifier}.csv"
+            )

@@ -3,15 +3,18 @@ import pandas as pd
 
 from env.mrp_simulation import PropCountSimMDPEnv
 from experiments.configs.base import params
-from stable_baselines3 import PPO, SAC, TD3
+from stable_baselines3 import A2C, PPO, SAC, TD3
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.noise import NormalActionNoise
 from utils.callbacks import SaveOnBestTrainingRewardCallback
+from utils.common import update_params
 from utils.plots import moving_average
 
 params.update({"num_episodes": 300, "len_episode": 300})
 algorithms = [PPO, SAC, TD3]
-file_out = True
+FILE_OUT = True
+GROUPS = [10, 50, 100]
+BUDGET_PROPS = [0.1, 0.2, 0.5]
 
 
 def train_agent(algorithm, params):
@@ -51,17 +54,26 @@ def train_agent(algorithm, params):
     return model, training_rewards
 
 
-# train the agents
-for algorithm in algorithms:
-    model, training_rewards = train_agent(algorithm, params)
-    file_name = f"experiments/tmp/learning_reward_{algorithm.__name__.lower()}_{params.identifier}.csv"
-    if file_out:
-        pd.DataFrame(training_rewards).to_csv(file_name)
-    plt.plot(moving_average(training_rewards, window=10), label=algorithm.__name__)
+for group in GROUPS:
+    params.num_groups = group
+    for budget in BUDGET_PROPS:
+        params.budget = int(budget * group)
+        params = update_params(params, group, params.budget)
 
-# plot figures
-plt.legend()
-plt.xlabel("Episodes")
-plt.ylabel("GGF Expected Returns")
-plt.title("Learning Curves (Smoothed)")
-plt.show()
+        # train the agents
+        for algorithm in algorithms:
+            model, training_rewards = train_agent(algorithm, params)
+            file_name = f"experiments/tmp/learning_reward_{algorithm.__name__.lower()}_{params.identifier}.csv"
+            if FILE_OUT:
+                pd.DataFrame(training_rewards).to_csv(file_name)
+            plt.plot(
+                moving_average(training_rewards, window=10), label=algorithm.__name__
+            )
+
+        # plot figures
+        plt.legend()
+        plt.xlabel("Episodes")
+        plt.ylabel("GGF Expected Returns")
+        plt.title("Learning Curves (Smoothed)")
+        plt.savefig(f"experiments/tmp/learning_reward_{params.identifier}.png")
+        plt.show()
