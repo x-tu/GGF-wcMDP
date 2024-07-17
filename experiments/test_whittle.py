@@ -7,16 +7,16 @@ from tqdm import tqdm
 
 from algorithms.whittle import Whittle
 from experiments.configs.base import params
+from utils.common import update_params
+from utils.count import CountMDP, count_to_normal
 from utils.mrp import MRPData
 from utils.policy import check_equal_means
 
 N_RUNS = 1000
 FILE_OUTPUT = False
 PLOT_BAR = False
-
-file_name = f"experiments/tmp/rewards_whittle_{params.identifier}.csv"
-policy_file_name = f"experiments/tmp/policy_whittle_{params.identifier}.csv"
-whittle_index_file_name = f"experiments/tmp/whittle_index_{params.identifier}.csv"
+GROUPS = [10, 50, 100]
+BUDGET_PROPS = [0.1, 0.2, 0.5]
 
 
 def build_whittle_agent_with_gcd():
@@ -59,7 +59,9 @@ def build_whittle_agent_with_gcd():
         whittle_indices = agent.w_indices[0]
         if FILE_OUTPUT:
             # save the whittle index
-            pd.DataFrame(agent.w_indices[0]).to_csv(whittle_index_file_name)
+            pd.DataFrame(agent.w_indices[0]).to_csv(
+                f"experiments/tmp/whittle_index_{params.identifier}.csv"
+            )
 
     # Update the indices to the original number of groups
     agent.num_a = params.num_groups
@@ -114,7 +116,6 @@ def run_whittle_mc_evaluation(agent, mrp):
 
 
 def get_policy(agent):
-    from utils.count import CountMDP, count_to_normal
 
     count_mdp = CountMDP(
         num_groups=params.num_groups,
@@ -143,13 +144,23 @@ def get_policy(agent):
     return policy
 
 
-whittle_agent, mrp_data = build_whittle_agent_with_gcd()
-rewards_df = run_whittle_mc_evaluation(whittle_agent, mrp_data)
+for group in GROUPS:
+    params.num_groups = group
+    for budget_prop in BUDGET_PROPS:
+        params.budget = int(group * budget_prop)
+        params = update_params(params, group, params.budget)
 
-if FILE_OUTPUT:
-    # save the rewards
-    rewards_df.to_csv(file_name, index=False)
-    # transpose the dictionary to save the policy
-    pd.DataFrame.from_dict(get_policy(whittle_agent), orient="index").to_csv(
-        policy_file_name
-    )
+        print(f"Number of groups: {params.num_groups}, Budget: {params.budget}")
+
+        whittle_agent, mrp_data = build_whittle_agent_with_gcd()
+        rewards_df = run_whittle_mc_evaluation(whittle_agent, mrp_data)
+
+        if FILE_OUTPUT:
+            # save the rewards
+            rewards_df.to_csv(
+                f"experiments/tmp/rewards_whittle_{params.identifier}.csv", index=False
+            )
+            # transpose the dictionary to save the policy
+            pd.DataFrame.from_dict(get_policy(whittle_agent), orient="index").to_csv(
+                f"experiments/tmp/policy_whittle_{params.identifier}.csv"
+            )

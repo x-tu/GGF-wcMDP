@@ -123,7 +123,7 @@ def get_default_weights(num_groups):
     return weights / np.sum(weights)
 
 
-def update_params(params, num_groups, budget: None):
+def update_params(params, num_groups, budget=None):
     # update identifier
     parts = params.identifier.split("_")
     parts[0] = f"G{num_groups}"
