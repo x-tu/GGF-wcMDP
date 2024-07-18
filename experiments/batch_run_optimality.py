@@ -11,9 +11,10 @@ from utils.common import update_params
 from utils.plots import moving_average
 
 params.update({"num_episodes": 300, "len_episode": 300})
-algorithms = [PPO, SAC, TD3]
-FILE_OUT = True
+algorithms = [PPO]  # focusing on PPO now
+REWARD_FILE_OUT = True
 GROUPS = [10, 50, 100]
+# fractions represent the budget as a fraction of the number of groups, else it is the actual budget
 BUDGET_PROPS = [0.1, 0.2, 0.5]
 
 
@@ -25,6 +26,7 @@ def train_agent(algorithm, params):
         resource_range=params.resource_range
         if params.resource_range
         else [params.budget, params.budget],
+        set_over_range=params.set_over_range,
         num_states=params.num_states,
         len_episode=params.len_episode,
         cost_types_operation=params.cost_type_operation,
@@ -57,14 +59,14 @@ def train_agent(algorithm, params):
 for group in GROUPS:
     params.num_groups = group
     for budget in BUDGET_PROPS:
-        params.budget = int(budget * group)
-        params = update_params(params, group, params.budget)
+        if budget < 1:
+            params.budget = int(budget * group)
 
         # train the agents
         for algorithm in algorithms:
             model, training_rewards = train_agent(algorithm, params)
             file_name = f"experiments/tmp/learning_reward_{algorithm.__name__.lower()}_{params.identifier}.csv"
-            if FILE_OUT:
+            if REWARD_FILE_OUT:
                 pd.DataFrame(training_rewards).to_csv(file_name)
             plt.plot(
                 moving_average(training_rewards, window=10), label=algorithm.__name__
