@@ -13,9 +13,11 @@ from utils.mrp import MRPData
 from utils.policy import check_equal_means
 
 N_RUNS = 1000
-FILE_OUTPUT = False
+REWARD_FILE_OUTPUT = False
+EXTRACT_POLICY = False
 PLOT_BAR = False
-GROUPS = [10, 50, 100]
+GROUPS = [10, 20, 50]
+# fractions represent the budget as a fraction of the number of groups, else it is the actual budget
 BUDGET_PROPS = [0.1, 0.2, 0.5]
 
 
@@ -149,7 +151,8 @@ def get_policy(agent):
 for group in GROUPS:
     params.num_groups = group
     for budget_prop in BUDGET_PROPS:
-        params.budget = int(group * budget_prop)
+        if budget_prop < 1:
+            params.budget = int(group * budget_prop)
         params = update_params(params, group, params.budget)
 
         print(f"Number of groups: {params.num_groups}, Budget: {params.budget}")
@@ -157,11 +160,12 @@ for group in GROUPS:
         whittle_agent, mrp_data = build_whittle_agent_with_gcd()
         rewards_df = run_whittle_mc_evaluation(whittle_agent, mrp_data)
 
-        if FILE_OUTPUT:
+        if REWARD_FILE_OUTPUT:
             # save the rewards
             rewards_df.to_csv(
                 f"experiments/tmp/rewards_whittle_{params.identifier}.csv", index=False
             )
+        if EXTRACT_POLICY:
             # transpose the dictionary to save the policy
             pd.DataFrame.from_dict(get_policy(whittle_agent), orient="index").to_csv(
                 f"experiments/tmp/policy_whittle_{params.identifier}.csv"
