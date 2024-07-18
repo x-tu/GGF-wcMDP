@@ -13,6 +13,7 @@ params = DotDict(
         "machine_range": None,
         "budget": 1,
         "resource_range": None,
+        "set_over_range": False,  # option to control machine and resource as a range or a set
         "ggi": True,
         "rccc_wrt_max": 0.5,
         "mat_type": 1,
