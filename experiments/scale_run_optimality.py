@@ -15,6 +15,7 @@ if FILE_OUT:
     pd.DataFrame(training_rewards).to_csv(file_name)
 plt.plot(moving_average(training_rewards, window=10), label="PPO")
 
+print("============= plotting")
 # plot figures
 plt.legend()
 plt.xlabel("Episodes")

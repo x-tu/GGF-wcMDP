@@ -20,7 +20,7 @@ params = DotDict(
         "weight_type": "exponential2",
         "cost_type_operation": "quadratic",
         "cost_type_replace": "rccc",
-        "force_to_use_all_resources": True,
+        "force_to_use_all_resources": False,
         "prob_remain": 0.8,
         "num_opt_solutions": 1,
         "num_episodes": 1000,
