@@ -101,12 +101,12 @@ class MDP4LP:
 
 def get_identifier(params):
     g_string = (
-        f"{params.machine_range[0]}-{params.machine_range[1]}"
+        f"{params.machine_range[0]}-{params.machine_range[-1]}"
         if params.machine_range
         else params.num_groups
     )
     k_string = (
-        f"{params.resource_range[0]}-{params.resource_range[1]}"
+        f"{params.resource_range[0]}-{params.resource_range[-1]}"
         if params.resource_range
         else params.budget
     )

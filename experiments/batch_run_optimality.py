@@ -56,26 +56,43 @@ def train_agent(algorithm, params):
     return model, training_rewards
 
 
-for group in GROUPS:
-    params.num_groups = group
-    for budget in BUDGET_PROPS:
-        if budget < 1:
-            params.budget = int(budget * group)
+if not params.machine_range:
+    for group in GROUPS:
+        params.num_groups = group
+        for budget in BUDGET_PROPS:
+            if budget < 1:
+                params.budget = int(budget * group)
+            update_params(params, group, params.budget)
 
-        # train the agents
-        for algorithm in algorithms:
-            model, training_rewards = train_agent(algorithm, params)
-            file_name = f"experiments/tmp/learning_reward_{algorithm.__name__.lower()}_{params.identifier}.csv"
-            if REWARD_FILE_OUT:
-                pd.DataFrame(training_rewards).to_csv(file_name)
-            plt.plot(
-                moving_average(training_rewards, window=10), label=algorithm.__name__
-            )
+            # train the agents
+            for algorithm in algorithms:
+                model, training_rewards = train_agent(algorithm, params)
+                file_name = f"experiments/tmp/learning_reward_{algorithm.__name__.lower()}_{params.identifier}.csv"
+                if REWARD_FILE_OUT:
+                    pd.DataFrame(training_rewards).to_csv(file_name)
+                plt.plot(
+                    moving_average(training_rewards, window=10),
+                    label=algorithm.__name__,
+                )
 
-        # plot figures
-        plt.legend()
-        plt.xlabel("Episodes")
-        plt.ylabel("GGF Expected Returns")
-        plt.title("Learning Curves (Smoothed)")
-        plt.savefig(f"experiments/tmp/learning_reward_{params.identifier}.png")
-        plt.show()
+                # plot figures
+            plt.legend()
+            plt.xlabel("Episodes")
+            plt.ylabel("GGF Expected Returns")
+            plt.title("Learning Curves (Smoothed)")
+            plt.savefig(f"experiments/tmp/learning_reward_{params.identifier}.png")
+            plt.show()
+else:
+    model, training_rewards = train_agent(PPO, params)
+    file_name = f"experiments/tmp/learning_reward_ppo_{params.identifier}.csv"
+    if REWARD_FILE_OUT:
+        pd.DataFrame(training_rewards).to_csv(file_name)
+    plt.plot(moving_average(training_rewards, window=10), label="PPO")
+
+    # plot figures
+    plt.legend()
+    plt.xlabel("Episodes")
+    plt.ylabel("GGF Expected Returns")
+    plt.title("Learning Curves (Smoothed)")
+    plt.savefig(f"experiments/tmp/learning_reward_{params.identifier}.png")
+    plt.show()
