@@ -19,6 +19,7 @@ class PropCountSimMDPEnv(gym.Env):
         num_states: int,
         machine_range=None,
         resource_range=None,
+        set_over_range=False,
         len_episode: int = 300,
         gamma: float = 0.95,
         rccc_wrt_max: float = 1.5,
@@ -38,10 +39,15 @@ class PropCountSimMDPEnv(gym.Env):
         self.num_budget = None
         if machine_range is None:
             machine_range = [2, 5]
-        self.range_d = list(range(machine_range[0], machine_range[1] + 1))
         if resource_range is None:
             resource_range = [1, 1]
-        self.range_k = list(range(resource_range[0], resource_range[1] + 1))
+        if set_over_range:
+            # avoid duplicates
+            self.range_d = list(set(machine_range))
+            self.range_k = list(set(resource_range))
+        else:
+            self.range_d = list(range(machine_range[0], machine_range[1] + 1))
+            self.range_k = list(range(resource_range[0], resource_range[1] + 1))
         self.force_to_use_all_resources = force_to_use_all_resources
 
         self.num_states = num_states
@@ -87,7 +93,8 @@ class PropCountSimMDPEnv(gym.Env):
 
     def update_mdp(self):
         self.num_groups = np.random.choice(self.range_d)
-        self.num_budget = np.random.choice(self.range_k)
+        budget = np.random.choice(self.range_k)
+        self.num_budget = int(budget * self.num_groups) if budget < 1 else budget
         self.last_group_rewards = np.copy(self.group_rewards)
         self.group_rewards = np.zeros(self.num_groups)
 
@@ -106,6 +113,7 @@ class PropCountSimMDPEnv(gym.Env):
         return min(budget_to_use, self.num_budget)
 
     def select_action_by_priority(self, composed_action):
+        forbidden_set = set()
         if self.force_to_use_all_resources:
             budget_to_use = self.num_budget
         else:
@@ -125,14 +133,20 @@ class PropCountSimMDPEnv(gym.Env):
         # convert the action to count action
         count_action = np.zeros_like(action)
         state_count = self.observations[: self.num_states] * self.num_groups
-        num_samples = 0
-        while budget_to_use > 0 and num_samples < self.num_groups:
-            action_idx = np.random.choice(range(self.num_states), p=prob_action)
+        forbidden_set.update(np.where(prob_action - 0 < 1e-3)[0])
+        while len(forbidden_set) < self.num_states:
+            allowed_action = list(set(range(self.num_states)) - forbidden_set)
+            allowed_prob_action = np.array([prob_action[i] for i in allowed_action])
+            allowed_prob_action /= np.sum(allowed_prob_action)
+            action_idx = np.random.choice(allowed_action, p=allowed_prob_action)
             if state_count[action_idx] > 0:
                 count_action[action_idx] += 1
                 state_count[action_idx] -= 1
                 budget_to_use -= 1
-            num_samples += 1
+                if state_count[action_idx] == 0:
+                    forbidden_set.add(action_idx)
+            else:
+                forbidden_set.add(action_idx)
         return count_action.astype(int)
 
     def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):

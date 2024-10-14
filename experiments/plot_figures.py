@@ -11,11 +11,11 @@ from utils.mrp import MRPData
 from utils.plots import moving_average
 
 data = {}
-for algorithm in ["ppo", "sac", "td3"]:
+for algorithm in ["ppo"]:
     df = pd.read_csv(
         f"experiments/tmp/learning_reward_{algorithm}_{params.identifier}.csv"
     )["0"]
-    df = moving_average(df, window=10)
+    df = moving_average(df, window=1)
     label = algorithm.upper()
     data[label] = df
 data_df = pd.DataFrame(data)
@@ -29,7 +29,7 @@ df = pd.read_csv(f"experiments/tmp/rewards_random_{params.identifier}.csv")
 # drop the first column
 df = df.drop(df.columns[0], axis=1)
 df_random = moving_average(
-    np.dot(np.sort(df), params.weights).round(params.digit), window=10
+    np.dot(np.sort(df), params.weights).round(params.digit), window=1
 )
 data_df["Random"] = df_random[0 : data_df.shape[0]]
 
@@ -84,7 +84,7 @@ plt.ylim([8, ymax])
 plt.xlim([-5, num_episodes])
 plt.xlabel("Episodes")
 plt.ylabel("GGF Expected Returns")
-plt.title("Learning Curves (Smoothed)")
+plt.title("Learning Curves")
 # set figure size
 plt.gcf().set_size_inches(6, 5)
 plt.legend()
