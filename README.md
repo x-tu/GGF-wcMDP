@@ -3,25 +3,25 @@
 ## Code Structure
 
 ```buildoutcfg
-├── algorithms              # RL environments
-│   ├── whittle             # Whittle Index baseline
+├── algorithms              # Baseline and other algorithms
+│   ├── dlp                 # MC simulation with optimal solutions from GGF-LP model
+│   └── whittle             # Whittle Index baseline
 ├── env                     # RL environments
-│   ├── predator_prey       # [To be Maintained] Predator-Prey environment (was rewritten based on ICML 2020 paper)
-│   ├── mrp_env.py          # Machine Replacement Problem environment
-│   └── mrp_env_rccc.py     # Machine Replacement Problem environment with Replacement Cost Constant Coefficient
+│   ├── mrp_env_rccc        # Machine Replacement Problem (MRP) environment
+│   └── mrp_simulation      # MRP env with count MDP
 ├── experiments             # main scripts for running experiments
-│   ├── analysis            # functions used for analyzing/visualizing the results
 │   ├── configs             # configurations for creating the RL agents
-│   ├── results             # saved intermediate results of the experiments
-│   ├── tests               # unit tests for the project
-│   └── .py/.ipynb          # main scripts for running experiments
-├── solver                  # [In Progress] solver for solving the LP model
-│   ├── fix_policy          # [To be added] solve the GGF-MDP(D) model with a fixed policy from RL
-│   ├── ggf_dual            # solve the GGF-MDP(D) model
-│   └── momdp               # solve the MOMDP model (no fairness)
+│   ├── batch_run           # train RL agents
+│   ├── plot_figures        # plot figures
+│   ├── run_whittle         # run Whittle Index baseline
+│   └── solve_ggf_dlp       # solve the GGF-LP model
+├── solver                  # LP solvers
+│   ├── count_dlp           # solve the Count dual LP model
+│   ├── dual_q              # solve GGF values based on Q values from RL agents
+│   └── ggf_dual            # solve the GGF-MDP(D) model
 ├── stable_baselines3       # RL algorithms (stable-baselines3, PyTorch version)
 ├── utils                   # shared useful functions/classes
-└── requirements.txt            # all the packages needed for the project
+└── requirements.txt        # all the packages needed for the project
 ```
 
 **Official document for Python library used**:
