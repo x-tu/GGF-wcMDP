@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import pandas as pd
 import torch
@@ -13,11 +15,11 @@ from utils.policy import check_equal_means
 # random agent
 from utils.random import RandomAgent
 
-ALGORITHMS = [PPO, SAC, TD3]
+ALGORITHMS = [PPO]
 RUNS = 1000
 RDM_NUM_EPISODES = 300
 FILE_OUT = True
-GROUPS = [10, 50, 100]
+GROUPS = [10, 20, 50]
 BUDGET_PROPS = [0.1, 0.2, 0.5]
 
 
@@ -58,6 +60,7 @@ def simulate_group_rewards(env_sim, model_sim, runs):
     return rewards
 
 
+identifier = copy.deepcopy(params.identifier)
 for group in GROUPS:
     params.num_groups = group
     for budget in BUDGET_PROPS:
@@ -76,8 +79,12 @@ for group in GROUPS:
                 cost_types_replace=params.cost_type_replace,
                 force_to_use_all_resources=params.force_to_use_all_resources,
             )
+            identifier_to_load = (
+                identifier if params.machine_range else params.identifier
+            )
+            print(f"Loading {identifier_to_load} model...")
             model = algorithm.load(
-                f"experiments/tmp/{algorithm.__name__.lower()}_{params.identifier}.zip"
+                f"experiments/tmp/{algorithm.__name__.lower()}_{identifier_to_load}"
             )
             # extract_policy(env, model)
             group_rewards = simulate_group_rewards(env, model, RUNS)

@@ -19,6 +19,7 @@ class PropCountSimMDPEnv(gym.Env):
         num_states: int,
         machine_range=None,
         resource_range=None,
+        set_over_range=False,
         len_episode: int = 300,
         gamma: float = 0.95,
         rccc_wrt_max: float = 1.5,
@@ -38,10 +39,15 @@ class PropCountSimMDPEnv(gym.Env):
         self.num_budget = None
         if machine_range is None:
             machine_range = [2, 5]
-        self.range_d = list(range(machine_range[0], machine_range[1] + 1))
         if resource_range is None:
             resource_range = [1, 1]
-        self.range_k = list(range(resource_range[0], resource_range[1] + 1))
+        if set_over_range:
+            # avoid duplicates
+            self.range_d = list(set(machine_range))
+            self.range_k = list(set(resource_range))
+        else:
+            self.range_d = list(range(machine_range[0], machine_range[1] + 1))
+            self.range_k = list(range(resource_range[0], resource_range[1] + 1))
         self.force_to_use_all_resources = force_to_use_all_resources
 
         self.num_states = num_states
@@ -87,7 +93,8 @@ class PropCountSimMDPEnv(gym.Env):
 
     def update_mdp(self):
         self.num_groups = np.random.choice(self.range_d)
-        self.num_budget = np.random.choice(self.range_k)
+        budget = np.random.choice(self.range_k)
+        self.num_budget = int(budget * self.num_groups) if budget < 1 else budget
         self.last_group_rewards = np.copy(self.group_rewards)
         self.group_rewards = np.zeros(self.num_groups)
 
