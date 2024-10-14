@@ -113,6 +113,7 @@ class PropCountSimMDPEnv(gym.Env):
         return min(budget_to_use, self.num_budget)
 
     def select_action_by_priority(self, composed_action):
+        forbidden_set = set()
         if self.force_to_use_all_resources:
             budget_to_use = self.num_budget
         else:
@@ -132,14 +133,20 @@ class PropCountSimMDPEnv(gym.Env):
         # convert the action to count action
         count_action = np.zeros_like(action)
         state_count = self.observations[: self.num_states] * self.num_groups
-        num_samples = 0
-        while budget_to_use > 0 and num_samples < self.num_groups:
-            action_idx = np.random.choice(range(self.num_states), p=prob_action)
+        forbidden_set.update(np.where(prob_action - 0 < 1e-3)[0])
+        while len(forbidden_set) < self.num_states:
+            allowed_action = list(set(range(self.num_states)) - forbidden_set)
+            allowed_prob_action = np.array([prob_action[i] for i in allowed_action])
+            allowed_prob_action /= np.sum(allowed_prob_action)
+            action_idx = np.random.choice(allowed_action, p=allowed_prob_action)
             if state_count[action_idx] > 0:
                 count_action[action_idx] += 1
                 state_count[action_idx] -= 1
                 budget_to_use -= 1
-            num_samples += 1
+                if state_count[action_idx] == 0:
+                    forbidden_set.add(action_idx)
+            else:
+                forbidden_set.add(action_idx)
         return count_action.astype(int)
 
     def reset(self, sc_idx: Union[int, list] = 0, deterministic=False):
