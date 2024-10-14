@@ -1,5 +1,3 @@
-"""Code by Nima Akbarzadeh for Risk-Neutral Whittle Index Policy for Restless Bandit Problems"""
-
 import numpy as np
 
 

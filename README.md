@@ -3,31 +3,30 @@
 ## Code Structure
 
 ```buildoutcfg
-├── src                         # source code for the project
-│   ├── env                     # RL environments
-│   │   ├── predator_prey       # [To be Maintained] Predator-Prey environment (was rewritten based on ICML 2020 paper)
-│   │   ├── mrp_env.py          # Machine Replacement Problem environment
-│   │   └── mrp_env_rccc.py     # Machine Replacement Problem environment with Replacement Cost Constant Coefficient
-│   ├── experiments             # main scripts for running experiments
-│   │   ├── analysis            # functions used for analyzing/visualizing the results
-│   │   ├── configs             # configurations for creating the RL agents
-│   │   ├── results             # saved intermediate results of the experiments
-│   │   ├── tests               # unit tests for the project
-│   │   └── .py/.ipynb          # main scripts for running experiments
-│   ├── solver                  # [In Progress] solver for solving the LP model
-│   │   ├── fix_policy          # [To be added] solve the GGF-MDP(D) model with a fixed policy from RL
-│   │   ├── ggf_dual            # solve the GGF-MDP(D) model
-│   │   └── momdp               # solve the MOMDP model (no fairness)
-│   ├── stable_baselines        # RL algorithms (stable-baselines, TensorFlow 1.x version)
-│   ├── stable_baselines3       # RL algorithms (stable-baselines3, PyTorch version)
-│   └── utils                   # shared useful functions/classes
+├── algorithms              # RL environments
+│   ├── whittle             # Whittle Index baseline
+├── env                     # RL environments
+│   ├── predator_prey       # [To be Maintained] Predator-Prey environment (was rewritten based on ICML 2020 paper)
+│   ├── mrp_env.py          # Machine Replacement Problem environment
+│   └── mrp_env_rccc.py     # Machine Replacement Problem environment with Replacement Cost Constant Coefficient
+├── experiments             # main scripts for running experiments
+│   ├── analysis            # functions used for analyzing/visualizing the results
+│   ├── configs             # configurations for creating the RL agents
+│   ├── results             # saved intermediate results of the experiments
+│   ├── tests               # unit tests for the project
+│   └── .py/.ipynb          # main scripts for running experiments
+├── solver                  # [In Progress] solver for solving the LP model
+│   ├── fix_policy          # [To be added] solve the GGF-MDP(D) model with a fixed policy from RL
+│   ├── ggf_dual            # solve the GGF-MDP(D) model
+│   └── momdp               # solve the MOMDP model (no fairness)
+├── stable_baselines3       # RL algorithms (stable-baselines3, PyTorch version)
+├── utils                   # shared useful functions/classes
 └── requirements.txt            # all the packages needed for the project
 ```
 
 **Official document for Python library used**:
-1. [stable-baselines](https://stable-baselines.readthedocs.io/en/master/index.html)
-2. [stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/)
-3. [pyomo](http://www.pyomo.org/)
+1. [stable-baselines3](https://stable-baselines3.readthedocs.io/en/master/)
+2. [pyomo](http://www.pyomo.org/)
 
 
 ## Package Setup
